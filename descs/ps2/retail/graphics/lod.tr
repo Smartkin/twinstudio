@@ -1,0 +1,25 @@
+
+asset TwinRes_LodFull {
+    int32_t meshAmount : 8;
+    int32_t minDrawDistance;
+    int32_t maxDrawDistance;
+    [length(3)] int32_t* modelDrawDistances;
+    int32_t unused;
+    [link_resource("Mesh")] [length(meshAmount)] uint32_t* meshes;
+}
+
+asset TwinRes_LodCompressed {
+    uint8_t meshAmount;
+    int32_t minDrawDistance;
+    int32_t maxDrawDistance;
+    [length(3)] int32_t* modelDrawDistances;
+    [link_resource("Mesh")] [length(meshAmount)] uint32_t* meshes;
+}
+
+asset TwinRes_Lod {
+    int32_t lodType;
+    [write_if("source->lodType == 0x1001")]
+    TwinRes_LodFull fullLod;
+    [write_if("source->lodType == 0x1002")]
+    TwinRes_LodCompressed compressedLod;
+}
