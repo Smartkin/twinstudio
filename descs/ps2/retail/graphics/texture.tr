@@ -1,0 +1,30 @@
+
+
+asset TwinRes_Texture {
+    uint32_t textureDataLength;
+    uint32_t headerSignature = 0xbbcccdcd;
+    uint16_t imageWidthPower;
+    uint16_t imageHeightPower;
+    uint8_t  mipLevels;
+    uint8_t  textureFormat;
+    uint8_t  destinationTextureFormat;
+    uint8_t  colorComponent;
+    uint8_t  unkByte;
+    uint8_t  textureFunction;
+    [length(2)] uint8_t* unkBytes1;
+    int32_t  textureBasePointer;
+    [length(6)] int32_t* mipLevelsTBP;
+    int32_t  textureBufferWidth;
+    [length(6)] int32_t* mipLevelsTBW;
+    int32_t  clutBufferBasePointer;
+    int32_t  clutBufferWidth;
+    [length(4)] uint8_t* unkBytes2;
+    int32_t _reserved1;
+    int32_t _reserved2;
+    [length(2)] uint8_t* unkBytes3;
+    [length(2)] uint8_t* _reserved3;
+    [length(32)] uint8_t* unusedMetadata;
+    
+    [resource("TwinStudio_Texture")] [length("source->textureDataLength - 128")]
+    void* textureData;
+}

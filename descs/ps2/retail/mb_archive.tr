@@ -1,0 +1,39 @@
+#include "auto_struct_mh_archive.h"
+#include "audio/wave.h"
+
+
+asset TwinRes_MbRecord {
+    [no_json] [no_bin]
+    TwinRes_MhRecord header;
+
+    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")] [length(4)]
+    char* msvp = "MSVp";
+
+    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")]
+    uint32_t key = 0x20000000;
+
+    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")]
+    int32_t _pad1 = 0;
+
+    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")] [big_endian]
+    uint32_t trackSize;
+
+    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")] [big_endian]
+    int32_t sampleRate;
+
+    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")] int32_t _pad2 = 0;
+    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")] int32_t _pad3 = 0;
+    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")] int32_t _pad4 = 0;
+
+    [length(16)] [write_if("source->header.type == TwinRes_MRT_Mono")]
+    TwinStudio_StringView name;
+
+    [resource("TwinStudio_Wave")] [length("source->header.type == TwinRes_MRT_Mono ? source->header.size - 0x30 : source->header.size")]
+    void* trackData;
+}
+
+[no_json] [no_read]
+asset TwinRes_MbArchive {
+    [align(0x800, 0x0)] [no_length]
+    TwinRes_MbRecord* items;
+}

@@ -1,0 +1,132 @@
+#include "raylib.h"
+
+asset TwinRes_ShaderAnimationSettings {
+    //uint16_t unusedFlags;
+    //uint16_t transformChoice;
+    //[union_of(transformChoice)]
+    //uint8_t  translateX : 1;
+    //[union_of(transformChoice)]
+    //uint8_t  translateY : 1;
+    //[union_of(transformChoice)]
+    //uint8_t  colorR : 1;
+    //[union_of(transformChoice)]
+    //uint8_t  colorG : 1;
+    //[union_of(transformChoice)]
+    //uint8_t  colorB : 1;
+    //[union_of(transformChoice)]
+    //uint8_t  colorA : 1;
+
+    //uint16_t staticTransformationIndex;
+    //uint16_t animationTransformationIndex;
+}
+
+asset TwinRes_ShaderAnimation {
+    //uint32_t header;
+    //uint32_t dataPacker;
+    //[union_of(dataPacker)]
+    //uint8_t  animationSettingsAmount : 7;
+    //[union_of(dataPacker)]
+    //uint8_t  _pad1 : 3;
+    //[union_of(dataPacker)]
+    //uint16_t staticTransformationsAmount : 10;
+    //[union_of(dataPacker)]
+    //uint8_t  _pad2 : 2;
+    //[union_of(dataPacker)]
+    //uint16_t animatedTransformationsAmount : 10;
+    //uint16_t totalFrames;
+
+    //[length(animationSettingsAmount)]
+    //TwinRes_ShaderAnimationSettings* settings;
+}
+
+enum TwinRes_MaterialShaderType {
+    TwinRes_MST_StandardUnlit = 1,
+    TwinRes_MST_StandardLit = 2,
+    TwinRes_MST_LitSkinnedModel = 4,
+    TwinRes_MST_UnlitSkydome = 10,
+    TwinRes_MST_ColorOnly = 11,
+    TwinRes_MST_LitEnvironmentMap = 12,
+    TwinRes_MST_UiShader = 13,
+    TwinRes_MST_LitMetallic = 15,
+    TwinRes_MST_LitReflectionSurface = 16,
+    TwinRes_MST_SHADER_17 = 17,
+    TwinRes_MST_Particle = 18,
+    TwinRes_MST_Decal = 19,
+    TwinRes_MST_SHADER_20 = 20,
+    TwinRes_MST_UnlitGlossy = 21,
+    TwinRes_MST_UnlitEnvironmentMap = 22,
+    TwinRes_MST_UnlitClothDeformation = 23,
+    TwinRes_MST_SHADER_25 = 25,
+    TwinRes_MST_UnlitClothDeformation2 = 26,
+    TwinRes_MST_UnlitBillboard = 27,
+    TwinRes_MST_SHADER_30 = 30,
+    TwinRes_MST_SHADER_31 = 31,
+    TwinRes_MST_SHADER_32 = 32
+}
+
+asset TwinRes_MaterialShader {
+    [is_enum] TwinRes_MaterialShaderType type;
+
+    [write_if("source->type == TwinRes_MST_UnlitClothDeformation || source->type == TwinRes_MST_UnlitClothDeformation2")]
+    uint32_t intParam;
+
+    [write_if("source->type == TwinRes_MST_UnlitClothDeformation || source->type == TwinRes_MST_UnlitClothDeformation2 || source->type == TwinRes_MST_LitReflectionSurface || source->type == TwinRes_MST_SHADER_17")]
+    float floatParam1;
+
+    [write_if("source->type == TwinRes_MST_UnlitClothDeformation || source->type == TwinRes_MST_UnlitClothDeformation2")]
+    float floatParam2;
+
+    [write_if("source->type == TwinRes_MST_UnlitClothDeformation2")]
+    float floatParam3;
+
+    [write_if("source->type == TwinRes_MST_UnlitClothDeformation2")]
+    float floatParam4;
+
+    uint8_t alphaBlending;
+    uint8_t alphaRegSettingsIndex;
+    uint8_t alphaTest;
+    uint8_t alphaTestMethod;
+    uint8_t alphaValueToBeComparedTo;
+    uint8_t processMethodWhenAlphaTestFailed;
+    uint8_t destinationAlphaTest;
+    uint8_t destinationAlphaTestMode;
+    uint8_t depthTest;
+    uint8_t unkValue1;
+    uint8_t shadingMethod;
+    uint8_t textureMapping;
+    uint8_t methodOfSpecifyingTextureCoordinates;
+    uint8_t fog;
+    uint8_t contextNum;
+    uint8_t uScrollSettings;
+    uint8_t vScrollSettings;
+    bool    useCustomAlphaRegSettings;
+    uint8_t specOfColA;
+    uint8_t specOfColB;
+    uint8_t specOfAlphaC;
+    uint8_t specOfColD;
+    uint8_t fixedAlphaValue;
+    uint8_t textureFiltering;
+    bool    useAlphaCorrectionValue;
+    bool    unkFlag1;
+    bool    unkFlag2;
+    uint8_t zValueDrawingMask;
+    bool    unkFlag3;
+    bool    hasAnimation;
+    uint16_t lodParamK;
+    uint16_t lodParamL;
+    Vector4  unkVector1;
+    Vector4  unkVector2;
+    Vector4  uvScrollSpeed;
+    [link_resource("Texture")] uint32_t texture;
+    [is_enum] TwinRes_MaterialShaderType type2;
+
+    [write_if("source->hasAnimation")]
+    TwinRes_ShaderAnimation animation;
+}
+
+asset TwinRes_Material {
+    uint64_t appliedShaders;
+    uint32_t dmaChainIndex;
+    TwinStudio_StringView name;
+    TwinRes_MaterialShader* shaders;
+}

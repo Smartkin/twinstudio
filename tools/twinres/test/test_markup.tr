@@ -1,0 +1,33 @@
+#include "raylib.h" // Comment test and include usage
+
+// Test enum definition
+enum TwinRes_TestEnum {
+   TwinRes_MyEnum1,
+   TwinRes_MyEnum2 = 5,
+   TwinRes_MyEnum3
+}
+
+// Test asset declaration
+[wrong_attrib] // Test unknown attribute warning
+asset TestAsset {
+   float field1 = 1.0;
+   bool fieldBool = true;
+   int field2 : 5;
+   int field3 : 3;
+   Vector3 vec1 = { .x = 1.0, .y = 1.0, .z = 1.0 }; // Foreign type usage
+   Matrix matrix;
+   Vector2 vec2;
+   Vector4 vec4;
+   Quaternion quat;
+}
+
+#include "clay.h" // struct definition broken up by another include
+
+asset AnotherAsset {
+   int field1;
+   float field2;
+   float field3;
+   TwinStudio_StringView field4;
+   TestAsset fieldTestAsset;
+   [is_enum] TwinRes_TestEnum testEnumEntry = TwinRes_MyEnum2;
+}

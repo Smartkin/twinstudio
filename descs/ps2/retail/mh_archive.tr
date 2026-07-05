@@ -1,0 +1,22 @@
+
+enum TwinRes_MusicRecordType {
+    TwinRes_MRT_Mono,
+    TwinRes_MRT_Stereo,
+    TwinRes_MRT_Null
+}
+
+[no_json]
+asset TwinRes_MhRecord {
+    [is_enum] TwinRes_MusicRecordType type = TwinRes_MRT_Null;
+    int32_t size;
+    uint32_t offset;
+    int32_t sampleRate;
+    int32_t unkInt;
+}
+
+[no_json]
+asset TwinRes_MhArchive {
+    int32_t recordsAmount;
+    int32_t interleave;
+    [length(recordsAmount)] TwinRes_MhRecord* records;
+}

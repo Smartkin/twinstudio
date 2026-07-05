@@ -1,0 +1,12 @@
+#include "auto_struct_bh_archive.h"
+
+[no_json]
+asset TwinRes_BdRecord {
+    [no_bin] TwinRes_BhRecord header;
+    [blob] [length(header.length)] void* data;
+}
+
+[no_json] [no_read] [no_write]
+asset TwinRes_BdArchive {
+    [no_length] TwinRes_BdRecord* items;
+}

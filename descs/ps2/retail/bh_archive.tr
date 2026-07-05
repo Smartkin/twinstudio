@@ -1,0 +1,13 @@
+
+[no_json]
+asset TwinRes_BhRecord {
+    TwinStudio_StringView path;
+    int32_t offset;
+    int32_t length;
+}
+
+[no_json]
+asset TwinRes_BhArchive {
+    int32_t header = 0x501;
+    [no_length] TwinRes_BhRecord* records;
+}

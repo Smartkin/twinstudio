@@ -1,0 +1,36 @@
+#include "auto_struct_base.h"
+
+[no_read] [no_json]
+asset TwinRes_ResourceChunk {
+    [length(12)] TwinRes_ItemRecord* records;
+    TwinRes_Section graphicsSection;
+    TwinRes_Section codeSection;
+    TwinRes_Item    particles;
+    TwinRes_Item    collision;
+    TwinRes_Section layout1Section;
+    TwinRes_Section layout2Section;
+    TwinRes_Section layout3Section;
+    TwinRes_Section layout4Section;
+    TwinRes_Section layout5Section;
+    TwinRes_Section layout6Section;
+    TwinRes_Section layout7Section;
+    TwinRes_Section layout8Section;
+}
+
+[no_read] [no_json]
+asset TwinRes_SceneryChunk {
+    [length(7)] TwinRes_ItemRecord* records;
+    TwinRes_Section graphicsSection;
+    TwinRes_Item    scenery;
+    TwinRes_Item    unkItem1;
+    TwinRes_Item    unkItem2;
+    TwinRes_Item    unkItem3;
+    TwinRes_Item    dynamicScenery;
+    TwinRes_Item    chunkLinks;
+}
+
+[no_read] [no_write]
+asset TwinRes_Chunk {
+    TwinRes_ResourceChunk chunkResources;
+    TwinRes_SceneryChunk sceneryResources;
+}

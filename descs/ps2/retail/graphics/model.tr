@@ -1,0 +1,15 @@
+
+[no_json]
+asset TwinRes_ModelPart {
+    uint32_t vertexCount;
+    uint32_t vifDataLength;
+    [blob] [length(vifDataLength)] void* vifData;
+    uint32_t unusedBlobLength;
+    [blob] [length(unusedBlobLength)] void* unusedBlob;
+}
+
+[no_json]
+asset TwinRes_Model {
+    TwinRes_ModelPart* modelParts;
+}
+

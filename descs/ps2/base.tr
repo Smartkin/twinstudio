@@ -1,0 +1,25 @@
+
+[no_json]
+asset TwinRes_ItemRecord {
+    uint32_t offset;
+    uint32_t size;
+    uint32_t itemId;
+}
+
+
+[no_json]
+asset TwinRes_Item {
+    [no_bin] TwinRes_ItemRecord record;
+    [length(record.size)] [blob] void* data;
+}
+
+
+[no_json] [no_read]
+asset TwinRes_Section {
+    uint32_t magic;
+    uint32_t itemsCount;
+    uint32_t length;
+    [length(itemsCount)] TwinRes_ItemRecord* records;
+    [length(itemsCount)] TwinRes_Item* items;
+    [blob] [length("arrlen(source->extraData)")] void* extraData;
+}
