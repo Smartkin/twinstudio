@@ -3,3 +3,5 @@
 /.cache
 
 auto_*
+/.vs
+/out
