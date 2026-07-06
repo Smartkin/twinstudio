@@ -378,8 +378,8 @@ static TwinStudio_AdpcmDecodeResult AdpcmDecodeStereo(TwinStudio_Arena* arena, v
 
         uint8_t line_l[16];
         uint8_t line_r[16];
-        memcpy(line_l, adpcm + (i + interleave * (interleave_adv - 1)) * 16, 16);
-        memcpy(line_r, adpcm + (i + interleave * (interleave_adv)) * 16, 16);
+        memcpy(line_l, ((char*)adpcm) + (i + interleave * (interleave_adv - 1)) * 16, 16);
+        memcpy(line_r, ((char*)adpcm) + (i + interleave * (interleave_adv)) * 16, 16);
         if (line_l[1] == ADPCM_FILE_END || line_r[1] == ADPCM_FILE_END)
         {
             break;

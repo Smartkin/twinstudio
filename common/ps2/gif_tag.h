@@ -178,7 +178,6 @@ typedef union TwinStudio_GsRegOutput {
             uint8_t  data8[8];
         };
     } apd;
-    struct {} nop;
 } TwinStudio_GsRegOutput;
 
 
