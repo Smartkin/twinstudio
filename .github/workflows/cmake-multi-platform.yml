@@ -1,0 +1,35 @@
+name: CMake Build (Dry Run)
+ 
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+ 
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+ 
+    strategy:
+      # Set to true if builds are stable (they are not at the moment)
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        build_type: [Release]
+ 
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+ 
+      - name: Configure CMake
+        run: >
+          cmake -B ${{ github.workspace }}/build
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -S ${{ github.workspace }}
+ 
+      - name: Build
+        run: >
+          cmake --build ${{ github.workspace }}/build
+          --config ${{ matrix.build_type }}
