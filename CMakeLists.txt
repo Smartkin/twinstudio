@@ -35,6 +35,10 @@ fetchcontent_makeavailable(flecs)
 fetchcontent_makeavailable(raylib)
 fetchcontent_makeavailable(ps2imagemaker)
 
+if (MSVC)
+    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} /experimental:c11atomics)
+endif()
+
 add_subdirectory(3rdparty)
 add_subdirectory(common)
 add_subdirectory(tools)
