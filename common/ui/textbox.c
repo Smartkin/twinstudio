@@ -200,7 +200,7 @@ void TwinStudio_TextboxSelectAll(TwinStudio_TextBoxDesc* desc)
     desc->currentSelection.endSelection = desc->stringCache->length;
 }
 
-inline bool TwinStudio_TextboxHasSelection(TwinStudio_TextBoxDesc* desc)
+bool TwinStudio_TextboxHasSelection(TwinStudio_TextBoxDesc* desc)
 {
     const int32_t startSelection = TwinStudio_MinInt(desc->currentSelection.startSelection, desc->currentSelection.endSelection);
     const int32_t endSelection = TwinStudio_MaxInt(desc->currentSelection.startSelection, desc->currentSelection.endSelection);

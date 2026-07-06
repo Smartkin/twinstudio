@@ -59,7 +59,7 @@ static uint8_t GetFirstFreeSerializer()
 }
 
 
-inline void TwinStudio_BinSerializerSetPosition(TwinStudio_BinarySerializer* serializer, size_t newPos)
+void TwinStudio_BinSerializerSetPosition(TwinStudio_BinarySerializer* serializer, size_t newPos)
 {
     if (serializer->isStream)
     {
@@ -71,7 +71,7 @@ inline void TwinStudio_BinSerializerSetPosition(TwinStudio_BinarySerializer* ser
 }
 
 
-inline size_t TwinStudio_BinGetStreamPosition(TwinStudio_BinarySerializer* serializer)
+size_t TwinStudio_BinGetStreamPosition(TwinStudio_BinarySerializer* serializer)
 {
     if (serializer->isStream)
     {
@@ -82,7 +82,7 @@ inline size_t TwinStudio_BinGetStreamPosition(TwinStudio_BinarySerializer* seria
 }
 
 
-inline size_t TwinStudio_BinGetStreamLength(TwinStudio_BinarySerializer* serializer)
+size_t TwinStudio_BinGetStreamLength(TwinStudio_BinarySerializer* serializer)
 {
     return serializer->size;
 }

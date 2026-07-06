@@ -5,7 +5,7 @@
 #include <string.h>
 
 
-inline TwinStudio_Arena TwinStudio_CreateArena(size_t size)
+TwinStudio_Arena TwinStudio_CreateArena(size_t size)
 {
     void* mem = rpmalloc(size);
     memset(mem, 0, size);
@@ -18,7 +18,7 @@ inline TwinStudio_Arena TwinStudio_CreateArena(size_t size)
 }
 
 
-inline void* TwinStudio_ArenaAlloc(TwinStudio_Arena* arena, size_t size)
+void* TwinStudio_ArenaAlloc(TwinStudio_Arena* arena, size_t size)
 {
     assert(arena->allocedMemorySize + size <= arena->size);
     void* alloc = arena->currentMemory;
@@ -29,7 +29,7 @@ inline void* TwinStudio_ArenaAlloc(TwinStudio_Arena* arena, size_t size)
 }
 
 
-inline void TwinStudio_ArenaFree(TwinStudio_Arena* arena)
+void TwinStudio_ArenaFree(TwinStudio_Arena* arena)
 {
     rpfree(arena->startMemory);
 }

@@ -156,7 +156,7 @@ void QuaternionJsonDeserialize(Quaternion* q, cJSON* source)
 }
 
 
-inline uint32_t ToBigEndian(uint32_t value)
+uint32_t ToBigEndian(uint32_t value)
 {
     return ((value & 0x000000FFU) << 24) | ((value & 0x0000FF00U) << 8) | ((value & 0x00FF0000U) >> 8) | ((value & 0xFF000000U) >> 24);
 }
