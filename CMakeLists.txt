@@ -18,7 +18,7 @@ fetchcontent_declare(
 fetchcontent_declare(
     ps2imagemaker
     GIT_REPOSITORY "https://github.com/Smartkin/PS2ImageMaker.git"
-    GIT_TAG 5d75128cb9a65c1bf79773f822c682d3d7743bd9
+    GIT_TAG 3a2bf7b34a4afc713fc071b38ea218a12a19ba27
     GIT_PROGRESS TRUE
     GIT_SHALLOW TRUE
 )
