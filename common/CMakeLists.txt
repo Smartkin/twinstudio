@@ -21,3 +21,8 @@ add_library(common STATIC ui/ui.c
     ps2/vif.c)
 target_include_directories(common PUBLIC .)
 target_link_libraries(common PUBLIC dependencies flecs::flecs_static raylib)
+target_compile_features(common PRIVATE c_std_11)
+
+if (MSVC)
+    target_compile_options(common PRIVATE /experimental:c11atomics)
+endif()
