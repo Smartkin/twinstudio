@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.27)
 project(common C)
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 11)
 
 add_library(common STATIC ui/ui.c
     string_view/string_view.c

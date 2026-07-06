@@ -22,7 +22,8 @@ inline void* TwinStudio_ArenaAlloc(TwinStudio_Arena* arena, size_t size)
 {
     assert(arena->allocedMemorySize + size <= arena->size);
     void* alloc = arena->currentMemory;
-    arena->currentMemory += size;
+    // This used to be just += but make stupid Windows compiler happy :)
+    arena->currentMemory = ((char*)arena->currentMemory) + size;
     arena->allocedMemorySize += size;
     return alloc;
 }

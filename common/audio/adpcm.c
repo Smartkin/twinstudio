@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "adpcm.h"
+#include "defines/defines.h"
 #include "memory/memory.h"
 #include "serialization/binary_serializer.h"
 
@@ -32,12 +33,11 @@
 #define ADPCM_LOOP_END      1  /* Set on last block to loop */
 #define ADPCM_FILE_END      (ADPCM_LOOP_START | ADPCM_LOOP | ADPCM_LOOP_END)
 
-#define PACKED __attribute__((packed))
 
-typedef struct
+typedef TS_COMPACT_STRUCT
 {
-	unsigned shift:      4  PACKED;
-	unsigned predict:    4  PACKED;
+	unsigned shift:      4;
+	unsigned predict:    4;
 	uint8_t  flags;
 	uint8_t  sample[14]; /* 4bits each */
 } AdpcmBlock;
