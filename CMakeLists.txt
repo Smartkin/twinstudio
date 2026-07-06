@@ -18,7 +18,7 @@ fetchcontent_declare(
 fetchcontent_declare(
     ps2imagemaker
     GIT_REPOSITORY "https://github.com/Smartkin/PS2ImageMaker.git"
-    GIT_TAG 3a2bf7b34a4afc713fc071b38ea218a12a19ba27
+    GIT_TAG "v0.5"
     GIT_PROGRESS TRUE
     GIT_SHALLOW TRUE
 )
@@ -39,12 +39,25 @@ add_subdirectory(3rdparty)
 add_subdirectory(common)
 add_subdirectory(tools)
 
-# TODO: Execute tools after building to autogen resource C structs, UI layouts, etc.
-
-
+# Generate serialization desc files. TODO: UI layouts later
+file(GLOB_RECURSE TWIN_DESCS ${CMAKE_CURRENT_SOURCE_DIR}/descs/*.tr)
+set(GENERATED_DESCS "")
+foreach(DESC ${TWIN_DESCS})
+    get_filename_component(NAME ${DESC} NAME_WE)
+    get_filename_component(OUT_PATH ${DESC} DIRECTORY)
+    set(OUT ${OUT_PATH}/auto_struct_${NAME}.c)
+    add_custom_command(
+        OUTPUT ${OUT} ${OUT_PATH}/auto_struct_${NAME}.h
+        COMMAND twinres ${DESC}
+        DEPENDS twinres ${DESC}
+        VERBATIM
+    )
+    list(APPEND GENERATED_DESCS ${OUT})
+endforeach()
 
 add_subdirectory(descs)
 add_executable(twinstudio src/main.c)
+# target_sources(twinstudio PRIVATE ${GENERATED_DESCS}) # TODO: Uncomment when most converters are done and manual reads are also done
 target_link_libraries(twinstudio PUBLIC common twindescs dependencies raylib PS2ImageMakerStatic flecs::flecs_static)
 target_include_directories(twinstudio PUBLIC common)
 
@@ -53,7 +66,6 @@ target_compile_features(twinstudio PRIVATE c_std_11)
 if (MSVC)
     target_compile_options(twinstudio PRIVATE /experimental:c11atomics)
 endif()
-
 
 
 add_custom_command(TARGET twinstudio POST_BUILD
