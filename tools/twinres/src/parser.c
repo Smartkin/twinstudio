@@ -498,6 +498,25 @@ static bool HandleFieldLength(TwinRes_StructFieldGeneratorOptions* options, Twin
 }
 
 
+static bool HandleFieldLinkResource(TwinRes_StructFieldGeneratorOptions* options, TwinRes_AttributeArgumentsList* arguments)
+{
+    if (arguments->length < 1)
+    {
+        return false;
+    }
+
+    if (arguments->arguments[0].type != TwinStudio_VariantString)
+    {
+        return false;
+    }
+    
+    TwinStudio_VariantSetBool(&options->linkResource.data, true);
+    options->linkResource.argumentLength = 1;
+    options->linkResource.arguments = arguments->arguments;
+    return true;
+}
+
+
 static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_AttributeArgumentsList* arguments, TwinRes_StructFieldGeneratorOptions* options)
 {
     if (TryHandleStructFieldAttributeWrapper("caption", attribName, arguments, options, HandleFieldCaption)) { return; }
@@ -512,7 +531,8 @@ static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_Attri
     if (TryHandleStructFieldAttributeWrapper("no_length", attribName, arguments, options, HandleFieldNoLength)) { return; }
     if (TryHandleStructFieldAttributeWrapper("length", attribName, arguments, options, HandleFieldLength)) { return; }
     if (TryHandleStructFieldAttributeWrapper("big_endian", attribName, arguments, options, HandleFieldToBigEndian)) { return; }
-    fprintf(stderr, "WARNING: Skipped unknown struct field attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
+    if (TryHandleStructFieldAttributeWrapper("link_resource", attribName, arguments, options, HandleFieldLinkResource)) { return; }
+    fprintf(stderr, "WARNING: Skipped unknown or malformed struct field attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
 }
 
 
@@ -531,6 +551,7 @@ static inline TwinRes_StructFieldGeneratorOptions GetDefaultFieldOptions()
         .align = CREATE_ATTRIBUTE(align, int64_t, 0),
         .blob = CREATE_ATTRIBUTE(blob, bool, false),
         .toBigEndian = CREATE_ATTRIBUTE(big_endian, bool, false),
+        .linkResource = CREATE_ATTRIBUTE(link_resource, bool, false),
     };
 }
 
@@ -799,7 +820,7 @@ static void HandleStructAttribute(TwinStudio_StringView attribName, TwinRes_Attr
     if (TryHandleStructAttributeWrapper("no_read", attribName, attribArguments, options, HandleStructNoReadSerialization)) { return; }
     if (TryHandleStructAttributeWrapper("no_write", attribName, attribArguments, options, HandleStructNoWriteSerialization)) { return; }
     
-    fprintf(stderr, "WARNING: Skipped unknown struct attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
+    fprintf(stderr, "WARNING: Skipped unknown or malformed struct attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
 }
 
 
@@ -904,6 +925,50 @@ static TwinRes_ParserNode StructDefinitionNode(TwinRes_GeneratorOutput* output, 
             }
 
             continue;
+        }
+
+        if (TS_VARIANT_GET(bool, fieldDef->options.linkResource.data))
+        {
+            // Generate resource type
+            {
+                TwinRes_StructFieldGeneratorOptions options = GetDefaultFieldOptions();
+                TwinStudio_VariantSetBool(&options.excludeFromBin.data, true);
+                TwinStudio_VariantSetBool(&options.excludeFromJson.data, true);
+
+                char resourceFieldPathStr[512];
+                snprintf(resourceFieldPathStr, 512, TS_VIEW_FORMAT"LinkType", TS_VIEW_ARG(fieldDef->name));
+
+                TwinRes_ParserStructFieldDefinition* fieldNode = TwinStudio_ArenaAlloc(&output->generatorArena, sizeof(TwinRes_ParserStructFieldDefinition));
+                fieldNode->name = TwinStudio_CopyFromCStringArena(&output->generatorArena, resourceFieldPathStr);
+                fieldNode->type = TwinStudio_CopyFromCStringArena(&output->generatorArena, "TwinStudio_ResourceType");
+                fieldNode->options = options;
+                fieldNode->valueType = TwinStudio_VariantEnum;
+                fieldNode->defaultValue.type = TwinStudio_VariantEnum;
+                fieldNode->defaultValue.storage.string = TS_VARIANT_GET(TwinStudio_StringView, fieldDef->options.linkResource.arguments[0]);
+
+                AppendParserNode(structDefinition->fields, CreateNode(TwinRes_NodeFieldDefinition, fieldNode));
+            }
+            
+            // Generate resource link
+            {
+                TwinRes_StructFieldGeneratorOptions options = GetDefaultFieldOptions();
+                TwinStudio_VariantSetBool(&options.excludeFromBin.data, true);
+
+                char resourceFieldPathStr[512];
+                snprintf(resourceFieldPathStr, 512, TS_VIEW_FORMAT"Link", TS_VIEW_ARG(fieldDef->name));
+
+                TwinRes_ParserStructFieldDefinition* fieldNode = TwinStudio_ArenaAlloc(&output->generatorArena, sizeof(TwinRes_ParserStructFieldDefinition));
+                fieldNode->name = TwinStudio_CopyFromCStringArena(&output->generatorArena, resourceFieldPathStr);
+                fieldNode->type = TwinStudio_CopyFromCStringArena(&output->generatorArena, "TwinStudio_StringView");
+                fieldNode->options = options;
+                fieldNode->valueType = TwinStudio_VariantString;
+                if (fieldDef->valueType & TwinStudio_VariantArray)
+                {
+                    fieldNode->valueType |= TwinStudio_VariantArray;
+                }
+
+                AppendParserNode(structDefinition->fields, CreateNode(TwinRes_NodeFieldDefinition, fieldNode));
+            }
         }
 
         AppendParserNode(structDefinition->fields, fieldNode);
@@ -2164,6 +2229,7 @@ static void TwinRes_ParseAndGenerateStructFiles(TwinRes_GeneratorOutput* output,
         "#include <rpmalloc.h>\n"
         "#include <stb_ds.h>\n"
         "#include \"memory/memory.h\"\n"
+        "#include \"resources/resources.h\"\n"
         "#include \"serialization/binary_serializer.h\"\n"
         "#include \"serialization/helpers.h\"\n"
         "#include \"string_view/string_view.h\"\n";

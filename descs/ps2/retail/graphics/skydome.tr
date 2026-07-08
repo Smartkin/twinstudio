@@ -1,5 +1,5 @@
 
 asset TwinRes_Skydome {
     uint32_t header;
-    [link_resource("Mesh")] uint32_t* meshes;
+    [link_resource("TS_RT_Mesh")] uint32_t* meshes;
 }

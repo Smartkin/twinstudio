@@ -13,14 +13,13 @@ asset TwinRes_BlendSkinModelPart {
     uint32_t vertexesAmount;
     [blob] [length(vifDataLength)] void* vifData;
     Vector3 blendShape;
-    [no_length]
-    TwinRes_BlendSkinModelPartMorph* morphs;
+    [no_length] TwinRes_BlendSkinModelPartMorph* morphs;
 }
 
 [no_json] [no_read]
 asset TwinRes_BlendSkinModel {
     uint32_t partsAmount;
-    [link_resource("Material")] uint32_t material;
+    [link_resource("TS_RT_Material")] uint32_t material;
     [length(partsAmount)] TwinRes_BlendSkinModelPart* modelParts;
 }
 

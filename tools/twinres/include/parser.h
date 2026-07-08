@@ -65,6 +65,7 @@ typedef struct TwinRes_StructFieldGeneratorOptions {
     TwinRes_AttributeInfo resource;
     TwinRes_AttributeInfo blob;
     TwinRes_AttributeInfo toBigEndian;
+    TwinRes_AttributeInfo linkResource;
 } TwinRes_StructFieldGeneratorOptions;
 
 

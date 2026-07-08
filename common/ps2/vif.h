@@ -3,6 +3,7 @@
 
 
 #include <stdint.h>
+#include "memory/memory.h"
 #include "serialization/binary_serializer.h"
 #include "gif_tag.h"
 
@@ -188,7 +189,7 @@ typedef struct TwinStudio_VIFOutput {
     TwinStudio_VIFVector* normals;
     TwinStudio_VIFVector* emits;
     TwinStudio_VIFVector* jointWeights;
-    TwinStudio_GifTag*    gifTags;
+    TwinStudio_ResultingGifTag* gifTags;
 } TwinStudio_VIFOutput;
 
 
@@ -198,7 +199,7 @@ typedef struct TwinStudio_VIFCompilerOutput {
 } TwinStudio_VIFCompilerOutput;
 
 
-TwinStudio_VIFOutput          TwinStudio_VIFInterpret(TwinStudio_BinarySerializer* reader);
+TwinStudio_VIFOutput          TwinStudio_VIFInterpret(TwinStudio_BinarySerializer* reader, TwinStudio_Arena* arena);
 TwinStudio_VIFCompilerOutput  TwinStudio_VIFCompile(TwinStudio_VIFOutput* input);
 
 

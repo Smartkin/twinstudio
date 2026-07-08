@@ -44,5 +44,3 @@ TwinStudio_Wave* TwinStudio_WaveLoadFromFile(TwinStudio_StringView path, TwinStu
 
     return wave;
 }
-
-TS_RESOURCE_HANDLER_STUB(wav);

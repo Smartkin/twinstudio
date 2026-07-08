@@ -3,7 +3,7 @@
 #include "serialization/binary_serializer.h"
 
 
-TwinStudio_GifAddressOutput ProcessGsInput(TwinStudio_BinarySerializer* serializer, TwinStudio_GIFModeEnum mode, TwinStudio_GsRegsEnum reg)
+static TwinStudio_GifAddressOutput ProcessGsInput(TwinStudio_BinarySerializer* serializer, TwinStudio_GIFModeEnum mode, TwinStudio_GsRegsEnum reg)
 {
     TwinStudio_GsRegInput input;
     TwinStudio_GifAddressOutput output;

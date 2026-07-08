@@ -22,9 +22,4 @@
 #endif
 
 
-#define TS_RESOURCE_HANDLER_DECL(extension) void HandleResource##extension(TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size);
-#define TS_RESOURCE_HANDLER_STUB(extension) void HandleResource##extension(TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size) { TwinStudio_BinReadVoid(deserializer, size); }
-#define TS_RESOURCE_HANDLER(extension, deserializer, arena, size) HandleResource##extension((deserializer), (arena), (size));
-
-
 #endif // TS_DEFINES_H

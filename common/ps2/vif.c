@@ -2,6 +2,7 @@
 #include "defines/defines.h"
 #include "gif_tag.h"
 #include "dma_tag.h"
+#include "memory/memory.h"
 #include "serialization/binary_serializer.h"
 #include <limits.h>
 #include <math.h>
@@ -385,7 +386,7 @@ static uint32_t* Pack(TwinStudio_VIFVector* vectors, uint32_t amount, TwinStudio
 }
 
 
-TwinStudio_VIFOutput TwinStudio_VIFInterpret(TwinStudio_BinarySerializer* reader)
+TwinStudio_VIFOutput TwinStudio_VIFInterpret(TwinStudio_BinarySerializer* reader, TwinStudio_Arena* arena)
 {
     TwinStudio_VIFOutput output = { 0 };
     TwinStudio_VIFInterpreter interpreter = { 0 };
@@ -539,11 +540,11 @@ TwinStudio_VIFOutput TwinStudio_VIFInterpret(TwinStudio_BinarySerializer* reader
                     break;
                 case DIRECT:
                 {
-                    TwinStudio_GifTag tag = { 0 };
+                    TwinStudio_ResultingGifTag tag = { 0 };
                     arrsetcap(output.gifTags, 64);
-                    while (tag.eop != 1)
+                    while (tag.gifTag.eop != 1)
                     {
-                        TwinStudio_BinReadStructDirect(reader, &tag, sizeof(TwinStudio_GifTag));
+                        tag = TwinStudio_GifTagRead(reader, arena);
                         arrput(output.gifTags, tag);
                     }
                     break;

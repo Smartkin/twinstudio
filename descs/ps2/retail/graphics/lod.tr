@@ -5,7 +5,7 @@ asset TwinRes_LodFull {
     int32_t maxDrawDistance;
     [length(3)] int32_t* modelDrawDistances;
     int32_t unused;
-    [link_resource("Mesh")] [length(meshAmount)] uint32_t* meshes;
+    [link_resource("TS_RT_Mesh")] [length(meshAmount)] uint32_t* meshes;
 }
 
 asset TwinRes_LodCompressed {
@@ -13,7 +13,7 @@ asset TwinRes_LodCompressed {
     int32_t minDrawDistance;
     int32_t maxDrawDistance;
     [length(3)] int32_t* modelDrawDistances;
-    [link_resource("Mesh")] [length(meshAmount)] uint32_t* meshes;
+    [link_resource("TS_RT_Mesh")] [length(meshAmount)] uint32_t* meshes;
 }
 
 asset TwinRes_Lod {

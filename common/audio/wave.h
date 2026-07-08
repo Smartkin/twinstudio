@@ -16,6 +16,4 @@ typedef struct TwinStudio_Wave {
 void TwinStudio_WaveSaveToFile(TwinStudio_StringView path, TwinStudio_Wave wave);
 TwinStudio_Wave* TwinStudio_WaveLoadFromFile(TwinStudio_StringView path, TwinStudio_Arena* arena);
 
-TS_RESOURCE_HANDLER_DECL(wav);
-
 #endif // TS_WAVE_H

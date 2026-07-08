@@ -1,12 +1,13 @@
 
 [no_json]
 asset TwinRes_SkinPart {
-    [link_resource("Material")] uint32_t material;
+    [link_resource("TS_RT_Material")] uint32_t material;
     uint32_t vifDataLength;
     uint32_t vertexAmount;
     [blob] [length(vifDataLength)] void* vifData;
 }
 
+[no_json]
 asset TwinRes_Skin {
     TwinRes_SkinPart* skinParts;
 }

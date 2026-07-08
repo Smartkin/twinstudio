@@ -117,7 +117,7 @@ asset TwinRes_MaterialShader {
     Vector4  unkVector1;
     Vector4  unkVector2;
     Vector4  uvScrollSpeed;
-    [link_resource("Texture")] uint32_t texture;
+    [link_resource("TS_RT_Texture")] uint32_t texture;
     [is_enum] TwinRes_MaterialShaderType type2;
 
     [write_if("source->hasAnimation")]

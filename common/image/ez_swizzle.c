@@ -1,5 +1,12 @@
 #include <stdint.h>
+#include <stb_ds.h>
+#include <raylib.h>
+#include <string.h>
 #include "ez_swizzle.h"
+#include "memory/memory.h"
+#include "ps2/gif_tag.h"
+#include "raylib.h"
+#include "serialization/helpers.h"
 
 static const int32_t block32[32] = {
         0,  1,  4,  5, 16, 17, 20, 21,
@@ -300,4 +307,92 @@ void TwinStudio_WriteTexPSMCT32(uint8_t* destination, int32_t dbp, int32_t dbw, 
             src += 4;
         }
     }
+}
+
+
+Color* TwinStudio_TagToColors(TwinStudio_ResultingGifTag* tag, TwinStudio_Arena* arena)
+{
+    Color* colors = TwinStudio_ArenaAlloc(arena, sizeof(Color) * tag->outputsLength * 4);
+    for (uint32_t i = 0; i < tag->outputsLength; ++i)
+    {
+        TwinStudio_GifAddressOutput* output = tag->outputs + i;
+        uint8_t* output1 = output->gsOutput[1].apd.data8;
+        uint8_t* output2 = output->gsOutput[0].apd.data8;
+        Color c1 = { .a = output1[0], .b = output1[1], .g = output1[2], .r = output1[3] };
+        Color c2 = { .a = output1[4], .b = output1[5], .g = output1[6], .r = output1[7] };
+        Color c3 = { .a = output2[0], .b = output2[1], .g = output2[2], .r = output2[3] };
+        Color c4 = { .a = output2[4], .b = output2[5], .g = output2[6], .r = output2[7] };
+        colors[i * 4 + 0] = c1;
+        colors[i * 4 + 1] = c2;
+        colors[i * 4 + 2] = c3;
+        colors[i * 4 + 3] = c4;
+    }
+
+    return colors;
+}
+
+
+TwinStudio_ResultingGifTagInput TwinStudio_ColorsToTag(Color* colors, uint32_t colorsAmount, TwinStudio_Arena* arena)
+{
+    TwinStudio_ResultingGifTagInput result = { 0 };
+    TwinStudio_GifTag tag = { .nreg = 0, .eop = 1, .nloop = (colorsAmount / 4), .flg = IMAGE };
+    result.gifTag = tag;
+    result.inputsLength = colorsAmount / 4;
+    result.inputs = TwinStudio_ArenaAlloc(arena, (sizeof *result.inputs) * result.inputsLength);
+    
+    for (uint32_t i = 0; i < colorsAmount - 3; i += 4)
+    {
+        uint64_t col0 = ToBigEndian(ColorToInt(colors[i + 0]));
+        uint64_t col1 = ToBigEndian(ColorToInt(colors[i + 1]));
+        uint64_t col2 = ToBigEndian(ColorToInt(colors[i + 2]));
+        uint64_t col3 = ToBigEndian(ColorToInt(colors[i + 3]));
+        TwinStudio_GsRegInput input = { 0 };
+        input.raw.low = (col1 << 32) | col0;
+        input.raw.high = (col3 << 32) | col2;
+        result.inputs[i / 4] = input;
+    }
+
+    return result;
+}
+
+
+uint8_t* TwinStudio_TagToBytes(TwinStudio_ResultingGifTag* tag, TwinStudio_Arena* arena)
+{
+    uint8_t* bytes = TwinStudio_ArenaAlloc(arena, tag->outputsLength * 16);
+    for (uint32_t i = 0; i < tag->outputsLength; ++i)
+    {
+        TwinStudio_GifAddressOutput output = tag->outputs[i];
+        memcpy(bytes + i * 16, &output.gsOutput[1].apd.data, sizeof(uint64_t));
+        memcpy(bytes + i * 16 + 8, &output.gsOutput[0].apd.data, sizeof(uint64_t));
+    }
+
+    return bytes;
+}
+
+
+void TwinStudio_ColorToBytes(Color color, uint8_t* dst, uint32_t index)
+{
+    uint32_t rgba = ColorToInt(color);
+    dst[index * 4 + 3] = ((rgba >> 0) & 0xFF);
+    dst[index * 4 + 2] = ((rgba >> 8) & 0xFF);
+    dst[index * 4 + 1] = ((rgba >> 16) & 0xFF);
+    dst[index * 4 + 0] = ((rgba >> 24) & 0xFF);
+}
+
+
+Color TwinStudio_BytesToColor(uint8_t* src, uint32_t index)
+{
+    return (Color) { .r = src[index + 0], .g = src[index + 1], .b = src[index + 2], .a = src[index + 3] };
+}
+
+
+Color* TwinStudio_BytesToColors(uint8_t* src, uint32_t srcLength, TwinStudio_Arena* arena)
+{
+    Color* colors = TwinStudio_ArenaAlloc(arena, srcLength / 4);
+    for (uint32_t i = 0; i < srcLength / 4; ++i)
+    {
+        colors[i] = TwinStudio_BytesToColor(src, i * 4);
+    }
+
+    return colors;
 }
