@@ -1,4 +1,5 @@
 #include "textbox.h"
+#include "memory/memory.h"
 #include "rpmalloc.h"
 #include "math/math.h"
 #include "string_view/string_view.h"
@@ -121,7 +122,7 @@ void TwinStudio_TextboxInsertString(TwinStudio_TextBoxDesc* desc, uint32_t index
 
     if (desc->stringCache->allocatedLength < desc->stringCache->length + insertedLength)
     {
-        desc->stringCache->dynString = rprealloc(desc->stringCache->dynString, (desc->stringCache->allocatedLength + insertedLength) * 2);
+        desc->stringCache->dynString = TWIN_REALLOC(desc->stringCache->dynString, (desc->stringCache->allocatedLength + insertedLength) * 2);
         desc->stringCache->allocatedLength += insertedLength;
         desc->stringCache->allocatedLength *= 2;
     }

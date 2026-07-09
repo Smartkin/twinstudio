@@ -6,7 +6,8 @@ asset TwinRes_BdRecord {
     [blob] [length(header.length)] void* data;
 }
 
-[no_json] [no_read] [no_write]
+[no_json] [no_read]
 asset TwinRes_BdArchive {
+    [no_bin]    TwinRes_BhArchive header;
     [no_length] TwinRes_BdRecord* items;
 }

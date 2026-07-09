@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.27)
 project(twinstudio C)
 set(CMAKE_C_STANDARD 11)
 
+set(TWINSTUDIO_ASAN FALSE) # Turn on address sanitizer
+
 include(FetchContent)
 set(FETCHCONTENT_QUIET FALSE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE) # don't build raylib examples
@@ -35,6 +37,10 @@ fetchcontent_makeavailable(flecs)
 fetchcontent_makeavailable(raylib)
 fetchcontent_makeavailable(ps2imagemaker)
 
+if (TWINSTUDIO_ASAN)
+    add_compile_definitions(TWIN_ASAN)
+endif()
+
 add_subdirectory(3rdparty)
 add_subdirectory(common)
 add_subdirectory(tools)
@@ -57,14 +63,23 @@ endforeach()
 
 add_subdirectory(descs)
 add_executable(twinstudio src/main.c)
-# target_sources(twinstudio PRIVATE ${GENERATED_DESCS}) # TODO: Uncomment when most converters are done and manual reads are also done
+target_sources(twinstudio PRIVATE ${GENERATED_DESCS}) # TODO: Uncomment when most converters are done and manual reads are also done
 target_link_libraries(twinstudio PUBLIC common twindescs dependencies raylib PS2ImageMakerStatic flecs::flecs_static)
 target_include_directories(twinstudio PUBLIC common)
 
 target_compile_features(twinstudio PRIVATE c_std_11)
 
 if (MSVC)
-    target_compile_options(twinstudio PRIVATE /experimental:c11atomics)
+    set(MSVC_COMPILE_OPTIONS /experimental:c11atomics)
+    if (TWINSTUDIO_ASAN)
+        set(MSVC_COMPILE_OPTIONS ${MSVC_COMPILE_OPTIONS} /fsanitize=address)
+    endif()
+    target_compile_options(twinstudio PRIVATE ${MSVC_COMPILE_OPTIONS})
+else()
+    if (TWINSTUDIO_ASAN)
+        target_compile_options(twinstudio PRIVATE -fsanitize=address)
+        target_link_options(twinstudio PRIVATE -fsanitize=address)
+    endif()
 endif()
 
 

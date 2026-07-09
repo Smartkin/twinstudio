@@ -5,6 +5,7 @@
 #include <raylib.h>
 #include <string.h>
 
+#include "memory/memory.h"
 #include "parser.h"
 
 static const char usageHint[] = "Usage: twinres (-d) [INPUT] (OUTPUT_DESTINATION)\n"
@@ -55,7 +56,7 @@ static int GenerateOutput(const char* inputFilePath, const char* genDestination)
     const char* baseName = GetFileNameWithoutExt(inputFilePath);
     const int fileSize = GetFileLength(inputFilePath);
 
-    char* stringData = rpmalloc(fileSize + 1);
+    char* stringData = TWIN_MALLOC(fileSize + 1);
     memset(stringData, 0, fileSize + 1);
     fread(stringData, sizeof(char), fileSize, inputFile);
     stringData[fileSize] = '\0';
@@ -84,7 +85,7 @@ static int GenerateOutput(const char* inputFilePath, const char* genDestination)
 
 generatorCleanup:
     TwinRes_FreeGeneratedOutput(&output);
-    rpfree(stringData);
+    TWIN_FREE(stringData);
 
     return exitCode;
 }

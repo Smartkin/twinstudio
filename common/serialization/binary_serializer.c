@@ -33,7 +33,7 @@ static SerializerPool serializerPool;
 
 static inline void AdvanceSerializer(TwinStudio_BinarySerializer* serializer, size_t amount)
 {
-    assert(serializer->dataIndex + amount < serializer->size);
+    assert(serializer->dataIndex + amount <= serializer->size);
     serializer->dataIndex += amount;
 }
 
@@ -102,7 +102,7 @@ void TwinStudio_BinSerializerFree(TwinStudio_BinarySerializer* serializer)
     serializerPool.allocatedFlags &= ~(1 << serializer->allocatedIdx);
     if (serializer->deallocDataOnFree)
     {
-        rpfree(serializer->data);
+        TWIN_FREE(serializer->data);
         serializer->data = NULL;
         serializer->deallocDataOnFree = false;
     }
@@ -597,7 +597,7 @@ TwinStudio_BinarySerializer* TwinStudio_BinReadFromFile(TwinStudio_StringView pa
     FILE* f = fopen(cPath, "rb");
     if (!streamFile)
     {
-        void* data = rpmalloc(fileSize);
+        void* data = TWIN_MALLOC(fileSize);
         fread(data, fileSize, 1, f);
         fclose(f);
 

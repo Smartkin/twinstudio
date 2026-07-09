@@ -12,6 +12,7 @@ asset TwinRes_MhRecord {
     uint32_t offset;
     int32_t sampleRate;
     int32_t unkInt;
+    [no_bin] uint32_t interleave;
 }
 
 [no_json]

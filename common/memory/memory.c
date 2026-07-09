@@ -7,7 +7,7 @@
 
 TwinStudio_Arena TwinStudio_CreateArena(size_t size)
 {
-    void* mem = rpmalloc(size);
+    void* mem = TWIN_MALLOC(size);
     memset(mem, 0, size);
     return (TwinStudio_Arena) {
         .startMemory = mem,
@@ -31,5 +31,5 @@ void* TwinStudio_ArenaAlloc(TwinStudio_Arena* arena, size_t size)
 
 void TwinStudio_ArenaFree(TwinStudio_Arena* arena)
 {
-    rpfree(arena->startMemory);
+    TWIN_FREE(arena->startMemory);
 }

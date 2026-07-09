@@ -5,7 +5,6 @@
 #include "ez_swizzle.h"
 #include "memory/memory.h"
 #include "ps2/gif_tag.h"
-#include "raylib.h"
 #include "serialization/helpers.h"
 
 static const int32_t block32[32] = {

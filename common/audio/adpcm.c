@@ -46,7 +46,7 @@ static void find_predict(TwinStudio_AdpcmSetup *set, AdpcmBlock *adpcm, double *
 static void pack(TwinStudio_AdpcmSetup *set, AdpcmBlock *adpcm, const double *samples);
 
 
-TwinStudio_AdpcmSetup *TwinStudio_AdpcmCreate(TwinStudio_Arena* arena, AdpcmGetPCMfunc get, void *getpriv, AdpcmPutADPCMfunc put, void *putpriv, int loopstart)
+TwinStudio_AdpcmSetup *TwinStudio_AdpcmCreate(TwinStudio_Arena* arena, AdpcmGetPCMfunc get, void *getpriv, AdpcmPutADPCMfunc put, void *putpriv, int32_t loopstart)
 {
 	TwinStudio_AdpcmSetup *set;
 
@@ -73,18 +73,18 @@ TwinStudio_AdpcmSetup *TwinStudio_AdpcmCreate(TwinStudio_Arena* arena, AdpcmGetP
 	return(set);
 }
 
-int TwinStudio_AdpcmEncode(TwinStudio_AdpcmSetup *set, int blocks)
+int TwinStudio_AdpcmEncode(TwinStudio_AdpcmSetup *set, int32_t blocks)
 {
 	AdpcmBlock adpcm;
 	double samples[28];
-	int procblocks;
+	int32_t procblocks;
 
 	for (procblocks=0;procblocks<blocks;procblocks++)
 	{
-		int ret;
+		int32_t ret;
 		adpcm.flags = 0;
 
-		for (int j=0;j<28;j++)
+		for (int32_t j=0;j<28;j++)
 			samples[j] = 0.0;
 
 		ret = set->GetPCM(set->getpriv, samples, 28);
@@ -179,17 +179,17 @@ static void find_predict(TwinStudio_AdpcmSetup *set, AdpcmBlock *adpcm, double *
 	double min = 1e10;
 	double max[5];
 	double ds;
-	int min2;
-	int shift_mask;
+	int32_t min2;
+	int32_t shift_mask;
 	double s_0, s_1, s_2;
 
-	for (int i=0;i<5;i++)
+	for (int32_t i=0;i<5;i++)
 	{
 		max[i] = 0.0;
 		s_1 = set->s_1;
 		s_2 = set->s_2;
 
-		for (int j=0;j<28;j++)
+		for (int32_t j=0;j<28;j++)
 		{
 			s_0 = CLAMP(samples[j],-30720.0,30719.0);
 
@@ -217,10 +217,10 @@ static void find_predict(TwinStudio_AdpcmSetup *set, AdpcmBlock *adpcm, double *
 	set->s_1 = s_1;
 	set->s_2 = s_2;
 
-	for (int  i=0;i<28;i++ )
+	for (int32_t i=0;i<28;i++ )
 		samples[i] = buffer[i][adpcm->predict];
 
-	min2 = (int)min;
+	min2 = (int32_t)min;
 	shift_mask = 0x4000;
 	adpcm->shift = 0;
 
@@ -236,31 +236,31 @@ static void find_predict(TwinStudio_AdpcmSetup *set, AdpcmBlock *adpcm, double *
 static void pack(TwinStudio_AdpcmSetup *set, AdpcmBlock *adpcm, const double *samples)
 {
 	double s_1, s_2;
-	short four_bit[28];
+	int16_t four_bit[28];
 
 	s_1 = set->ps_1;
 	s_2 = set->ps_2;
 
-	for (int i=0;i<28;i++)
+	for (int32_t i=0;i<28;i++)
 	{
 		double ds;
-		int di;
+		int32_t di;
 		double s_0;
 
 		s_0 = samples[i] + s_1 * f[adpcm->predict][0] + s_2 * f[adpcm->predict][1];
 		ds = s_0 * (double) (1<<adpcm->shift);
 
-		di = ((int)ds+0x800) & 0xfffff000;
+		di = ((int32_t)ds+0x800) & 0xfffff000;
 		di = CLAMP(di,-32768,32767);
 
-		four_bit[i] = (short)di;
+		four_bit[i] = (int16_t)di;
 
 		di = di >> adpcm->shift;
 		s_2 = s_1;
 		s_1 = (double) di - s_0;
 	}
 
-	for (int i=0;i<14;i++)
+	for (int32_t i=0;i<14;i++)
 		adpcm->sample[i] = ( ( four_bit[(i*2)+1] >> 8 ) & 0xf0 ) | ( ( four_bit[i*2] >> 12 ) & 0xf );
 
 	set->ps_1 = s_1;
@@ -308,18 +308,25 @@ static int32_t LineToPCM(TwinStudio_BinarySerializer* reader, TwinStudio_BinaryS
 
 static TwinStudio_AdpcmDecodeResult AdpcmDecodeMono(TwinStudio_Arena* arena, void* adpcm, size_t size)
 {
+	uint32_t loopPosition = 0;
     void* resultData = TwinStudio_ArenaAlloc(arena, size * 2);
-    TwinStudio_BinarySerializer* writer = TwinStudio_BinSerializerAllocate(resultData, TwinStudio_BinarySerializerModeWrite, size, false);
+    TwinStudio_BinarySerializer* writer = TwinStudio_BinSerializerAllocate(resultData, TwinStudio_BinarySerializerModeWrite, size * 2, false);
     TwinStudio_BinarySerializer* reader = TwinStudio_BinSerializerAllocate(adpcm, TwinStudio_BinarySerializerModeRead, size, false);
     float s0 = 0.0f;
     float s1 = 0.0f;
     int32_t flag = 0;
+	uint32_t sampleIndex = 0;
     while ((flag & ADPCM_LOOP_END) == 0)
     {
         flag = LineToPCM(reader, writer, &s0, &s1);
+		if ((flag & ADPCM_LOOP_START) != 0 && loopPosition == 0)
+		{
+			loopPosition = sampleIndex;
+		}
+		sampleIndex++;
     }
 
-    TwinStudio_AdpcmDecodeResult result = { .pcmData = resultData, .pcmDataSize = TwinStudio_BinGetStreamPosition(writer) };
+    TwinStudio_AdpcmDecodeResult result = { .pcmData = resultData, .pcmDataSize = TwinStudio_BinGetStreamPosition(writer), .loopPosition = loopPosition };
 
     TwinStudio_BinSerializerFree(reader);
     TwinStudio_BinSerializerFree(writer);
@@ -362,8 +369,9 @@ static TwinStudio_AdpcmDecodeResult AdpcmDecodeStereo(TwinStudio_Arena* arena, v
     assert(size % 32 == 0);
     assert(interleave % 16 == 0);
 
+	uint32_t loopPosition = 0;
     void* resultData = TwinStudio_ArenaAlloc(arena, size * 4);
-    TwinStudio_BinarySerializer* writer = TwinStudio_BinSerializerAllocate(resultData, TwinStudio_BinarySerializerModeWrite, size, false);
+    TwinStudio_BinarySerializer* writer = TwinStudio_BinSerializerAllocate(resultData, TwinStudio_BinarySerializerModeWrite, size * 4, false);
 
     double s0_l = 0, s1_l = 0;
     double s0_r = 0, s1_r = 0;
@@ -380,6 +388,11 @@ static TwinStudio_AdpcmDecodeResult AdpcmDecodeStereo(TwinStudio_Arena* arena, v
         uint8_t line_r[16];
         memcpy(line_l, ((char*)adpcm) + (i + interleave * (interleave_adv - 1)) * 16, 16);
         memcpy(line_r, ((char*)adpcm) + (i + interleave * (interleave_adv)) * 16, 16);
+		if (((line_l[1] & ADPCM_LOOP_START) != 0 || (line_r[1] & ADPCM_LOOP_START) != 0) && loopPosition == 0)
+		{
+			loopPosition = i;
+		}
+
         if (line_l[1] == ADPCM_FILE_END || line_r[1] == ADPCM_FILE_END)
         {
             break;
@@ -404,7 +417,7 @@ static TwinStudio_AdpcmDecodeResult AdpcmDecodeStereo(TwinStudio_Arena* arena, v
         }
     }
 
-    TwinStudio_AdpcmDecodeResult result = { .pcmData = resultData, .pcmDataSize = TwinStudio_BinGetStreamPosition(writer) };
+    TwinStudio_AdpcmDecodeResult result = { .pcmData = resultData, .pcmDataSize = TwinStudio_BinGetStreamPosition(writer), .loopPosition = loopPosition };
 
     TwinStudio_BinSerializerFree(writer);
     return result;

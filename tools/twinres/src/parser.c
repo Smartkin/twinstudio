@@ -1804,11 +1804,11 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
                     case TwinStudio_VariantString:
                         if (!isArray)
                         {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT");\n   cJSON_AddStringToObject(rootObject, \""TS_VIEW_FORMAT"\", dynCStr);\n   rpfree(dynCStr)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                            fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT");\n   cJSON_AddStringToObject(rootObject, \""TS_VIEW_FORMAT"\", dynCStr);\n   TWIN_FREE(dynCStr)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
                         }
                         else 
                         {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT"[i]);\n   cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, cJSON_CreateString(dynCStr));\n   rpfree(dynCStr", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                            fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT"[i]);\n   cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, cJSON_CreateString(dynCStr));\n   TWIN_FREE(dynCStr", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
                         }
                         break;
                     case TwinStudio_VariantObject:
@@ -2226,7 +2226,6 @@ static void TwinRes_ParseAndGenerateStructFiles(TwinRes_GeneratorOutput* output,
     headerSourceStr += WriteFile(&output->structFiles[TwinRes_GenHeader], headerSourceStr, structHeaderFileStartTemplate, name, name);
 
     static const char defaultIncludes[] = "#include <cJSON.h>\n"
-        "#include <rpmalloc.h>\n"
         "#include <stb_ds.h>\n"
         "#include \"memory/memory.h\"\n"
         "#include \"resources/resources.h\"\n"

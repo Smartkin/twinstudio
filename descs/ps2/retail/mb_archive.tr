@@ -1,5 +1,6 @@
 #include "auto_struct_mh_archive.h"
 #include "audio/wave.h"
+#include "../audio_serializers.h"
 
 
 asset TwinRes_MbRecord {
@@ -34,6 +35,7 @@ asset TwinRes_MbRecord {
 
 [no_json] [no_read]
 asset TwinRes_MbArchive {
+    [no_bin] TwinRes_MhArchive header;
     [align(0x800, 0x0)] [no_length]
     TwinRes_MbRecord* items;
 }

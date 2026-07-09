@@ -8,6 +8,7 @@
 #include <raylib.h>
 
 #include "json_serializer.h"
+#include "memory/memory.h"
 #include "string_view/string_view.h"
 
 bool gIsJsonInitialized = false;
@@ -16,7 +17,7 @@ static char smallJson[1024 * 16]; // small json files optimization to not alloca
 
 void TwinStudio_JsonSerializerInit()
 {
-    cJSON_Hooks hooks = { .free_fn = rpfree, .malloc_fn = rpmalloc };
+    cJSON_Hooks hooks = { .free_fn = TWIN_FREE, .malloc_fn = TWIN_MALLOC };
     cJSON_InitHooks(&hooks);
     gIsJsonInitialized = true;
 }
@@ -47,9 +48,9 @@ cJSON* TwinStudio_JsonReadFromFile(TwinStudio_StringView path)
         return cJSON_Parse(smallJson);
     }
 
-    char* dynAllocated = rpmalloc(fileSize);
+    char* dynAllocated = TWIN_MALLOC(fileSize);
     fread(dynAllocated, fileSize, 1, f);
     cJSON* result = cJSON_Parse(dynAllocated);
-    rpfree(dynAllocated);
+    TWIN_FREE(dynAllocated);
     return result;
 }

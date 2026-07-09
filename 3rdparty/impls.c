@@ -6,7 +6,9 @@
 
 #define STB_DS_IMPLEMENTATION
 #include <rpmalloc.h>
+#ifndef TWIN_ASAN
 #define STBDS_REALLOC(c,p,s) rprealloc(p,s)
 #define STBDS_FREE(c,p)      rpfree(p)
+#endif
 #include <stb_ds.h>
 #undef STB_DS_IMPLEMENTATION

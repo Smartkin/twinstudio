@@ -1,3 +1,4 @@
+#include "memory/memory.h"
 #include "serialization/binary_serializer.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -7,6 +8,8 @@
 #include <rpmalloc.h>
 #include <cJSON.h>
 #include <clay.h>
+#include <string.h>
+#include <tinyfiledialogs.h>
 
 #define TS_RENDERER_IMPLEMENTATION
 #include "render/renderer.h"
@@ -17,6 +20,7 @@
 #include "ui/textbox.h"
 #include "ui/button.h"
 #include "ui/fonts.h"
+#include "ps2/retail/auto_struct_bh_archive.h"
 
 
 void HandleClayErrors(Clay_ErrorData errorData)
@@ -27,7 +31,29 @@ void HandleClayErrors(Clay_ErrorData errorData)
 
 void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, void* data)
 {
-    fprintf(stderr, "BUTTON WAS CLICKED!\n");
+    const char* filterPatterns[1];
+    filterPatterns[0] = "*.BH";
+    char* openedFile = tinyfd_openFileDialog("Select BH archive", NULL, 1, filterPatterns, "*.BH|Bandicoot Header", 0);
+    if (openedFile == NULL)
+    {
+        fprintf(stderr, "No file opened!\n");
+        return;
+    }
+
+    fprintf(stderr, "Opened %s\n", openedFile);
+    TwinRes_BhArchive headerArchive = TwinRes_BhArchiveCreate();
+    TwinStudio_Arena archiveArena = TwinStudio_CreateArena(1024 * 1024 * 5);
+    TwinStudio_StringView filePath = TwinStudio_CopyFromCStringArena(&archiveArena, openedFile);
+    TwinStudio_BinarySerializer* deserializer = TwinStudio_BinReadFromFile(filePath, false);
+    TwinRes_BhArchiveBinDeserialize(&headerArchive, deserializer, &archiveArena, TwinStudio_BinGetStreamLength(deserializer), NULL);
+    for (uint32_t i = 0; i < arrlen(headerArchive.records); ++i)
+    {
+        fprintf(stderr, "%d. "TS_VIEW_FORMAT" Size: %d\n", i + 1, TS_VIEW_ARG(headerArchive.records[i].path), headerArchive.records[i].length);
+    }
+
+    arrfree(headerArchive.records);
+    TwinStudio_ArenaFree(&archiveArena);
+    TwinStudio_BinSerializerFree(deserializer);
 }
 
 
@@ -120,6 +146,8 @@ int main(int argc, char** argv)
         TwinStudio_UiUpdateTimers(dt);
         TwinStudio_UiUpdateInput();
 
+        char fpsBuffer[64];
+
         Clay_BeginLayout();
 
         CLAY(CLAY_ID("MainWindow"), {
@@ -132,7 +160,6 @@ int main(int argc, char** argv)
             }
         }) {
             float fps = 1.0f / dt;
-            char fpsBuffer[64];
             int charsSize = snprintf(fpsBuffer, sizeof(fpsBuffer), "FPS: %d", (int)fps);
             Clay_String fpsStr = { .isStaticallyAllocated = false, .length = charsSize, .chars = fpsBuffer };
             CLAY_TEXT(fpsStr, {
