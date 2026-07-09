@@ -60,10 +60,11 @@ foreach(DESC ${TWIN_DESCS})
     )
     list(APPEND GENERATED_DESCS ${OUT})
 endforeach()
-
+add_library(twindescgenerator INTERFACE ${GENERATED_DESCS})
 add_subdirectory(descs)
+add_dependencies(twindescs twindescgenerator)
+
 add_executable(twinstudio src/main.c)
-target_sources(twinstudio PRIVATE ${GENERATED_DESCS}) # TODO: Uncomment when most converters are done and manual reads are also done
 target_link_libraries(twinstudio PUBLIC common twindescs dependencies raylib PS2ImageMakerStatic flecs::flecs_static)
 target_include_directories(twinstudio PUBLIC common)
 
