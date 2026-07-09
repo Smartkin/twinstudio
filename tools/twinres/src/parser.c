@@ -2226,6 +2226,7 @@ static void TwinRes_ParseAndGenerateStructFiles(TwinRes_GeneratorOutput* output,
     headerSourceStr += WriteFile(&output->structFiles[TwinRes_GenHeader], headerSourceStr, structHeaderFileStartTemplate, name, name);
 
     static const char defaultIncludes[] = "#include <cJSON.h>\n"
+        "#include <stdint.h>\n"
         "#include <stb_ds.h>\n"
         "#include \"memory/memory.h\"\n"
         "#include \"resources/resources.h\"\n"

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 project(twinstudio C)
 set(CMAKE_C_STANDARD 11)
 
-set(TWINSTUDIO_ASAN FALSE) # Turn on address sanitizer
+set(TWINSTUDIO_ASAN FALSE) # Address sanitizer usage
 
 include(FetchContent)
 set(FETCHCONTENT_QUIET FALSE)
@@ -60,7 +60,9 @@ foreach(DESC ${TWIN_DESCS})
     )
     list(APPEND GENERATED_DESCS ${OUT})
 endforeach()
-add_library(twindescgenerator INTERFACE ${GENERATED_DESCS})
+add_library(twindescgenerator INTERFACE)
+target_include_directories(twindescgenerator INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/descs)
+target_sources(twindescgenerator INTERFACE ${GENERATED_DESCS})
 add_subdirectory(descs)
 add_dependencies(twindescs twindescgenerator)
 
