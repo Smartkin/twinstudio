@@ -65,7 +65,7 @@ add_subdirectory(descs)
 add_dependencies(twindescs twindescgenerator)
 
 add_executable(twinstudio src/main.c)
-target_link_libraries(twinstudio PUBLIC common twindescs dependencies raylib PS2ImageMakerStatic flecs::flecs_static)
+target_link_libraries(twinstudio PUBLIC common twindescgenerator twindescs dependencies raylib PS2ImageMakerStatic flecs::flecs_static)
 target_include_directories(twinstudio PUBLIC common)
 
 target_compile_features(twinstudio PRIVATE c_std_11)
