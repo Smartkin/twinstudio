@@ -45,7 +45,7 @@ static int GenerateOutput(const char* inputFilePath, const char* genDestination)
 {
     int exitCode = 1;
 
-    FILE* inputFile = fopen(inputFilePath, "r");
+    FILE* inputFile = fopen(inputFilePath, "rb");
     if (inputFile == NULL)
     {
         fprintf(stderr, "Error opening input file %s", inputFilePath);
