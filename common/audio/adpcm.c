@@ -282,10 +282,10 @@ static int16_t SampleToPCM(int32_t sample, int32_t factor, int32_t predict, floa
 }
 
 
-static int32_t LineToPCM(TwinStudio_BinarySerializer* reader, TwinStudio_BinarySerializer* writer, float* s0, float* s1)
+static uint8_t LineToPCM(TwinStudio_BinarySerializer* reader, TwinStudio_BinarySerializer* writer, float* s0, float* s1)
 {
     uint8_t startByte = TwinStudio_BinReadUInt8(reader);
-    int32_t flags = TwinStudio_BinReadUInt8(reader);
+    uint8_t flags = TwinStudio_BinReadUInt8(reader);
     int32_t factor = startByte & 0xF;
     int32_t predict = (startByte >> 4) & 0xF;
     if ((flags & ADPCM_LOOP_END) == 0)
@@ -309,14 +309,15 @@ static int32_t LineToPCM(TwinStudio_BinarySerializer* reader, TwinStudio_BinaryS
 static TwinStudio_AdpcmDecodeResult AdpcmDecodeMono(TwinStudio_Arena* arena, void* adpcm, size_t size)
 {
 	uint32_t loopPosition = 0;
-    void* resultData = TwinStudio_ArenaAlloc(arena, size * 2);
-    TwinStudio_BinarySerializer* writer = TwinStudio_BinSerializerAllocate(resultData, TwinStudio_BinarySerializerModeWrite, size * 2, false);
+    void* resultData = TwinStudio_ArenaAlloc(arena, size * 4);
+    TwinStudio_BinarySerializer* writer = TwinStudio_BinSerializerAllocate(resultData, TwinStudio_BinarySerializerModeWrite, size * 4, false);
     TwinStudio_BinarySerializer* reader = TwinStudio_BinSerializerAllocate(adpcm, TwinStudio_BinarySerializerModeRead, size, false);
     float s0 = 0.0f;
     float s1 = 0.0f;
-    int32_t flag = 0;
+    uint8_t flag = 0;
 	uint32_t sampleIndex = 0;
-    while ((flag & ADPCM_LOOP_END) == 0)
+	const uint32_t maxSamples = size / 16;
+    while ((flag & ADPCM_LOOP_END) == 0 && sampleIndex < maxSamples)
     {
         flag = LineToPCM(reader, writer, &s0, &s1);
 		if ((flag & ADPCM_LOOP_START) != 0 && loopPosition == 0)

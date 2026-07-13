@@ -1,42 +1,54 @@
 #include "raylib.h"
 
 asset TwinRes_ShaderAnimationSettings {
-    //uint16_t unusedFlags;
-    //uint16_t transformChoice;
-    //[union_of(transformChoice)]
-    //uint8_t  translateX : 1;
-    //[union_of(transformChoice)]
-    //uint8_t  translateY : 1;
-    //[union_of(transformChoice)]
-    //uint8_t  colorR : 1;
-    //[union_of(transformChoice)]
-    //uint8_t  colorG : 1;
-    //[union_of(transformChoice)]
-    //uint8_t  colorB : 1;
-    //[union_of(transformChoice)]
-    //uint8_t  colorA : 1;
+    uint16_t unusedFlags;
+    union transformChoiceUnion {
+        uint16_t transformChoice;
+        struct transformChoiceStates {
+            uint8_t translateX : 1;
+            uint8_t translateY : 1;
+            uint8_t colorR : 1;
+            uint8_t colorG : 1;
+            uint8_t colorB : 1;
+            uint8_t colorA : 1;
+        };
+    };
 
-    //uint16_t staticTransformationIndex;
-    //uint16_t animationTransformationIndex;
+    uint16_t staticTransformationIndex;
+    uint16_t animationTransformationIndex;
+}
+
+asset TwinRes_ShaderAnimationTransformation {
+    int16_t transformValue;
+}
+
+asset TwinRes_ShaderAnimationAnimatedTransformation {
+    [no_bin] [no_json] [constructor] uint16_t animatedTransforms;
+    [length(animatedTransforms)] int16_t* animatedTransform;
 }
 
 asset TwinRes_ShaderAnimation {
-    //uint32_t header;
-    //uint32_t dataPacker;
-    //[union_of(dataPacker)]
-    //uint8_t  animationSettingsAmount : 7;
-    //[union_of(dataPacker)]
-    //uint8_t  _pad1 : 3;
-    //[union_of(dataPacker)]
-    //uint16_t staticTransformationsAmount : 10;
-    //[union_of(dataPacker)]
-    //uint8_t  _pad2 : 2;
-    //[union_of(dataPacker)]
-    //uint16_t animatedTransformationsAmount : 10;
-    //uint16_t totalFrames;
+    uint32_t header;
+    union dataPackedUnion {
+        uint32_t dataPacker;
+        struct dataPackerData {
+            uint8_t  animationSettingsAmount : 7;
+            uint8_t  _pad1 : 3;
+            uint16_t staticTransformationsAmount : 10;
+            uint8_t  _pad2 : 2;
+            uint16_t animatedTransformationsAmount : 10;
+        };
+    };
+    uint16_t totalFrames;
 
-    //[length(animationSettingsAmount)]
-    //TwinRes_ShaderAnimationSettings* settings;
+    [length(animationSettingsAmount)]
+    TwinRes_ShaderAnimationSettings* settings;
+
+    [length(staticTransformationsAmount)]
+    TwinRes_ShaderAnimationTransformation* staticTransforms;
+
+    [length(totalFrames)] [constructor(animatedTransformationsAmount)]
+    TwinRes_ShaderAnimationAnimatedTransformation* animatedTransforms;
 }
 
 enum TwinRes_MaterialShaderType {

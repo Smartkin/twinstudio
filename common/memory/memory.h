@@ -22,6 +22,8 @@ typedef struct TwinStudio_Arena {
     void* startMemory;
     size_t size;
     size_t allocedMemorySize;
+    int32_t currentExtraArena;
+    struct TwinStudio_Arena* extraArenas;
 } TwinStudio_Arena;
 
 

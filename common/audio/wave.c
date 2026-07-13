@@ -9,7 +9,12 @@
 
 void TwinStudio_WaveSaveToFile(TwinStudio_StringView path, TwinStudio_Wave wave)
 {
-    FILE* f = fopen(TwinStudio_GetCString(&path), "wb");
+    TwinStudio_WaveSaveToFileC(TwinStudio_GetCString(&path), wave);
+}
+
+void TwinStudio_WaveSaveToFileC(const char* path, TwinStudio_Wave wave)
+{
+    FILE* f = fopen(path, "wb");
     TwinStudio_BinarySerializer* serializer = TwinStudio_BinSerializerAllocate(f, TwinStudio_BinarySerializerModeWrite, UINT_MAX, true);
     TwinStudio_BinWriteChars(serializer, "RIFF", 4);
     TwinStudio_BinWriteInt32(serializer, 36 + wave.dataSize);

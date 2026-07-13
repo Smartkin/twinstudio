@@ -15,6 +15,7 @@ typedef struct TwinStudio_Wave {
 } TwinStudio_Wave;
 
 void TwinStudio_WaveSaveToFile(TwinStudio_StringView path, TwinStudio_Wave wave);
+void TwinStudio_WaveSaveToFileC(const char* path, TwinStudio_Wave wave);
 TwinStudio_Wave* TwinStudio_WaveLoadFromFile(TwinStudio_StringView path, TwinStudio_Arena* arena);
 
 #endif // TS_WAVE_H

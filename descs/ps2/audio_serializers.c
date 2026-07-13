@@ -112,6 +112,13 @@ void TwinStudio_WaveBinDeserialize(TwinStudio_Wave* target, TwinStudio_BinarySer
     target->data = result.pcmData;
     target->dataSize = result.pcmDataSize;
     target->loopPosition = result.loopPosition;
-    target->samplerate = record->header.sampleRate;
+    if (record->header.type == TwinRes_MRT_Stereo)
+    {
+        target->samplerate = record->header.sampleRate;
+    }
+    else
+    {
+        target->samplerate = record->sampleRate;
+    }
     target->channels = record->header.type == TwinRes_MRT_Stereo ? 2 : 1;
 }

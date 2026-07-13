@@ -1,4 +1,7 @@
+#include "audio/wave.h"
 #include "memory/memory.h"
+#include "ps2/retail/archive_serializers.h"
+#include "ps2/retail/auto_struct_mb_archive.h"
 #include "serialization/binary_serializer.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -8,7 +11,6 @@
 #include <rpmalloc.h>
 #include <cJSON.h>
 #include <clay.h>
-#include <string.h>
 #include <tinyfiledialogs.h>
 
 #define TS_RENDERER_IMPLEMENTATION
@@ -20,7 +22,7 @@
 #include "ui/textbox.h"
 #include "ui/button.h"
 #include "ui/fonts.h"
-#include "ps2/retail/auto_struct_bh_archive.h"
+#include "ps2/retail/auto_struct_mh_archive.h"
 
 
 void HandleClayErrors(Clay_ErrorData errorData)
@@ -32,8 +34,8 @@ void HandleClayErrors(Clay_ErrorData errorData)
 void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, void* data)
 {
     const char* filterPatterns[1];
-    filterPatterns[0] = "*.BH";
-    char* openedFile = tinyfd_openFileDialog("Select BH archive", NULL, 1, filterPatterns, "*.BH|Bandicoot Header", 0);
+    filterPatterns[0] = "*.MH";
+    char* openedFile = tinyfd_openFileDialog("Select MH archive", NULL, 1, filterPatterns, "*.MH Music Header", 0);
     if (openedFile == NULL)
     {
         fprintf(stderr, "No file opened!\n");
@@ -41,19 +43,47 @@ void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, voi
     }
 
     fprintf(stderr, "Opened %s\n", openedFile);
-    TwinRes_BhArchive headerArchive = TwinRes_BhArchiveCreate();
-    TwinStudio_Arena archiveArena = TwinStudio_CreateArena(1024 * 1024 * 5);
+    TwinRes_MhArchive headerArchive = TwinRes_MhArchiveCreate();
+    TwinStudio_Arena archiveArena = TwinStudio_CreateArena(1024UL * 1024UL * 200UL);
     TwinStudio_StringView filePath = TwinStudio_CopyFromCStringArena(&archiveArena, openedFile);
     TwinStudio_BinarySerializer* deserializer = TwinStudio_BinReadFromFile(filePath, false);
-    TwinRes_BhArchiveBinDeserialize(&headerArchive, deserializer, &archiveArena, TwinStudio_BinGetStreamLength(deserializer), NULL);
-    for (uint32_t i = 0; i < arrlen(headerArchive.records); ++i)
+    TwinRes_MhArchiveBinDeserialize(&headerArchive, deserializer, &archiveArena, TwinStudio_BinGetStreamLength(deserializer), NULL);
+    for (uint32_t i = 0; i < headerArchive.recordsAmount; ++i)
     {
-        fprintf(stderr, "%d. "TS_VIEW_FORMAT" Size: %d\n", i + 1, TS_VIEW_ARG(headerArchive.records[i].path), headerArchive.records[i].length);
+        fprintf(stderr, "Track %d. Size: %d\n", i + 1, headerArchive.records[i].size);
+    }
+
+    TwinRes_MbArchive dataArchive = TwinRes_MbArchiveCreate();
+    dataArchive.header = headerArchive;
+    TwinStudio_StringView mainArchivePath = TwinStudio_CopyFromCStringArena(&archiveArena, openedFile);
+    mainArchivePath.dynString[mainArchivePath.length - 1] = 'b';
+    TwinStudio_BinarySerializer* mainArchiveDeserializer = TwinStudio_BinReadFromFile(mainArchivePath, true);
+    TwinRes_MbArchiveDeserialize(&dataArchive, mainArchiveDeserializer, &archiveArena, TwinStudio_BinGetStreamLength(mainArchiveDeserializer), NULL);
+    char* savePath = tinyfd_selectFolderDialog("Select tracks save folder", NULL);
+    TwinStudio_StringView savePathString = TwinStudio_CopyFromCStringArena(&archiveArena, savePath);
+    for (uint32_t i = 0; i < headerArchive.recordsAmount; ++i)
+    {
+        TwinRes_MbRecord* record = dataArchive.items + i;
+        if (record->header.type == TwinRes_MRT_Null)
+        {
+            continue;
+        }
+
+        if (record->trackData.loopPosition > 0)
+        {
+            fprintf(stderr, "Track %d has a loop point at sample %d", i + 1, record->trackData.loopPosition);
+        }
+
+        char trackSavePathBuffer[1024];
+        snprintf(trackSavePathBuffer, 1024, TS_VIEW_FORMAT"/%d_%s.wav", TS_VIEW_ARG(savePathString), i + 1, "track");
+        TwinStudio_WaveSaveToFileC(trackSavePathBuffer, record->trackData);
     }
 
     arrfree(headerArchive.records);
+    arrfree(dataArchive.items);
     TwinStudio_ArenaFree(&archiveArena);
     TwinStudio_BinSerializerFree(deserializer);
+    TwinStudio_BinSerializerFree(mainArchiveDeserializer);
 }
 
 

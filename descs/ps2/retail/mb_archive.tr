@@ -7,7 +7,7 @@ asset TwinRes_MbRecord {
     [no_json] [no_bin]
     TwinRes_MhRecord header;
 
-    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")] [length(4)]
+    [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")] [length(4)] [void_read]
     char* msvp = "MSVp";
 
     [no_json] [write_if("source->header.type == TwinRes_MRT_Mono")]

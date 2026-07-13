@@ -4,7 +4,11 @@ set(CMAKE_C_STANDARD 11)
 
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE .)
-target_sources(dependencies INTERFACE rpmalloc.c malloc.c cJSON.c cJSON_Utils.c tinyfiledialogs.c impls.c)
+if (TWINSTUDIO_ASAN)
+    target_sources(dependencies INTERFACE cJSON.c cJSON_Utils.c tinyfiledialogs.c impls.c)
+else()
+    target_sources(dependencies INTERFACE rpmalloc.c malloc.c cJSON.c cJSON_Utils.c tinyfiledialogs.c impls.c)
+endif()
 target_compile_features(dependencies INTERFACE c_std_11)
 
 if (MSVC)

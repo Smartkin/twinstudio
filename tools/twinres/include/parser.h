@@ -66,6 +66,7 @@ typedef struct TwinRes_StructFieldGeneratorOptions {
     TwinRes_AttributeInfo blob;
     TwinRes_AttributeInfo toBigEndian;
     TwinRes_AttributeInfo linkResource;
+    TwinRes_AttributeInfo voidRead;
 } TwinRes_StructFieldGeneratorOptions;
 
 
@@ -103,6 +104,7 @@ typedef struct TwinRes_ParserStructDefinition {
     TwinRes_ParserNodeList* fields;
     TwinRes_StructGeneratorOptions options;
     TwinStudio_StringView structName;
+    bool isUnion;
 } TwinRes_ParserStructDefinition;
 
 

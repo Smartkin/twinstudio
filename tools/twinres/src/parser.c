@@ -517,6 +517,13 @@ static bool HandleFieldLinkResource(TwinRes_StructFieldGeneratorOptions* options
 }
 
 
+static bool HandleFieldVoidRead(TwinRes_StructFieldGeneratorOptions* options, TwinRes_AttributeArgumentsList* arguments)
+{
+    TwinStudio_VariantSetBool(&options->voidRead.data, true);
+    return true;
+}
+
+
 static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_AttributeArgumentsList* arguments, TwinRes_StructFieldGeneratorOptions* options)
 {
     if (TryHandleStructFieldAttributeWrapper("caption", attribName, arguments, options, HandleFieldCaption)) { return; }
@@ -532,6 +539,7 @@ static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_Attri
     if (TryHandleStructFieldAttributeWrapper("length", attribName, arguments, options, HandleFieldLength)) { return; }
     if (TryHandleStructFieldAttributeWrapper("big_endian", attribName, arguments, options, HandleFieldToBigEndian)) { return; }
     if (TryHandleStructFieldAttributeWrapper("link_resource", attribName, arguments, options, HandleFieldLinkResource)) { return; }
+    if (TryHandleStructFieldAttributeWrapper("void_read", attribName, arguments, options, HandleFieldVoidRead)) { return; }
     fprintf(stderr, "WARNING: Skipped unknown or malformed struct field attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
 }
 
@@ -552,6 +560,7 @@ static inline TwinRes_StructFieldGeneratorOptions GetDefaultFieldOptions()
         .blob = CREATE_ATTRIBUTE(blob, bool, false),
         .toBigEndian = CREATE_ATTRIBUTE(big_endian, bool, false),
         .linkResource = CREATE_ATTRIBUTE(link_resource, bool, false),
+        .voidRead = CREATE_ATTRIBUTE(void_read, bool, false),
     };
 }
 
@@ -862,6 +871,12 @@ static TwinRes_ParserNode StructDefinitionNode(TwinRes_GeneratorOutput* output, 
 {
     TwinRes_StructGeneratorOptions options = GetStructOptions(output, lexer);
 
+    bool isUnion = false;
+    if (lexer->curTok.tokenType == TwinRes_TokIdentifier && IsIdentifier(lexer->curTok.string, TS_STRING_VIEW("union")))
+    {
+        isUnion = true;
+    }
+
     if (!EatToken(lexer, TwinRes_TokIdentifier))
     {
         return GetEmptyNode();
@@ -879,10 +894,31 @@ static TwinRes_ParserNode StructDefinitionNode(TwinRes_GeneratorOutput* output, 
     structDefinition->structName = structName;
     structDefinition->options = options;
     structDefinition->fields = CreateNodeList(&output->generatorArena, maxStructFields);
+    structDefinition->isUnion = isUnion;
 
     // Parse fields
     while (lexer->curTok.tokenType != TwinRes_TokCloseBracket)
     {
+        if (lexer->curTok.tokenType == TwinRes_TokIdentifier)
+        {
+            if (IsIdentifier(lexer->curTok.string, TS_STRING_VIEW("union")) || IsIdentifier(lexer->curTok.string, TS_STRING_VIEW("struct")))
+            {
+                TwinRes_ParserNode innerStructNode = StructDefinitionNode(output, lexer);
+                if (innerStructNode.type == TwinRes_NodeEmpty)
+                {
+                    continue;
+                }
+
+                if (!EatToken(lexer, TwinRes_TokSemicolon))
+                {
+                    return GetEmptyNode();
+                }
+
+                AppendParserNode(structDefinition->fields, innerStructNode);
+                continue;
+            }
+        }
+
         TwinRes_ParserNode fieldNode = StructFieldNode(output, lexer);
         if (fieldNode.type == TwinRes_NodeEmpty)
         {
@@ -1092,6 +1128,881 @@ static int GenerateStructField(TwinRes_ParserNode* node, TwinRes_GeneratedFile* 
 }
 
 
+static int GenerateStructFieldBinarySerialization(TwinRes_ParserNode* node, TwinRes_GeneratedFile* genFile, char* buffer)
+{
+    assert(node->type == TwinRes_NodeFieldDefinition);
+    int amountWritten = 0;
+
+    TwinRes_ParserStructFieldDefinition* structField = node->data;
+    if (TS_VARIANT_GET(bool, structField->options.excludeFromBin.data))
+    {
+        return amountWritten;
+    }
+
+    char sizeFormat[1024] = "size";
+    const bool isLengthDefined = TS_VARIANT_GET(bool, structField->options.length.data);
+    if (isLengthDefined)
+    {
+        if (structField->options.length.arguments[0].type == TwinStudio_VariantInt64)
+        {
+            snprintf(sizeFormat, 1024, "%ld", TS_VARIANT_GET(int64_t, structField->options.length.arguments[0]));
+        }
+        else if (structField->options.length.arguments[0].type == TwinStudio_VariantString)
+        {
+            snprintf(sizeFormat, 1024, TS_VIEW_FORMAT, TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.length.arguments[0])));
+        }
+        else
+        {
+            snprintf(sizeFormat, 1024, "source->"TS_VIEW_FORMAT, TS_VIEW_ARG(structField->options.length.arguments[0].storage.string));
+        }
+    }
+
+    if (TS_VARIANT_GET(bool, structField->options.blob.data))
+    {
+        int fieldBodyWritten = WriteFile(genFile, buffer, "   TwinStudio_BinWriteBlob(serializer, source->"TS_VIEW_FORMAT", %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
+        if (fieldBodyWritten == 0)
+        {
+            return 0;
+        }
+        amountWritten += fieldBodyWritten;
+        buffer += fieldBodyWritten;
+        return amountWritten;
+    }
+
+    if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
+    {
+        int writeIfWritten = WriteFile(genFile, buffer, "   if ("TS_VIEW_FORMAT") {\n", TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0])));
+        if (writeIfWritten == 0)
+        {
+            return 0;
+        }
+        amountWritten += writeIfWritten;
+        buffer += writeIfWritten;
+    }
+
+    int fieldBodyWritten = 0;
+    const bool isArray = structField->valueType & TwinStudio_VariantArray;
+    const bool isInfArray = TS_VARIANT_GET(bool, structField->options.noLength.data);
+    char* indexWriting = "";
+    char* extraSpaces = "   ";
+    if (isArray)
+    {
+        extraSpaces = "      ";
+        if (!isLengthDefined)
+        {
+            if (!isInfArray)
+            {
+                int arrLenWritten = WriteFile(genFile, buffer, "   TwinStudio_BinWriteInt32(serializer, arrlen(source->"TS_VIEW_FORMAT"));\n", TS_VIEW_ARG(structField->name));
+                if (arrLenWritten == 0)
+                {
+                    return 0;
+                }
+                amountWritten += arrLenWritten;
+                buffer += arrLenWritten;
+            }
+
+            int arrForLoopStart = WriteFile(genFile, buffer, "   for(uint32_t i = 0; i < arrlen(source->"TS_VIEW_FORMAT"); ++i) {\n", TS_VIEW_ARG(structField->name));
+            if (arrForLoopStart == 0)
+            {
+                return 0;
+            }
+            amountWritten += arrForLoopStart;
+            buffer += arrForLoopStart;
+        }
+        else if (isLengthDefined)
+        {
+            int arrForLoopStart = WriteFile(genFile, buffer, "   for(uint32_t i = 0; i < %s; ++i) {\n", sizeFormat);
+            if (arrForLoopStart == 0)
+            {
+                return 0;
+            }
+            amountWritten += arrForLoopStart;
+            buffer += arrForLoopStart;
+        }
+
+        indexWriting = "[i]";
+    }
+
+    const bool isBigEndian = TS_VARIANT_GET(bool, structField->options.toBigEndian.data);
+    const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
+    switch (valueType)
+    {
+        case TwinStudio_VariantUInt8:
+        case TwinStudio_VariantBool:
+            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt8(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            break;
+        case TwinStudio_VariantFloat:
+            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteFloat(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            break;
+        case TwinStudio_VariantInt8:
+            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt8(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            break;
+        case TwinStudio_VariantInt16:
+            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt16(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            break;
+        case TwinStudio_VariantUInt16:
+            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt16(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            break;
+        case TwinStudio_VariantInt32:
+        case TwinStudio_VariantEnum:
+            if (isBigEndian)
+            {
+                fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt32(serializer, ToBigEndian(source->"TS_VIEW_FORMAT"%s));\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            }
+            else
+            {
+                fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt32(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            }
+            break;
+        case TwinStudio_VariantUInt32:
+            if (isBigEndian)
+            {
+                fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt32(serializer, ToBigEndian(source->"TS_VIEW_FORMAT"%s));\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            }
+            else
+            {
+                fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt32(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            }
+            break;
+        case TwinStudio_VariantInt64:
+            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt64(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            break;
+        case TwinStudio_VariantUInt64:
+            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt64(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            break;
+        case TwinStudio_VariantString:
+            if (!isArray && isLengthDefined)
+            {
+                fieldBodyWritten = WriteFile(genFile, buffer, "   TwinStudio_BinWriteChars(serializer, source->"TS_VIEW_FORMAT".string, %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
+            }
+            else
+            {
+                fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteString(serializer, source->"TS_VIEW_FORMAT"%s, false);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            }
+            break;
+        case TwinStudio_VariantChar:
+            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteChar(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
+            break;
+        case TwinStudio_VariantObject:
+            if (!isLengthDefined)
+            {
+                fieldBodyWritten = WriteFile(genFile, buffer, "%s"TS_VIEW_FORMAT"BinSerialize(&source->"TS_VIEW_FORMAT"%s, serializer, arena, sizeof("TS_VIEW_FORMAT"), source);\n", extraSpaces, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), indexWriting, TS_VIEW_ARG(structField->type));
+            }
+            else
+            {
+                fieldBodyWritten = WriteFile(genFile, buffer, "%s"TS_VIEW_FORMAT"BinSerialize(&source->"TS_VIEW_FORMAT"%s, serializer, arena, %s, source);\n", extraSpaces, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), indexWriting, sizeFormat);
+            }
+            break;
+        default:
+            break;
+    }
+
+    if (fieldBodyWritten == 0)
+    {
+        return 0;
+    }
+    amountWritten += fieldBodyWritten;
+    buffer += fieldBodyWritten;
+
+    if (TS_VARIANT_GET(int64_t, structField->options.align.data) > 0)
+    {
+        int alignWritten = WriteFile(genFile, buffer, "%swhile(TwinStudio_BinGetStreamPosition(serializer) %% %d != 0) TwinStudio_BinWriteUInt8(serializer, %d);\n", extraSpaces, TS_VARIANT_GET(int64_t, structField->options.align.data), TS_VARIANT_GET(int64_t, structField->options.align.arguments[0]));
+        if (alignWritten == 0)
+        {
+            return 0;
+        }
+        amountWritten += alignWritten;
+        buffer += alignWritten;
+    }
+
+    if (isArray)
+    {
+        int arrEndWritten = WriteFile(genFile, buffer, "   }\n");
+        if (arrEndWritten == 0)
+        {
+            return 0;
+        }
+        amountWritten += arrEndWritten;
+        buffer += arrEndWritten;
+    }
+
+    if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
+    {
+        int writeIfWritten = WriteFile(genFile, buffer, "   }\n");
+        if (writeIfWritten == 0)
+        {
+            return 0;
+        }
+        amountWritten += writeIfWritten;
+        buffer += writeIfWritten;
+    }
+
+    return amountWritten;
+}
+
+
+static int GenerateStructFieldsBinarySerialization(const TwinRes_ParserStructDefinition* structDef, TwinRes_GeneratedFile* genFile, char* buffer)
+{
+    int amountWritten = 0;
+    int fieldsAmount = structDef->fields->length;
+    if (structDef->isUnion && fieldsAmount > 1)
+    {
+        fieldsAmount = 1;
+    }
+
+    for (uint32_t i = 0; i < fieldsAmount; ++i)
+    {
+        TwinRes_ParserNode* node = structDef->fields->nodes + i;
+        if (node->type == TwinRes_NodeStructDefinition)
+        {
+            const TwinRes_ParserStructDefinition* structDef = node->data;
+            int innerStructWritten = GenerateStructFieldsBinarySerialization(structDef, genFile, buffer);
+            amountWritten += innerStructWritten;
+            buffer += innerStructWritten;
+            continue;
+        }
+
+        int fieldWritten = GenerateStructFieldBinarySerialization(node, genFile, buffer);
+        amountWritten += fieldWritten;
+        buffer += fieldWritten;
+    }
+
+    return amountWritten;
+}
+
+
+static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructDefinition* structDef, TwinRes_GeneratedFile* genFile, char* buffer)
+{
+    int amountWritten = 0;
+    int fieldsAmount = structDef->fields->length;
+    if (structDef->isUnion && fieldsAmount > 1)
+    {
+        fieldsAmount = 1;
+    }
+
+    for (uint32_t i = 0; i < fieldsAmount; ++i)
+    {
+        TwinRes_ParserNode* node = structDef->fields->nodes + i;
+        if (node->type == TwinRes_NodeStructDefinition)
+        {
+            TwinRes_ParserStructDefinition* structDef = node->data;
+            int innerStructWritten = GenerateStructFieldsBinaryDeserialization(structDef, genFile, buffer);
+            amountWritten += innerStructWritten;
+            buffer += innerStructWritten;
+            continue;
+        }
+
+        TwinRes_ParserStructFieldDefinition* structField = node->data;
+        if (TS_VARIANT_GET(bool, structField->options.excludeFromBin.data) || structField->isConst)
+        {
+            continue;
+        }
+
+        char sizeFormat[1024] = "size";
+        const bool isBigEndian = TS_VARIANT_GET(bool, structField->options.toBigEndian.data);
+        const bool isLengthDefined = TS_VARIANT_GET(bool, structField->options.length.data);
+        const bool isVoidRead = TS_VARIANT_GET(bool, structField->options.voidRead.data);
+        if (isLengthDefined)
+        {
+            if (structField->options.length.arguments[0].type == TwinStudio_VariantInt64)
+            {
+                snprintf(sizeFormat, 1024, "%ld", TS_VARIANT_GET(int64_t, structField->options.length.arguments[0]));
+            }
+            else if (structField->options.length.arguments[0].type == TwinStudio_VariantString)
+            {
+                TwinStudio_StringView originalLength = TS_VARIANT_GET(TwinStudio_StringView, structField->options.length.arguments[0]);
+                TwinStudio_StringView lengthCopy = TwinStudio_CopyFromCString(TwinStudio_GetCStringDynamic(&originalLength));
+                char* replacement = NULL;
+                char* currentSearch = lengthCopy.dynString;
+                while ((replacement = strstr(currentSearch, "source")) != NULL)
+                {
+                    memcpy(replacement, "target", sizeof("target") - 1);
+                    currentSearch = replacement;
+                }
+                snprintf(sizeFormat, 1024, TS_VIEW_FORMAT, TS_VIEW_ARG(lengthCopy));
+                TwinStudio_FreeString(&lengthCopy);
+            }
+            else
+            {
+                snprintf(sizeFormat, 1024, "target->"TS_VIEW_FORMAT, TS_VIEW_ARG(structField->options.length.arguments[0].storage.string));
+            }
+        }
+
+        if (TS_VARIANT_GET(bool, structField->options.blob.data))
+        {
+            int fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = TwinStudio_BinReadBlob(deserializer, arena, %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
+            if (fieldBodyWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += fieldBodyWritten;
+            buffer += fieldBodyWritten;
+            continue;
+        }
+
+        if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
+        {
+            TwinStudio_StringView originalCondition = TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0]);
+            TwinStudio_StringView conditionCopy = TwinStudio_CopyFromCString(TwinStudio_GetCStringDynamic(&originalCondition));
+            char* replacement = NULL;
+            char* currentSearch = conditionCopy.dynString;
+            while ((replacement = strstr(currentSearch, "source")) != NULL)
+            {
+                memcpy(replacement, "target", sizeof("target") - 1);
+                currentSearch = replacement;
+            }
+            int writeIfWritten = WriteFile(genFile, buffer, "   if ("TS_VIEW_FORMAT") {\n", TS_VIEW_ARG(conditionCopy));
+            TwinStudio_FreeString(&conditionCopy);
+            if (writeIfWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += writeIfWritten;
+            buffer += writeIfWritten;
+        }
+
+        if (isVoidRead)
+        {
+            int fieldBodyWritten = WriteFile(genFile, buffer, "   TwinStudio_BinReadVoid(deserializer, %s);\n", sizeFormat);
+            if (fieldBodyWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += fieldBodyWritten;
+            buffer += fieldBodyWritten;
+            goto finishWriteIf;
+        }
+
+        const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
+        const bool isArray = structField->valueType & TwinStudio_VariantArray;
+        const bool isInfArray = TS_VARIANT_GET(bool, structField->options.noLength.data);
+        if (isArray)
+        {
+            if (!isInfArray)
+            {
+                if (!isLengthDefined)
+                {
+                    int arrLenWritten = WriteFile(genFile, buffer, "   uint32_t "TS_VIEW_FORMAT"Size = TwinStudio_BinReadInt32(deserializer);\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    if (arrLenWritten == 0)
+                    {
+                        return 0;
+                    }
+                    amountWritten += arrLenWritten;
+                    buffer += arrLenWritten;
+
+                    int arrForLoopStart = WriteFile(genFile, buffer, "   for(uint32_t i = 0; i < "TS_VIEW_FORMAT"Size; ++i) {\n", TS_VIEW_ARG(structField->name));
+                    if (arrForLoopStart == 0)
+                    {
+                        return 0;
+                    }
+                    amountWritten += arrForLoopStart;
+                    buffer += arrForLoopStart;
+                }
+                else
+                {
+                    int arrForLoopStart = WriteFile(genFile, buffer, "   arrsetcap(target->"TS_VIEW_FORMAT", %s); for(uint32_t i = 0; i < %s; ++i) {\n", TS_VIEW_ARG(structField->name), sizeFormat, sizeFormat);
+                    if (arrForLoopStart == 0)
+                    {
+                        return 0;
+                    }
+                    amountWritten += arrForLoopStart;
+                    buffer += arrForLoopStart;
+                }
+            }
+            else
+            {
+                int arrForLoopStart = WriteFile(genFile, buffer, "   while(TwinStudio_BinGetStreamPosition(deserializer) < TwinStudio_BinGetStreamLength(deserializer)) {\n", TS_VIEW_ARG(structField->name));
+                if (arrForLoopStart == 0)
+                {
+                    return 0;
+                }
+                amountWritten += arrForLoopStart;
+                buffer += arrForLoopStart;
+            }
+
+            if (valueType != TwinStudio_VariantObject)
+            {
+                int prePutWritten = WriteFile(genFile, buffer, "      arrput(target->"TS_VIEW_FORMAT", ", TS_VIEW_ARG(structField->name));
+                if (prePutWritten == 0)
+                {
+                    return 0;
+                }
+                amountWritten += prePutWritten;
+                buffer += prePutWritten;
+            }
+        }
+        
+        int fieldBodyWritten = 0;
+        char* readFunc = "";
+        char readFuncBuffer[256];
+        switch (valueType)
+        {
+            case TwinStudio_VariantInt8:
+                readFunc = "TwinStudio_BinReadInt8(deserializer)";
+                break;
+            case TwinStudio_VariantUInt8:
+            case TwinStudio_VariantBool:
+                readFunc = "TwinStudio_BinReadUInt8(deserializer)";
+                break;
+            case TwinStudio_VariantFloat:
+                readFunc = "TwinStudio_BinReadFloat(deserializer)";
+                break;
+            case TwinStudio_VariantInt16:
+                readFunc = "TwinStudio_BinReadInt16(deserializer)";
+                break;
+            case TwinStudio_VariantUInt16:
+                readFunc = "TwinStudio_BinReadUInt16(deserializer)";
+                break;
+            case TwinStudio_VariantInt32:
+            case TwinStudio_VariantEnum:
+                readFunc = "TwinStudio_BinReadInt32(deserializer)";
+                break;
+            case TwinStudio_VariantUInt32:
+                readFunc = "TwinStudio_BinReadUInt32(deserializer)";
+                break;
+            case TwinStudio_VariantInt64:
+                readFunc = "TwinStudio_BinReadInt64(deserializer)";
+                break;
+            case TwinStudio_VariantUInt64:
+                readFunc = "TwinStudio_BinReadUInt64(deserializer)";
+                break;
+            case TwinStudio_VariantChar:
+                readFunc = "TwinStudio_BinReadChar(deserializer)";
+                break;
+            case TwinStudio_VariantString:
+                if (!isArray && isLengthDefined)
+                {
+                    sprintf(readFuncBuffer, "TwinStudio_CopyFromCString(TwinStudio_BinReadChars(deserializer, arena, %s))", sizeFormat);
+                    readFunc = readFuncBuffer;
+                }
+                else
+                {
+                    readFunc = "TwinStudio_BinReadString(deserializer, arena)";
+                }
+                break;
+            default:
+                break;
+        }
+        if (isArray)
+        {
+            if (valueType != TwinStudio_VariantObject)
+            {
+                if (isBigEndian)
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "ToBigEndian(%s));\n", readFunc);
+                }
+                else
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "%s);\n", readFunc);
+                }
+            }
+            else
+            {
+                if (isLengthDefined)
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, %s, target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
+                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), sizeFormat, TS_VIEW_ARG(structField->name));
+                }
+                else
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, sizeof("TS_VIEW_FORMAT"), target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
+                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+                }
+            }
+        }
+        else
+        {
+            if (valueType != TwinStudio_VariantObject)
+            {
+                if (isBigEndian)
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = ToBigEndian(%s);\n", TS_VIEW_ARG(structField->name), readFunc);
+                }
+                else
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = %s;\n", TS_VIEW_ARG(structField->name), readFunc);
+                }
+            }
+            else
+            {
+                if (isLengthDefined)
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   "TS_VIEW_FORMAT"BinDeserialize(&target->"TS_VIEW_FORMAT", deserializer, arena, %s, target);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), sizeFormat);
+                }
+                else
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   "TS_VIEW_FORMAT"BinDeserialize(&target->"TS_VIEW_FORMAT", deserializer, arena, sizeof("TS_VIEW_FORMAT"), target);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type));
+                }
+            }
+        }
+        if (fieldBodyWritten == 0)
+        {
+            return 0;
+        }
+        amountWritten += fieldBodyWritten;
+        buffer += fieldBodyWritten;
+        if (isArray)
+        {
+            int arrEndWritten = WriteFile(genFile, buffer, "   }\n");
+            if (arrEndWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += arrEndWritten;
+            buffer += arrEndWritten;
+        }
+
+finishWriteIf:
+        if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
+        {
+            int writeIfWritten = WriteFile(genFile, buffer, "   }\n");
+            if (writeIfWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += writeIfWritten;
+            buffer += writeIfWritten;
+        }
+    }
+
+    return amountWritten;
+}
+
+
+static int GenerateStructFieldsJsonSerialization(const TwinRes_ParserStructDefinition* structDef, TwinRes_GeneratedFile* genFile, char* buffer)
+{
+    int amountWritten = 0;
+    int fieldsAmount = structDef->fields->length;
+    if (structDef->isUnion && fieldsAmount > 1)
+    {
+        fieldsAmount = 1;
+    }
+
+    for (uint32_t i = 0; i < fieldsAmount; ++i)
+    {
+        TwinRes_ParserNode* node = structDef->fields->nodes + i;
+        if (node->type == TwinRes_NodeStructDefinition)
+        {
+            TwinRes_ParserStructDefinition* structDef = node->data;
+            int innerStructWritten = GenerateStructFieldsJsonSerialization(structDef, genFile, buffer);
+            amountWritten += innerStructWritten;
+            buffer += innerStructWritten;
+            continue;
+        }
+
+        TwinRes_ParserStructFieldDefinition* structField = node->data;
+        if (TS_VARIANT_GET(bool, structField->options.excludeFromJson.data))
+        {
+            continue;
+        }
+
+        if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
+        {
+            int writeIfWritten = WriteFile(genFile, buffer, "   if ("TS_VIEW_FORMAT") {\n", TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0])));
+            if (writeIfWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += writeIfWritten;
+            buffer += writeIfWritten;
+        }
+
+        const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
+        const bool isArray = structField->valueType & TwinStudio_VariantArray;
+
+        char* indexWriting = "";
+        if (isArray)
+        {
+            int arrDecl = WriteFile(genFile, buffer, "   cJSON* "TS_VIEW_FORMAT"Json = cJSON_AddArrayToObject(rootObject, \""TS_VIEW_FORMAT"\");\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+            if (arrDecl == 0)
+            {
+                return 0;
+            }
+            amountWritten += arrDecl;
+            buffer += arrDecl;
+
+            int arrForLoopStart = WriteFile(genFile, buffer, "   for(uint32_t i = 0; i < arrlen(source->"TS_VIEW_FORMAT"); ++i) {\n", TS_VIEW_ARG(structField->name));
+            if (arrForLoopStart == 0)
+            {
+                return 0;
+            }
+            amountWritten += arrForLoopStart;
+            buffer += arrForLoopStart;
+
+            if (valueType != TwinStudio_VariantString && valueType != TwinStudio_VariantObject)
+            {
+                int loopBodyStart = WriteFile(genFile, buffer, "      cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, ", TS_VIEW_ARG(structField->name));
+                if (loopBodyStart == 0)
+                {
+                    return 0;
+                }
+                amountWritten += loopBodyStart;
+                buffer += loopBodyStart;
+            }
+            indexWriting = "[i]";
+        }
+
+        int fieldBodyWritten = 0;
+        switch (valueType)
+        {
+            case TwinStudio_VariantBool:
+                fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddBoolToObject(rootObject, \""TS_VIEW_FORMAT"\", source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), indexWriting);
+                break;
+            case TwinStudio_VariantFloat:
+            case TwinStudio_VariantInt8:
+            case TwinStudio_VariantUInt8:
+            case TwinStudio_VariantInt16:
+            case TwinStudio_VariantUInt16:
+            case TwinStudio_VariantInt32:
+            case TwinStudio_VariantUInt32:
+            case TwinStudio_VariantInt64:
+            case TwinStudio_VariantUInt64:
+            case TwinStudio_VariantEnum:
+                fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddNumberToObject(rootObject, \""TS_VIEW_FORMAT"\", source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), indexWriting);
+                break;
+            case TwinStudio_VariantString:
+                if (!isArray)
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT");\n   cJSON_AddStringToObject(rootObject, \""TS_VIEW_FORMAT"\", dynCStr);\n   TWIN_FREE(dynCStr)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                }
+                else 
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT"[i]);\n   cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, cJSON_CreateString(dynCStr));\n   TWIN_FREE(dynCStr", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                }
+                break;
+            case TwinStudio_VariantObject:
+                if (!isArray)
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddItemToObject(rootObject, \""TS_VIEW_FORMAT"\", "TS_VIEW_FORMAT"JsonSerialize(&source->"TS_VIEW_FORMAT"))", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+                }
+                else
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, "TS_VIEW_FORMAT"JsonSerialize(&source->"TS_VIEW_FORMAT"[i])", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+                }
+                break;
+            default:
+                break;
+        }
+        if (fieldBodyWritten == 0)
+        {
+            return 0;
+        }
+        amountWritten += fieldBodyWritten;
+        buffer += fieldBodyWritten;
+
+        int fieldBodyEnd = WriteFile(genFile, buffer, isArray ? ");\n" : ";\n");
+        if (fieldBodyEnd == 0)
+        {
+            return 0;
+        }
+        amountWritten += fieldBodyEnd;
+        buffer += fieldBodyEnd;
+
+        if (isArray)
+        {
+            int arrEndWritten = WriteFile(genFile, buffer, "   }\n");
+            if (arrEndWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += arrEndWritten;
+            buffer += arrEndWritten;
+        }
+
+        if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
+        {
+            int writeIfWritten = WriteFile(genFile, buffer, "   }\n");
+            if (writeIfWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += writeIfWritten;
+            buffer += writeIfWritten;
+        }
+    }
+
+    return amountWritten;
+}
+
+
+static int GenerateStructFieldsJsonDeserialization(const TwinRes_ParserStructDefinition* structDef, TwinRes_GeneratedFile* genFile, char* buffer)
+{
+    int amountWritten = 0;
+    int fieldsAmount = structDef->fields->length;
+    if (structDef->isUnion && fieldsAmount > 1)
+    {
+        fieldsAmount = 1;
+    }
+
+    for (uint32_t i = 0; i < fieldsAmount; ++i)
+    {
+        TwinRes_ParserNode* node = structDef->fields->nodes + i;
+        if (node->type == TwinRes_NodeStructDefinition)
+        {
+            TwinRes_ParserStructDefinition* structDef = node->data;
+            int innerStructWritten = GenerateStructFieldsJsonDeserialization(structDef, genFile, buffer);
+            amountWritten += innerStructWritten;
+            buffer += innerStructWritten;
+            continue;
+        }
+
+        TwinRes_ParserStructFieldDefinition* structField = node->data;
+        if (TS_VARIANT_GET(bool, structField->options.excludeFromJson.data))
+        {
+            continue;
+        }
+
+        const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
+        const bool isArray = structField->valueType & TwinStudio_VariantArray;
+
+        if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
+        {
+            TwinStudio_StringView originalCondition = TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0]);
+            TwinStudio_StringView conditionCopy = TwinStudio_CopyFromCString(TwinStudio_GetCStringDynamic(&originalCondition));
+            char* replacement = NULL;
+            char* currentSearch = conditionCopy.dynString;
+            while ((replacement = strstr(currentSearch, "source")) != NULL)
+            {
+                memcpy(replacement, "target", sizeof("target") - 1);
+                currentSearch = replacement;
+            }
+            int writeIfWritten = WriteFile(genFile, buffer, "   if ("TS_VIEW_FORMAT") {\n", TS_VIEW_ARG(conditionCopy));
+            TwinStudio_FreeString(&conditionCopy);
+            if (writeIfWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += writeIfWritten;
+            buffer += writeIfWritten;
+        }
+
+        if (isArray)
+        {
+            int arrLenWritten = WriteFile(genFile, buffer, "   cJSON* "TS_VIEW_FORMAT"Json = cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\");\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+            if (arrLenWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += arrLenWritten;
+            buffer += arrLenWritten;
+
+            int arrForLoopStart = WriteFile(genFile, buffer, "   { cJSON* jsonItem; cJSON_ArrayForEach(jsonItem, "TS_VIEW_FORMAT"Json) {\n", TS_VIEW_ARG(structField->name));
+            if (arrForLoopStart == 0)
+            {
+                return 0;
+            }
+            amountWritten += arrForLoopStart;
+            buffer += arrForLoopStart;
+
+            if (valueType != TwinStudio_VariantObject)
+            {
+                int prePutWritten = WriteFile(genFile, buffer, "      arrput(target->"TS_VIEW_FORMAT", ", TS_VIEW_ARG(structField->name));
+                if (prePutWritten == 0)
+                {
+                    return 0;
+                }
+                amountWritten += prePutWritten;
+                buffer += prePutWritten;
+            }
+
+            int fieldBodyWritten = 0;
+            switch (valueType)
+            {
+                case TwinStudio_VariantBool:
+                    fieldBodyWritten = WriteFile(genFile, buffer, "jsonItem->valueint);\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    break;
+                case TwinStudio_VariantFloat:
+                case TwinStudio_VariantInt8:
+                case TwinStudio_VariantUInt8:
+                case TwinStudio_VariantInt16:
+                case TwinStudio_VariantUInt16:
+                case TwinStudio_VariantInt32:
+                case TwinStudio_VariantUInt32:
+                case TwinStudio_VariantInt64:
+                case TwinStudio_VariantUInt64:
+                case TwinStudio_VariantEnum:
+                    fieldBodyWritten = WriteFile(genFile, buffer, "jsonItem->valuedouble);\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    break;
+                case TwinStudio_VariantString:
+                    fieldBodyWritten = WriteFile(genFile, buffer, "TwinStudio_CopyFromCString(jsonItem->valuestring));\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    break;
+                case TwinStudio_VariantObject:
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(); "TS_VIEW_FORMAT"JsonDeserialize(&createdObj, jsonItem); arrput(target->"TS_VIEW_FORMAT", createdObj);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+                    break;
+                default:
+                    break;
+            }
+            if (fieldBodyWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += fieldBodyWritten;
+            buffer += fieldBodyWritten;
+        }
+        else
+        {
+            int fieldBodyWritten = 0;
+            switch (valueType)
+            {
+                case TwinStudio_VariantBool:
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\")->valueint;\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    break;
+                case TwinStudio_VariantFloat:
+                case TwinStudio_VariantInt8:
+                case TwinStudio_VariantUInt8:
+                case TwinStudio_VariantInt16:
+                case TwinStudio_VariantUInt16:
+                case TwinStudio_VariantInt32:
+                case TwinStudio_VariantUInt32:
+                case TwinStudio_VariantInt64:
+                case TwinStudio_VariantUInt64:
+                case TwinStudio_VariantEnum:
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\")->valuedouble;\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    break;
+                case TwinStudio_VariantString:
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = TwinStudio_CopyFromCString(cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\")->valuestring);\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    break;
+                case TwinStudio_VariantObject:
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   "TS_VIEW_FORMAT"JsonDeserialize(&target->"TS_VIEW_FORMAT", cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\"));\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    break;
+                default:
+                    break;
+            }
+            if (fieldBodyWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += fieldBodyWritten;
+            buffer += fieldBodyWritten;
+        }
+
+        if (isArray)
+        {
+            int arrEndWritten = WriteFile(genFile, buffer, "   }}\n");
+            if (arrEndWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += arrEndWritten;
+            buffer += arrEndWritten;
+        }
+
+        if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
+        {
+            int writeIfWritten = WriteFile(genFile, buffer, "   }\n");
+            if (writeIfWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += writeIfWritten;
+            buffer += writeIfWritten;
+        }
+    }
+
+    return amountWritten;
+}
+
+
 static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_GeneratedFile* genFile, char* buffer)
 {
     assert(node->type == TwinRes_NodeStructDefinition);
@@ -1205,212 +2116,9 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
             amountWritten += declWritten;
             buffer += declWritten;
 
-            for (uint32_t i = 0; i < structDef->fields->length; ++i)
-            {
-                TwinRes_ParserStructFieldDefinition* structField = structDef->fields->nodes[i].data;
-                if (TS_VARIANT_GET(bool, structField->options.excludeFromBin.data))
-                {
-                    continue;
-                }
-
-                char sizeFormat[1024] = "size";
-                const bool isLengthDefined = TS_VARIANT_GET(bool, structField->options.length.data);
-                if (isLengthDefined)
-                {
-                    if (structField->options.length.arguments[0].type == TwinStudio_VariantInt64)
-                    {
-                        snprintf(sizeFormat, 1024, "%ld", TS_VARIANT_GET(int64_t, structField->options.length.arguments[0]));
-                    }
-                    else if (structField->options.length.arguments[0].type == TwinStudio_VariantString)
-                    {
-                        snprintf(sizeFormat, 1024, TS_VIEW_FORMAT, TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.length.arguments[0])));
-                    }
-                    else
-                    {
-                        snprintf(sizeFormat, 1024, "source->"TS_VIEW_FORMAT, TS_VIEW_ARG(structField->options.length.arguments[0].storage.string));
-                    }
-                }
-
-                if (TS_VARIANT_GET(bool, structField->options.blob.data))
-                {
-                    int fieldBodyWritten = WriteFile(genFile, buffer, "   TwinStudio_BinWriteBlob(serializer, source->"TS_VIEW_FORMAT", %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
-                    if (fieldBodyWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += fieldBodyWritten;
-                    buffer += fieldBodyWritten;
-                    continue;
-                }
-
-                if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
-                {
-                    int writeIfWritten = WriteFile(genFile, buffer, "   if ("TS_VIEW_FORMAT") {\n", TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0])));
-                    if (writeIfWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += writeIfWritten;
-                    buffer += writeIfWritten;
-                }
-
-                int fieldBodyWritten = 0;
-                const bool isArray = structField->valueType & TwinStudio_VariantArray;
-                const bool isInfArray = TS_VARIANT_GET(bool, structField->options.noLength.data);
-                char* indexWriting = "";
-                char* extraSpaces = "   ";
-                if (isArray)
-                {
-                    extraSpaces = "      ";
-                    if (!isLengthDefined)
-                    {
-                        if (!isInfArray)
-                        {
-                            int arrLenWritten = WriteFile(genFile, buffer, "   TwinStudio_BinWriteInt32(serializer, arrlen(source->"TS_VIEW_FORMAT"));\n", TS_VIEW_ARG(structField->name));
-                            if (arrLenWritten == 0)
-                            {
-                                return 0;
-                            }
-                            amountWritten += arrLenWritten;
-                            buffer += arrLenWritten;
-                        }
-
-                        int arrForLoopStart = WriteFile(genFile, buffer, "   for(uint32_t i = 0; i < arrlen(source->"TS_VIEW_FORMAT"); ++i) {\n", TS_VIEW_ARG(structField->name));
-                        if (arrForLoopStart == 0)
-                        {
-                            return 0;
-                        }
-                        amountWritten += arrForLoopStart;
-                        buffer += arrForLoopStart;
-                    }
-                    else if (isLengthDefined)
-                    {
-                        int arrForLoopStart = WriteFile(genFile, buffer, "   for(uint32_t i = 0; i < %s; ++i) {\n", sizeFormat);
-                        if (arrForLoopStart == 0)
-                        {
-                            return 0;
-                        }
-                        amountWritten += arrForLoopStart;
-                        buffer += arrForLoopStart;
-                    }
-
-                    indexWriting = "[i]";
-                }
-
-                const bool isBigEndian = TS_VARIANT_GET(bool, structField->options.toBigEndian.data);
-                const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
-                switch (valueType)
-                {
-                    case TwinStudio_VariantUInt8:
-                    case TwinStudio_VariantBool:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt8(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantFloat:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteFloat(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantInt8:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt8(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantInt16:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt16(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantUInt16:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt16(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantInt32:
-                    case TwinStudio_VariantEnum:
-                        if (isBigEndian)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt32(serializer, ToBigEndian(source->"TS_VIEW_FORMAT"%s));\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        }
-                        else
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt32(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        }
-                        break;
-                    case TwinStudio_VariantUInt32:
-                        if (isBigEndian)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt32(serializer, ToBigEndian(source->"TS_VIEW_FORMAT"%s));\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        }
-                        else
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt32(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        }
-                        break;
-                    case TwinStudio_VariantInt64:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteInt64(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantUInt64:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteUInt64(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantString:
-                        if (!isArray && isLengthDefined)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   TwinStudio_BinWriteChars(serializer, source->"TS_VIEW_FORMAT".string, %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
-                        }
-                        else
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteString(serializer, source->"TS_VIEW_FORMAT"%s, false);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        }
-                        break;
-                    case TwinStudio_VariantChar:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "%sTwinStudio_BinWriteChar(serializer, source->"TS_VIEW_FORMAT"%s);\n", extraSpaces, TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantObject:
-                        if (!isLengthDefined)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "%s"TS_VIEW_FORMAT"BinSerialize(&source->"TS_VIEW_FORMAT"%s, serializer, arena, sizeof("TS_VIEW_FORMAT"), source);\n", extraSpaces, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), indexWriting, TS_VIEW_ARG(structField->type));
-                        }
-                        else
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "%s"TS_VIEW_FORMAT"BinSerialize(&source->"TS_VIEW_FORMAT"%s, serializer, arena, %s, source);\n", extraSpaces, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), indexWriting, sizeFormat);
-                        }
-                        break;
-                    default:
-                        break;
-                }
-
-                if (fieldBodyWritten == 0)
-                {
-                    return 0;
-                }
-                amountWritten += fieldBodyWritten;
-                buffer += fieldBodyWritten;
-
-                if (TS_VARIANT_GET(int64_t, structField->options.align.data) > 0)
-                {
-                    int alignWritten = WriteFile(genFile, buffer, "%swhile(TwinStudio_BinGetStreamPosition(serializer) %% %d != 0) TwinStudio_BinWriteUInt8(serializer, %d);\n", extraSpaces, TS_VARIANT_GET(int64_t, structField->options.align.data), TS_VARIANT_GET(int64_t, structField->options.align.arguments[0]));
-                    if (alignWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += alignWritten;
-                    buffer += alignWritten;
-                }
-
-                if (isArray)
-                {
-                    int arrEndWritten = WriteFile(genFile, buffer, "   }\n");
-                    if (arrEndWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += arrEndWritten;
-                    buffer += arrEndWritten;
-                }
-
-                if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
-                {
-                    int writeIfWritten = WriteFile(genFile, buffer, "   }\n");
-                    if (writeIfWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += writeIfWritten;
-                    buffer += writeIfWritten;
-                }
-            }
+            int fieldWritten = GenerateStructFieldsBinarySerialization(structDef, genFile, buffer);
+            amountWritten += fieldWritten;
+            buffer += fieldWritten;
 
             static const char binSerialBody[] = "}\n\n";
             int bodyWritten = WriteFile(genFile, buffer, binSerialBody, TS_VIEW_ARG(structName));
@@ -1432,266 +2140,9 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
             amountWritten += declWritten;
             buffer += declWritten;
 
-            for (uint32_t i = 0; i < structDef->fields->length; ++i)
-            {
-                TwinRes_ParserStructFieldDefinition* structField = structDef->fields->nodes[i].data;
-                if (TS_VARIANT_GET(bool, structField->options.excludeFromBin.data) || structField->isConst)
-                {
-                    continue;
-                }
-
-                char sizeFormat[1024] = "size";
-                const bool isBigEndian = TS_VARIANT_GET(bool, structField->options.toBigEndian.data);
-                const bool isLengthDefined = TS_VARIANT_GET(bool, structField->options.length.data);
-                if (isLengthDefined)
-                {
-                    if (structField->options.length.arguments[0].type == TwinStudio_VariantInt64)
-                    {
-                        snprintf(sizeFormat, 1024, "%ld", TS_VARIANT_GET(int64_t, structField->options.length.arguments[0]));
-                    }
-                    else if (structField->options.length.arguments[0].type == TwinStudio_VariantString)
-                    {
-                        TwinStudio_StringView originalLength = TS_VARIANT_GET(TwinStudio_StringView, structField->options.length.arguments[0]);
-                        TwinStudio_StringView lengthCopy = TwinStudio_CopyFromCString(TwinStudio_GetCStringDynamic(&originalLength));
-                        char* replacement = NULL;
-                        char* currentSearch = lengthCopy.dynString;
-                        while ((replacement = strstr(currentSearch, "source")) != NULL)
-                        {
-                            memcpy(replacement, "target", sizeof("target") - 1);
-                            currentSearch = replacement;
-                        }
-                        snprintf(sizeFormat, 1024, TS_VIEW_FORMAT, TS_VIEW_ARG(lengthCopy));
-                        TwinStudio_FreeString(&lengthCopy);
-                    }
-                    else
-                    {
-                        snprintf(sizeFormat, 1024, "target->"TS_VIEW_FORMAT, TS_VIEW_ARG(structField->options.length.arguments[0].storage.string));
-                    }
-                }
-
-                if (TS_VARIANT_GET(bool, structField->options.blob.data))
-                {
-                    int fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = TwinStudio_BinReadBlob(deserializer, arena, %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
-                    if (fieldBodyWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += fieldBodyWritten;
-                    buffer += fieldBodyWritten;
-                    continue;
-                }
-
-                if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
-                {
-                    TwinStudio_StringView originalCondition = TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0]);
-                    TwinStudio_StringView conditionCopy = TwinStudio_CopyFromCString(TwinStudio_GetCStringDynamic(&originalCondition));
-                    char* replacement = NULL;
-                    char* currentSearch = conditionCopy.dynString;
-                    while ((replacement = strstr(currentSearch, "source")) != NULL)
-                    {
-                        memcpy(replacement, "target", sizeof("target") - 1);
-                        currentSearch = replacement;
-                    }
-                    int writeIfWritten = WriteFile(genFile, buffer, "   if ("TS_VIEW_FORMAT") {\n", TS_VIEW_ARG(conditionCopy));
-                    TwinStudio_FreeString(&conditionCopy);
-                    if (writeIfWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += writeIfWritten;
-                    buffer += writeIfWritten;
-                }
-
-                const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
-                const bool isArray = structField->valueType & TwinStudio_VariantArray;
-                const bool isInfArray = TS_VARIANT_GET(bool, structField->options.noLength.data);
-                if (isArray)
-                {
-                    if (!isInfArray)
-                    {
-                        if (!isLengthDefined)
-                        {
-                            int arrLenWritten = WriteFile(genFile, buffer, "   uint32_t "TS_VIEW_FORMAT"Size = TwinStudio_BinReadInt32(deserializer);\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                            if (arrLenWritten == 0)
-                            {
-                                return 0;
-                            }
-                            amountWritten += arrLenWritten;
-                            buffer += arrLenWritten;
-
-                            int arrForLoopStart = WriteFile(genFile, buffer, "   for(uint32_t i = 0; i < "TS_VIEW_FORMAT"Size; ++i) {\n", TS_VIEW_ARG(structField->name));
-                            if (arrForLoopStart == 0)
-                            {
-                                return 0;
-                            }
-                            amountWritten += arrForLoopStart;
-                            buffer += arrForLoopStart;
-                        }
-                        else
-                        {
-                            int arrForLoopStart = WriteFile(genFile, buffer, "   arrsetcap(target->"TS_VIEW_FORMAT", %s); for(uint32_t i = 0; i < %s; ++i) {\n", TS_VIEW_ARG(structField->name), sizeFormat, sizeFormat);
-                            if (arrForLoopStart == 0)
-                            {
-                                return 0;
-                            }
-                            amountWritten += arrForLoopStart;
-                            buffer += arrForLoopStart;
-                        }
-                    }
-                    else
-                    {
-                        int arrForLoopStart = WriteFile(genFile, buffer, "   while(TwinStudio_BinGetStreamPosition(deserializer) < TwinStudio_BinGetStreamLength(deserializer)) {\n", TS_VIEW_ARG(structField->name));
-                        if (arrForLoopStart == 0)
-                        {
-                            return 0;
-                        }
-                        amountWritten += arrForLoopStart;
-                        buffer += arrForLoopStart;
-                    }
-
-                    if (valueType != TwinStudio_VariantObject)
-                    {
-                        int prePutWritten = WriteFile(genFile, buffer, "      arrput(target->"TS_VIEW_FORMAT", ", TS_VIEW_ARG(structField->name));
-                        if (prePutWritten == 0)
-                        {
-                            return 0;
-                        }
-                        amountWritten += prePutWritten;
-                        buffer += prePutWritten;
-                    }
-                }
-                
-                int fieldBodyWritten = 0;
-                char* readFunc = "";
-                char readFuncBuffer[256];
-                switch (valueType)
-                {
-                    case TwinStudio_VariantInt8:
-                        readFunc = "TwinStudio_BinReadInt8(deserializer)";
-                        break;
-                    case TwinStudio_VariantUInt8:
-                    case TwinStudio_VariantBool:
-                        readFunc = "TwinStudio_BinReadUInt8(deserializer)";
-                        break;
-                    case TwinStudio_VariantFloat:
-                        readFunc = "TwinStudio_BinReadFloat(deserializer)";
-                        break;
-                    case TwinStudio_VariantInt16:
-                        readFunc = "TwinStudio_BinReadInt16(deserializer)";
-                        break;
-                    case TwinStudio_VariantUInt16:
-                        readFunc = "TwinStudio_BinReadUInt16(deserializer)";
-                        break;
-                    case TwinStudio_VariantInt32:
-                    case TwinStudio_VariantEnum:
-                        readFunc = "TwinStudio_BinReadInt32(deserializer)";
-                        break;
-                    case TwinStudio_VariantUInt32:
-                        readFunc = "TwinStudio_BinReadUInt32(deserializer)";
-                        break;
-                    case TwinStudio_VariantInt64:
-                        readFunc = "TwinStudio_BinReadInt64(deserializer)";
-                        break;
-                    case TwinStudio_VariantUInt64:
-                        readFunc = "TwinStudio_BinReadUInt64(deserializer)";
-                        break;
-                    case TwinStudio_VariantChar:
-                        readFunc = "TwinStudio_BinReadChar(deserializer)";
-                        break;
-                    case TwinStudio_VariantString:
-                        if (!isArray && isLengthDefined)
-                        {
-                            sprintf(readFuncBuffer, "TwinStudio_CopyFromCString(TwinStudio_BinReadChars(deserializer, arena, %s))", sizeFormat);
-                            readFunc = readFuncBuffer;
-                        }
-                        else
-                        {
-                            readFunc = "TwinStudio_BinReadString(deserializer, arena)";
-                        }
-                        break;
-                    default:
-                        break;
-                }
-                if (isArray)
-                {
-                    if (valueType != TwinStudio_VariantObject)
-                    {
-                        if (isBigEndian)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "ToBigEndian(%s));\n", readFunc);
-                        }
-                        else
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "%s);\n", readFunc);
-                        }
-                    }
-                    else
-                    {
-                        if (isLengthDefined)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, %s, target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
-                                TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), sizeFormat, TS_VIEW_ARG(structField->name));
-                        }
-                        else
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, sizeof("TS_VIEW_FORMAT"), target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
-                                TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
-                        }
-                    }
-                }
-                else
-                {
-                    if (valueType != TwinStudio_VariantObject)
-                    {
-                        if (isBigEndian)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = ToBigEndian(%s);\n", TS_VIEW_ARG(structField->name), readFunc);
-                        }
-                        else
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = %s;\n", TS_VIEW_ARG(structField->name), readFunc);
-                        }
-                    }
-                    else
-                    {
-                        if (isLengthDefined)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   "TS_VIEW_FORMAT"BinDeserialize(&target->"TS_VIEW_FORMAT", deserializer, arena, %s, target);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), sizeFormat);
-                        }
-                        else
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   "TS_VIEW_FORMAT"BinDeserialize(&target->"TS_VIEW_FORMAT", deserializer, arena, sizeof("TS_VIEW_FORMAT"), target);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type));
-                        }
-                    }
-                }
-                if (fieldBodyWritten == 0)
-                {
-                    return 0;
-                }
-                amountWritten += fieldBodyWritten;
-                buffer += fieldBodyWritten;
-                if (isArray)
-                {
-                    int arrEndWritten = WriteFile(genFile, buffer, "   }\n");
-                    if (arrEndWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += arrEndWritten;
-                    buffer += arrEndWritten;
-                }
-
-                if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
-                {
-                    int writeIfWritten = WriteFile(genFile, buffer, "   }\n");
-                    if (writeIfWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += writeIfWritten;
-                    buffer += writeIfWritten;
-                }
-            }
+            int fieldsWritten = GenerateStructFieldsBinaryDeserialization(structDef, genFile, buffer);
+            amountWritten += fieldsWritten;
+            buffer += fieldsWritten;
 
             static const char binDeserialBody[] = "}\n\n";
             int bodyWritten = WriteFile(genFile, buffer, binDeserialBody, TS_VIEW_ARG(structName));
@@ -1729,138 +2180,9 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
             amountWritten += bodyWritten;
             buffer += bodyWritten;
 
-            for (uint32_t i = 0; i < structDef->fields->length; ++i)
-            {
-                TwinRes_ParserStructFieldDefinition* structField = structDef->fields->nodes[i].data;
-                if (TS_VARIANT_GET(bool, structField->options.excludeFromJson.data))
-                {
-                    continue;
-                }
-
-                if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
-                {
-                    int writeIfWritten = WriteFile(genFile, buffer, "   if ("TS_VIEW_FORMAT") {\n", TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0])));
-                    if (writeIfWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += writeIfWritten;
-                    buffer += writeIfWritten;
-                }
-
-                const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
-                const bool isArray = structField->valueType & TwinStudio_VariantArray;
-
-                char* indexWriting = "";
-                if (isArray)
-                {
-                    int arrDecl = WriteFile(genFile, buffer, "   cJSON* "TS_VIEW_FORMAT"Json = cJSON_AddArrayToObject(rootObject, \""TS_VIEW_FORMAT"\");\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                    if (arrDecl == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += arrDecl;
-                    buffer += arrDecl;
-
-                    int arrForLoopStart = WriteFile(genFile, buffer, "   for(uint32_t i = 0; i < arrlen(source->"TS_VIEW_FORMAT"); ++i) {\n", TS_VIEW_ARG(structField->name));
-                    if (arrForLoopStart == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += arrForLoopStart;
-                    buffer += arrForLoopStart;
-
-                    if (valueType != TwinStudio_VariantString && valueType != TwinStudio_VariantObject)
-                    {
-                        int loopBodyStart = WriteFile(genFile, buffer, "      cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, ", TS_VIEW_ARG(structField->name));
-                        if (loopBodyStart == 0)
-                        {
-                            return 0;
-                        }
-                        amountWritten += loopBodyStart;
-                        buffer += loopBodyStart;
-                    }
-                    indexWriting = "[i]";
-                }
-
-                int fieldBodyWritten = 0;
-                switch (valueType)
-                {
-                    case TwinStudio_VariantBool:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddBoolToObject(rootObject, \""TS_VIEW_FORMAT"\", source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantFloat:
-                    case TwinStudio_VariantInt8:
-                    case TwinStudio_VariantUInt8:
-                    case TwinStudio_VariantInt16:
-                    case TwinStudio_VariantUInt16:
-                    case TwinStudio_VariantInt32:
-                    case TwinStudio_VariantUInt32:
-                    case TwinStudio_VariantInt64:
-                    case TwinStudio_VariantUInt64:
-                    case TwinStudio_VariantEnum:
-                        fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddNumberToObject(rootObject, \""TS_VIEW_FORMAT"\", source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), indexWriting);
-                        break;
-                    case TwinStudio_VariantString:
-                        if (!isArray)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT");\n   cJSON_AddStringToObject(rootObject, \""TS_VIEW_FORMAT"\", dynCStr);\n   TWIN_FREE(dynCStr)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                        }
-                        else 
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT"[i]);\n   cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, cJSON_CreateString(dynCStr));\n   TWIN_FREE(dynCStr", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                        }
-                        break;
-                    case TwinStudio_VariantObject:
-                        if (!isArray)
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddItemToObject(rootObject, \""TS_VIEW_FORMAT"\", "TS_VIEW_FORMAT"JsonSerialize(&source->"TS_VIEW_FORMAT"))", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
-                        }
-                        else
-                        {
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, "TS_VIEW_FORMAT"JsonSerialize(&source->"TS_VIEW_FORMAT"[i])", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
-                        }
-                        break;
-                    default:
-                        break;
-                }
-                if (fieldBodyWritten == 0)
-                {
-                    return 0;
-                }
-                amountWritten += fieldBodyWritten;
-                buffer += fieldBodyWritten;
-
-                int fieldBodyEnd = WriteFile(genFile, buffer, isArray ? ");\n" : ";\n");
-                if (fieldBodyEnd == 0)
-                {
-                    return 0;
-                }
-                amountWritten += fieldBodyEnd;
-                buffer += fieldBodyEnd;
-
-                if (isArray)
-                {
-                    int arrEndWritten = WriteFile(genFile, buffer, "   }\n");
-                    if (arrEndWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += arrEndWritten;
-                    buffer += arrEndWritten;
-                }
-
-                if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
-                {
-                    int writeIfWritten = WriteFile(genFile, buffer, "   }\n");
-                    if (writeIfWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += writeIfWritten;
-                    buffer += writeIfWritten;
-                }
-            }
+            int fieldsWritten = GenerateStructFieldsJsonSerialization(structDef, genFile, buffer);
+            amountWritten += fieldsWritten;
+            buffer += fieldsWritten;
 
             int bodyEndWritten = WriteFile(genFile, buffer, "   return rootObject;\n}\n\n");
             if (bodyEndWritten == 0)
@@ -1881,160 +2203,9 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
             amountWritten += declWritten;
             buffer += declWritten;
 
-            for (uint32_t i = 0; i < structDef->fields->length; ++i)
-            {
-                TwinRes_ParserStructFieldDefinition* structField = structDef->fields->nodes[i].data;
-                if (TS_VARIANT_GET(bool, structField->options.excludeFromJson.data))
-                {
-                    continue;
-                }
-
-                const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
-                const bool isArray = structField->valueType & TwinStudio_VariantArray;
-
-                if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
-                {
-                    TwinStudio_StringView originalCondition = TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0]);
-                    TwinStudio_StringView conditionCopy = TwinStudio_CopyFromCString(TwinStudio_GetCStringDynamic(&originalCondition));
-                    char* replacement = NULL;
-                    char* currentSearch = conditionCopy.dynString;
-                    while ((replacement = strstr(currentSearch, "source")) != NULL)
-                    {
-                        memcpy(replacement, "target", sizeof("target") - 1);
-                        currentSearch = replacement;
-                    }
-                    int writeIfWritten = WriteFile(genFile, buffer, "   if ("TS_VIEW_FORMAT") {\n", TS_VIEW_ARG(conditionCopy));
-                    TwinStudio_FreeString(&conditionCopy);
-                    if (writeIfWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += writeIfWritten;
-                    buffer += writeIfWritten;
-                }
-
-                if (isArray)
-                {
-                    int arrLenWritten = WriteFile(genFile, buffer, "   cJSON* "TS_VIEW_FORMAT"Json = cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\");\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                    if (arrLenWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += arrLenWritten;
-                    buffer += arrLenWritten;
-
-                    int arrForLoopStart = WriteFile(genFile, buffer, "   { cJSON* jsonItem; cJSON_ArrayForEach(jsonItem, "TS_VIEW_FORMAT"Json) {\n", TS_VIEW_ARG(structField->name));
-                    if (arrForLoopStart == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += arrForLoopStart;
-                    buffer += arrForLoopStart;
-
-                    if (valueType != TwinStudio_VariantObject)
-                    {
-                        int prePutWritten = WriteFile(genFile, buffer, "      arrput(target->"TS_VIEW_FORMAT", ", TS_VIEW_ARG(structField->name));
-                        if (prePutWritten == 0)
-                        {
-                            return 0;
-                        }
-                        amountWritten += prePutWritten;
-                        buffer += prePutWritten;
-                    }
-
-                    int fieldBodyWritten = 0;
-                    switch (valueType)
-                    {
-                        case TwinStudio_VariantBool:
-                            fieldBodyWritten = WriteFile(genFile, buffer, "jsonItem->valueint);\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                            break;
-                        case TwinStudio_VariantFloat:
-                        case TwinStudio_VariantInt8:
-                        case TwinStudio_VariantUInt8:
-                        case TwinStudio_VariantInt16:
-                        case TwinStudio_VariantUInt16:
-                        case TwinStudio_VariantInt32:
-                        case TwinStudio_VariantUInt32:
-                        case TwinStudio_VariantInt64:
-                        case TwinStudio_VariantUInt64:
-                        case TwinStudio_VariantEnum:
-                            fieldBodyWritten = WriteFile(genFile, buffer, "jsonItem->valuedouble);\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                            break;
-                        case TwinStudio_VariantString:
-                            fieldBodyWritten = WriteFile(genFile, buffer, "TwinStudio_CopyFromCString(jsonItem->valuestring));\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                            break;
-                        case TwinStudio_VariantObject:
-                            fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(); "TS_VIEW_FORMAT"JsonDeserialize(&createdObj, jsonItem); arrput(target->"TS_VIEW_FORMAT", createdObj);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
-                            break;
-                        default:
-                            break;
-                    }
-                    if (fieldBodyWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += fieldBodyWritten;
-                    buffer += fieldBodyWritten;
-                }
-                else
-                {
-                    int fieldBodyWritten = 0;
-                    switch (valueType)
-                    {
-                        case TwinStudio_VariantBool:
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\")->valueint;\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                            break;
-                        case TwinStudio_VariantFloat:
-                        case TwinStudio_VariantInt8:
-                        case TwinStudio_VariantUInt8:
-                        case TwinStudio_VariantInt16:
-                        case TwinStudio_VariantUInt16:
-                        case TwinStudio_VariantInt32:
-                        case TwinStudio_VariantUInt32:
-                        case TwinStudio_VariantInt64:
-                        case TwinStudio_VariantUInt64:
-                        case TwinStudio_VariantEnum:
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\")->valuedouble;\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                            break;
-                        case TwinStudio_VariantString:
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = TwinStudio_CopyFromCString(cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\")->valuestring);\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                            break;
-                        case TwinStudio_VariantObject:
-                            fieldBodyWritten = WriteFile(genFile, buffer, "   "TS_VIEW_FORMAT"JsonDeserialize(&target->"TS_VIEW_FORMAT", cJSON_GetObjectItemCaseSensitive(json, \""TS_VIEW_FORMAT"\"));\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
-                            break;
-                        default:
-                            break;
-                    }
-                    if (fieldBodyWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += fieldBodyWritten;
-                    buffer += fieldBodyWritten;
-                }
-
-                if (isArray)
-                {
-                    int arrEndWritten = WriteFile(genFile, buffer, "   }}\n");
-                    if (arrEndWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += arrEndWritten;
-                    buffer += arrEndWritten;
-                }
-
-                if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
-                {
-                    int writeIfWritten = WriteFile(genFile, buffer, "   }\n");
-                    if (writeIfWritten == 0)
-                    {
-                        return 0;
-                    }
-                    amountWritten += writeIfWritten;
-                    buffer += writeIfWritten;
-                }
-            }
+            int fieldsWritten = GenerateStructFieldsJsonDeserialization(structDef, genFile, buffer);
+            amountWritten += fieldsWritten;
+            buffer += fieldsWritten;
 
             int bodyEndWritten = WriteFile(genFile, buffer, "   cJSON_Delete(json);\n}\n\n");
             if (bodyEndWritten == 0)
@@ -2051,19 +2222,35 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
 }
 
 
-static int GenerateStructDeclarations(TwinRes_ParserNode* node, TwinRes_GeneratedFile* genFile, char* buffer)
+static int GenerateStructDeclarations(TwinRes_ParserNode* node, TwinRes_GeneratedFile* genFile, char* buffer, bool isInlineStruct)
 {
     assert(node->type == TwinRes_NodeStructDefinition);
 
-    static const char structOpaqueFormat[] = "\n\n\ntypedef struct "TS_VIEW_FORMAT" "TS_VIEW_FORMAT";\n";
     static const char structStartFormat[] = "\n\n\ntypedef struct "TS_VIEW_FORMAT" {\n";
+    static const char inlineStructStartFormat[] = "\n\n\nTS_COMPACT_STRUCT {\n";
+    static const char unionStartFormat[] = "\n\n\nTS_COMPACT_UNION {\n";
     static const char structEndFormat[] = "} "TS_VIEW_FORMAT";\n";
+    static const char inlineStructEndFormat[] = "};\n";
 
-    // Write struct header/opaque definition
+    // Write struct header definition
     const TwinRes_ParserStructDefinition* structDef = node->data;
     const TwinStudio_StringView structName = structDef->structName;
     int amountWritten = 0;
-    int structHeaderWritten = WriteFile(genFile, buffer, structStartFormat, TS_VIEW_ARG(structName));
+
+    char* startFormat = (void*)structStartFormat;
+    char* endFormat   = (void*)structEndFormat;
+    if (isInlineStruct)
+    {
+        startFormat = (void*)inlineStructStartFormat;
+        endFormat = (void*)inlineStructEndFormat;
+    }
+    if (structDef->isUnion)
+    {
+        startFormat = (void*)unionStartFormat;
+        endFormat = (void*)inlineStructEndFormat;
+    }
+
+    int structHeaderWritten = WriteFile(genFile, buffer, startFormat, TS_VIEW_ARG(structName));
     if (structHeaderWritten == 0)
     {
         return 0;
@@ -2074,7 +2261,20 @@ static int GenerateStructDeclarations(TwinRes_ParserNode* node, TwinRes_Generate
     // Write fields
     for (uint32_t i = 0; i < structDef->fields->length; ++i)
     {
-        int fieldAmountWritten = GenerateStructField(&structDef->fields->nodes[i], genFile, buffer);
+        TwinRes_ParserNode* node = structDef->fields->nodes + i;
+        if (node->type == TwinRes_NodeStructDefinition)
+        {
+            int inlineStructWritten = GenerateStructDeclarations(node, genFile, buffer, true);
+            if (inlineStructWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += inlineStructWritten;
+            buffer += inlineStructWritten;
+            continue;
+        }
+
+        int fieldAmountWritten = GenerateStructField(node, genFile, buffer);
         if (fieldAmountWritten == 0)
         {
             return 0;
@@ -2084,7 +2284,7 @@ static int GenerateStructDeclarations(TwinRes_ParserNode* node, TwinRes_Generate
         buffer += fieldAmountWritten;
     }
 
-    int endWritten = WriteFile(genFile, buffer, structEndFormat, TS_VIEW_ARG(structName));
+    int endWritten = WriteFile(genFile, buffer, endFormat, TS_VIEW_ARG(structName));
     if (endWritten == 0)
     {
         return 0;
@@ -2092,6 +2292,11 @@ static int GenerateStructDeclarations(TwinRes_ParserNode* node, TwinRes_Generate
 
     amountWritten += endWritten;
     buffer += endWritten;
+
+    if (isInlineStruct || structDef->isUnion)
+    {
+        return amountWritten;
+    }
 
     static const char constructorDecl[] = TS_VIEW_FORMAT" "TS_VIEW_FORMAT"Create();\n";
     int constructorWritten = WriteFile(genFile, buffer, constructorDecl, TS_VIEW_ARG(structDef->structName), TS_VIEW_ARG(structDef->structName));
@@ -2228,6 +2433,7 @@ static void TwinRes_ParseAndGenerateStructFiles(TwinRes_GeneratorOutput* output,
     static const char defaultIncludes[] = "#include <cJSON.h>\n"
         "#include <stdint.h>\n"
         "#include <stb_ds.h>\n"
+        "#include \"defines/defines.h\"\n"
         "#include \"memory/memory.h\"\n"
         "#include \"resources/resources.h\"\n"
         "#include \"serialization/binary_serializer.h\"\n"
@@ -2248,7 +2454,7 @@ static void TwinRes_ParseAndGenerateStructFiles(TwinRes_GeneratorOutput* output,
                 implSourceStr += GenerateInclude(&node, &output->structFiles[TwinRes_GenImplementation], implSourceStr);
                 break;
             case TwinRes_NodeStructDefinition:
-                headerSourceStr += GenerateStructDeclarations(&node, &output->structFiles[TwinRes_GenHeader], headerSourceStr);
+                headerSourceStr += GenerateStructDeclarations(&node, &output->structFiles[TwinRes_GenHeader], headerSourceStr, false);
                 implSourceStr   += GenerateStructDefinitions(&node, &output->structFiles[TwinRes_GenImplementation], implSourceStr);
                 break;
             case TwinRes_NodeEnumDefinition:
