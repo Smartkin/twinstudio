@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <rpmalloc.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifdef TWIN_ASAN
 #define TWIN_MALLOC malloc
