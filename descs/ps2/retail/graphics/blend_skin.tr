@@ -1,31 +1,33 @@
 #include "raylib.h"
 
-[no_json] [no_read]
+[no_json]
 asset TwinRes_BlendSkinModelPartMorph {
     uint32_t faceVifDataLength;
     uint32_t vertexesAmount;
     [blob] [length("arrlen(source->vifData)")] void* vifData;
 }
 
-[no_json] [no_read]
+[no_json]
 asset TwinRes_BlendSkinModelPart {
+    [no_bin] [constructor] uint32_t morphsAmount;
     uint32_t vifDataLength;
     uint32_t vertexesAmount;
     [blob] [length(vifDataLength)] void* vifData;
     Vector3 blendShape;
-    [no_length] TwinRes_BlendSkinModelPartMorph* morphs;
+    [length(morphsAmount)] TwinRes_BlendSkinModelPartMorph* morphs;
 }
 
-[no_json] [no_read]
+[no_json]
 asset TwinRes_BlendSkinModel {
+    [no_bin] [constructor] uint32_t morphsAmount;
     uint32_t partsAmount;
     [link_resource("TS_RT_Material")] uint32_t material;
-    [length(partsAmount)] TwinRes_BlendSkinModelPart* modelParts;
+    [length(partsAmount)] [constructor(morphsAmount)] TwinRes_BlendSkinModelPart* modelParts;
 }
 
-[no_json] [no_read]
+[no_json]
 asset TwinRes_BlendSkin {
     uint32_t modelsAmount;
     uint32_t morphsAmount;
-    [length(modelsAmount)] TwinRes_BlendSkinModel* models;
+    [length(modelsAmount)] [constructor(morphsAmount)] TwinRes_BlendSkinModel* models;
 }
