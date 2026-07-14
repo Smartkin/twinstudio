@@ -36,6 +36,7 @@ asset TwinRes_MbRecord {
 [no_json] [no_read]
 asset TwinRes_MbArchive {
     [no_bin] TwinRes_MhArchive header;
+    [no_bin] uint32_t currentItemIterator = 0;
     [align(0x800, 0x0)] [no_length]
     TwinRes_MbRecord* items;
 }

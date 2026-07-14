@@ -67,6 +67,7 @@ typedef struct TwinRes_StructFieldGeneratorOptions {
     TwinRes_AttributeInfo toBigEndian;
     TwinRes_AttributeInfo linkResource;
     TwinRes_AttributeInfo voidRead;
+    TwinRes_AttributeInfo constructor;
 } TwinRes_StructFieldGeneratorOptions;
 
 
@@ -97,6 +98,7 @@ typedef struct TwinRes_ParserStructFieldDefinition {
     TwinStudio_VariantType valueType;
     int32_t bitfield;
     bool isConst;
+    bool valueFromConstructor;
 } TwinRes_ParserStructFieldDefinition;
 
 

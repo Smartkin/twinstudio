@@ -524,6 +524,15 @@ static bool HandleFieldVoidRead(TwinRes_StructFieldGeneratorOptions* options, Tw
 }
 
 
+static bool HandleFieldConstructor(TwinRes_StructFieldGeneratorOptions* options, TwinRes_AttributeArgumentsList* arguments)
+{
+    TwinStudio_VariantSetBool(&options->constructor.data, true);
+    options->constructor.argumentLength = arguments->length;
+    options->constructor.arguments = arguments->arguments;
+    return true;
+}
+
+
 static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_AttributeArgumentsList* arguments, TwinRes_StructFieldGeneratorOptions* options)
 {
     if (TryHandleStructFieldAttributeWrapper("caption", attribName, arguments, options, HandleFieldCaption)) { return; }
@@ -540,6 +549,7 @@ static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_Attri
     if (TryHandleStructFieldAttributeWrapper("big_endian", attribName, arguments, options, HandleFieldToBigEndian)) { return; }
     if (TryHandleStructFieldAttributeWrapper("link_resource", attribName, arguments, options, HandleFieldLinkResource)) { return; }
     if (TryHandleStructFieldAttributeWrapper("void_read", attribName, arguments, options, HandleFieldVoidRead)) { return; }
+    if (TryHandleStructFieldAttributeWrapper("constructor", attribName, arguments, options, HandleFieldConstructor)) { return; }
     fprintf(stderr, "WARNING: Skipped unknown or malformed struct field attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
 }
 
@@ -561,6 +571,7 @@ static inline TwinRes_StructFieldGeneratorOptions GetDefaultFieldOptions()
         .toBigEndian = CREATE_ATTRIBUTE(big_endian, bool, false),
         .linkResource = CREATE_ATTRIBUTE(link_resource, bool, false),
         .voidRead = CREATE_ATTRIBUTE(void_read, bool, false),
+        .constructor = CREATE_ATTRIBUTE(constructor, bool, false),
     };
 }
 
@@ -1398,6 +1409,24 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             continue;
         }
 
+        char constructorBuffer[1024];
+        constructorBuffer[0] = '\0';
+        if (TS_VARIANT_GET(bool, structField->options.constructor.data) && structField->options.constructor.argumentLength > 0)
+        {
+            for (uint32_t j = 0; j < structField->options.constructor.argumentLength; ++j)
+            {
+                if (j > 0 && j < structField->options.constructor.argumentLength - 1)
+                {
+                    strcat(constructorBuffer, ", ");
+                }
+
+                char paramBuffer[128];
+                paramBuffer[0] = '\0';
+                snprintf(paramBuffer, 128, "target->"TS_VIEW_FORMAT, TS_VIEW_ARG(structField->options.constructor.arguments[j].storage.string));
+                strcat(constructorBuffer, paramBuffer);
+            }
+        }
+
         char sizeFormat[1024] = "size";
         const bool isBigEndian = TS_VARIANT_GET(bool, structField->options.toBigEndian.data);
         const bool isLengthDefined = TS_VARIANT_GET(bool, structField->options.length.data);
@@ -1600,13 +1629,13 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             {
                 if (isLengthDefined)
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, %s, target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
-                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), sizeFormat, TS_VIEW_ARG(structField->name));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, %s, target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
+                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, TS_VIEW_ARG(structField->type), sizeFormat, TS_VIEW_ARG(structField->name));
                 }
                 else
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, sizeof("TS_VIEW_FORMAT"), target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
-                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, sizeof("TS_VIEW_FORMAT"), target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
+                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
                 }
             }
         }
@@ -1855,6 +1884,23 @@ static int GenerateStructFieldsJsonDeserialization(const TwinRes_ParserStructDef
         const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
         const bool isArray = structField->valueType & TwinStudio_VariantArray;
 
+        char constructorBuffer[1024];
+        constructorBuffer[0] = '\0';
+        if (TS_VARIANT_GET(bool, structField->options.constructor.data) && structField->options.constructor.argumentLength > 0)
+        {
+            for (uint32_t j = 0; j < structField->options.constructor.argumentLength; ++j)
+            {
+                if (j > 0 && j < structField->options.constructor.argumentLength - 1)
+                {
+                    strcat(constructorBuffer, ", ");
+                }
+
+                char paramBuffer[128];
+                snprintf(paramBuffer, 128, "target->"TS_VIEW_FORMAT, TS_VIEW_ARG(structField->options.constructor.arguments[j].storage.string));
+                strcat(constructorBuffer, paramBuffer);
+            }
+        }
+
         if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
         {
             TwinStudio_StringView originalCondition = TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0]);
@@ -1927,7 +1973,7 @@ static int GenerateStructFieldsJsonDeserialization(const TwinRes_ParserStructDef
                     fieldBodyWritten = WriteFile(genFile, buffer, "TwinStudio_CopyFromCString(jsonItem->valuestring));\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
                     break;
                 case TwinStudio_VariantObject:
-                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(); "TS_VIEW_FORMAT"JsonDeserialize(&createdObj, jsonItem); arrput(target->"TS_VIEW_FORMAT", createdObj);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); "TS_VIEW_FORMAT"JsonDeserialize(&createdObj, jsonItem); arrput(target->"TS_VIEW_FORMAT", createdObj);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
                     break;
                 default:
                     break;
@@ -2013,8 +2059,40 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
     const TwinStudio_StringView structName = structDef->structName;
 
     int amountWritten = 0;
-    static const char constructorDecl[] = TS_VIEW_FORMAT" "TS_VIEW_FORMAT"Create()\n{\n   "TS_VIEW_FORMAT" result = { \n";
-    int constructorWritten = WriteFile(genFile, buffer, constructorDecl, TS_VIEW_ARG(structDef->structName), TS_VIEW_ARG(structDef->structName), TS_VIEW_ARG(structDef->structName));
+    static const char constructorDecl[] = TS_VIEW_FORMAT" "TS_VIEW_FORMAT"Create(%s)\n{\n   "TS_VIEW_FORMAT" result = { \n";
+    char constructorParamsBuffer[2048];
+    constructorParamsBuffer[0] = '\0';
+    bool hasParams = false;
+    for (uint32_t i = 0; i < structDef->fields->length; ++i)
+    {
+        TwinRes_ParserNode* node = structDef->fields->nodes + i;
+        if (node->type == TwinRes_NodeStructDefinition)
+        {
+            continue;
+        }
+
+        TwinRes_ParserStructFieldDefinition* structField = node->data;
+        if (!TS_VARIANT_GET(bool, structField->options.constructor.data) || structField->options.constructor.argumentLength > 0)
+        {
+            continue;
+        }
+
+        char paramBuffer[128];
+        snprintf(paramBuffer, 128, TS_VIEW_FORMAT" "TS_VIEW_FORMAT"Param", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+
+        structField->valueFromConstructor = true;
+        if (!hasParams)
+        {
+            hasParams = true;
+        }
+        else
+        {
+            strcat(constructorParamsBuffer, ", ");
+        }
+        strcat(constructorParamsBuffer, paramBuffer);
+    }
+
+    int constructorWritten = WriteFile(genFile, buffer, constructorDecl, TS_VIEW_ARG(structDef->structName), TS_VIEW_ARG(structDef->structName), constructorParamsBuffer, TS_VIEW_ARG(structDef->structName));
     if (constructorWritten == 0)
     {
         return 0;
@@ -2024,7 +2102,25 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
 
     for (uint32_t i = 0; i < structDef->fields->length; ++i)
     {
-        TwinRes_ParserStructFieldDefinition* structField = structDef->fields->nodes[i].data;
+        TwinRes_ParserNode* node = structDef->fields->nodes + i;
+        if (node->type == TwinRes_NodeStructDefinition)
+        {
+            continue;
+        }
+
+        TwinRes_ParserStructFieldDefinition* structField = node->data;
+
+        if (structField->valueFromConstructor)
+        {
+            int constructorWritten = WriteFile(genFile, buffer, "      ."TS_VIEW_FORMAT" = "TS_VIEW_FORMAT"Param,\n", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+            if (constructorWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += constructorWritten;
+            buffer += constructorWritten;
+            continue;
+        }
 
         if (structField->defaultValue.type == TwinStudio_VariantNull)
         {
@@ -2298,8 +2394,40 @@ static int GenerateStructDeclarations(TwinRes_ParserNode* node, TwinRes_Generate
         return amountWritten;
     }
 
-    static const char constructorDecl[] = TS_VIEW_FORMAT" "TS_VIEW_FORMAT"Create();\n";
-    int constructorWritten = WriteFile(genFile, buffer, constructorDecl, TS_VIEW_ARG(structDef->structName), TS_VIEW_ARG(structDef->structName));
+    static const char constructorDecl[] = TS_VIEW_FORMAT" "TS_VIEW_FORMAT"Create(%s);\n";
+    char constructorParamsBuffer[2048];
+    constructorParamsBuffer[0] = '\0';
+    bool hasParams = false;
+    for (uint32_t i = 0; i < structDef->fields->length; ++i)
+    {
+        TwinRes_ParserNode* node = structDef->fields->nodes + i;
+        if (node->type == TwinRes_NodeStructDefinition)
+        {
+            continue;
+        }
+
+        TwinRes_ParserStructFieldDefinition* structField = node->data;
+        if (!TS_VARIANT_GET(bool, structField->options.constructor.data) || structField->options.constructor.argumentLength > 0)
+        {
+            continue;
+        }
+
+        char paramBuffer[128];
+        snprintf(paramBuffer, 128, TS_VIEW_FORMAT" "TS_VIEW_FORMAT"Param", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+
+        structField->valueFromConstructor = true;
+        if (!hasParams)
+        {
+            hasParams = true;
+        }
+        else
+        {
+            strcat(constructorParamsBuffer, ", ");
+        }
+        strcat(constructorParamsBuffer, paramBuffer);
+    }
+
+    int constructorWritten = WriteFile(genFile, buffer, constructorDecl, TS_VIEW_ARG(structDef->structName), TS_VIEW_ARG(structDef->structName), constructorParamsBuffer);
     if (constructorWritten == 0)
     {
         return 0;
