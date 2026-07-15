@@ -1176,18 +1176,6 @@ static int GenerateStructFieldBinarySerialization(TwinRes_ParserNode* node, Twin
         }
     }
 
-    if (TS_VARIANT_GET(bool, structField->options.blob.data))
-    {
-        int fieldBodyWritten = WriteFile(genFile, buffer, "   TwinStudio_BinWriteBlob(serializer, source->"TS_VIEW_FORMAT", %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
-        if (fieldBodyWritten == 0)
-        {
-            return 0;
-        }
-        amountWritten += fieldBodyWritten;
-        buffer += fieldBodyWritten;
-        return amountWritten;
-    }
-
     if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
     {
         int writeIfWritten = WriteFile(genFile, buffer, "   if ("TS_VIEW_FORMAT") {\n", TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0])));
@@ -1197,6 +1185,18 @@ static int GenerateStructFieldBinarySerialization(TwinRes_ParserNode* node, Twin
         }
         amountWritten += writeIfWritten;
         buffer += writeIfWritten;
+    }
+
+    if (TS_VARIANT_GET(bool, structField->options.blob.data))
+    {
+        int fieldBodyWritten = WriteFile(genFile, buffer, "   TwinStudio_BinWriteBlob(serializer, source->"TS_VIEW_FORMAT", %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
+        if (fieldBodyWritten == 0)
+        {
+            return 0;
+        }
+        amountWritten += fieldBodyWritten;
+        buffer += fieldBodyWritten;
+        goto finishWriteIf;
     }
 
     int fieldBodyWritten = 0;
@@ -1345,6 +1345,7 @@ static int GenerateStructFieldBinarySerialization(TwinRes_ParserNode* node, Twin
         buffer += arrEndWritten;
     }
 
+finishWriteIf:
     if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
     {
         int writeIfWritten = WriteFile(genFile, buffer, "   }\n");
@@ -1465,18 +1466,6 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             }
         }
 
-        if (TS_VARIANT_GET(bool, structField->options.blob.data))
-        {
-            int fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = TwinStudio_BinReadBlob(deserializer, arena, %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
-            if (fieldBodyWritten == 0)
-            {
-                return 0;
-            }
-            amountWritten += fieldBodyWritten;
-            buffer += fieldBodyWritten;
-            continue;
-        }
-
         if (TS_VARIANT_GET(bool, structField->options.writeIf.data))
         {
             TwinStudio_StringView originalCondition = TS_VARIANT_GET(TwinStudio_StringView, structField->options.writeIf.arguments[0]);
@@ -1496,6 +1485,18 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             }
             amountWritten += writeIfWritten;
             buffer += writeIfWritten;
+        }
+
+        if (TS_VARIANT_GET(bool, structField->options.blob.data))
+        {
+            int fieldBodyWritten = WriteFile(genFile, buffer, "   target->"TS_VIEW_FORMAT" = TwinStudio_BinReadBlob(deserializer, arena, %s);\n", TS_VIEW_ARG(structField->name), sizeFormat);
+            if (fieldBodyWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += fieldBodyWritten;
+            buffer += fieldBodyWritten;
+            goto finishWriteIf;
         }
 
         if (isVoidRead)

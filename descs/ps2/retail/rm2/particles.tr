@@ -1,0 +1,150 @@
+
+
+asset TwinRes_ParticleSystem {
+    [no_bin] [no_json] [constructor] uint32_t version;
+    [length(16)] TwinStudio_StringView name;
+    [write_if("source->version == 0x20")] [no_json] uint8_t _pad1;
+    [write_if("source->version == 0x20")] uint8_t unkByte1;
+    uint16_t genRate;
+    uint16_t maxParticleCount;
+    uint16_t unkUshort1;
+    uint16_t emitterOverTime;
+    uint16_t emitterOverTimeRandom;
+    uint16_t emitterOffTime;
+    uint16_t emitterOffTimeRandom;
+    uint8_t  genSort;
+    uint8_t  unkByte2;
+    uint8_t  textureFilter;
+    uint8_t  unkByte3;
+    float    unkFloat1;
+    [write_if("source->version >= 0xA")] float drawCutOff;
+    [write_if("source->version > 0x16 && source->version != 0x20")] float unkFloat2;
+    [write_if("source->version > 0x18 && source->version != 0x20")] float unkFloat3;
+    [write_if("source->version < 0x7")] [blob] [read_void] [length(8)] void* _pad2;
+    float velocity;
+    Vector3 randomEmit;
+    [write_if("source->version < 0x12")] [blob] [read_void] [length(0xC)] void* _pad3;
+    Vector3 randomStart;
+    [write_if("source->version < 0x12")] [blob] [read_void] [length(0xC)] void* _pad4;
+    float unkFloat4;
+    float unkFloat5;
+    float unkFloat6;
+    float unkFloat7;
+    float unkFloat8;
+    float unkFloat9;
+    float unkFloat10;
+    float unkFloat11;
+    float unkFloat12;
+    float unkFloat13;
+    float unkFloat14;
+    float unkFloat15;
+    float gravity;
+    float particleLifeTime;
+    uint16_t unkUShort2;
+    uint8_t unkByte4;
+    uint8_t unkByte5;
+    float unkFloat16;
+    float jibberXFreq;
+    float jibberXAmp;
+    float jibberYFreq;
+    float jibberYAmp;
+    [length(8)] Vector4* colorGradients;
+    [length(8)] Vector2* alphaGradients;
+    [write_if("source->version > 0x15")] Vector2 distortion;
+    float minSize;
+    float maxSize;
+    [length(8)] Vector2* sizeWidth;
+    [length(8)] Vector2* sizeHeight;
+    float minRotation;
+    float maxRotation;
+    [length(8)] Vector2* rotation;
+    [length(8)] Vector2* unkGradient1;
+    [length(8)] Vector2* unkGradient2;
+    Vector2 textureStart;
+    Vector2 textureEnd;
+    [write_if("source->version == 0x20")] [blob] [read_void] [length(4)] void* _pad5;
+    [write_if("source->version >= 0x3")] [length(8)] Vector2* collision;
+    [write_if("source->version >= 0x3")] uint8_t collisionNumSpheres;
+    [write_if("source->version >= 0x11")] uint8_t drawFlag;
+    [write_if("source->version == 0x20")] [blob] [read_void] [length(6)] void* _pad6;
+    [write_if("source->version > 0x16 && source->version < 0x1D && source->version != 0x20")] int32_t _pad7Amount;
+
+    [write_if("source->version > 0x16 && source->version < 0x1D && source->version != 0x20")]
+    [blob] [read_void] [length("source->_pad7Amount * 24")] void* _pad7;
+
+    [write_if("source->version == 0x20")] float scaleFactorVer32;
+    [write_if("source->version == 0x20")] [blob] [read_void] [length(56)] void* _pad8;
+
+    [write_if("source->version >= 0x10")] int32_t particleGhostsNum;
+    [write_if("source->version >= 0x10")] float ghostSeparation;
+
+    [write_if("source->version >= 0x19 && source->version != 0x20")] int32_t starRadialPoints;
+    [write_if("source->version >= 0x19 && source->version != 0x20")] float starRadiusRatio;
+
+    [write_if("source->version >= 0x1A && source->version != 0x20")] float rampTime;
+
+    [write_if("source->version > 0x1A && source->version != 0x20")] int32_t texturePage;
+    [write_if("source->version > 0x1B && source->version != 0x20")] float scaleFactorVer30;
+
+    [write_if("source->version >= 0x1E")] Vector4 unkVec;
+}
+
+
+asset TwinRes_ParticleInstance {
+    [no_bin] [no_json] [constructor] uint32_t version;
+    Vector3 position;
+    [write_if("source->version >= 0x7")] int16_t gravityRotX;
+    [write_if("source->version >= 0x7")] int16_t gravityRotY;
+    [write_if("source->version >= 0x7")] int16_t emitRotX;
+    [write_if("source->version >= 0x7")] int16_t emitRotY;
+    [write_if("source->version >= 0x16")] int16_t unkShort1;
+    [write_if("source->version >= 0x8")] int32_t offset;
+    [length(16)] TwinStudio_StringView particleSystemName;
+    [write_if("source->version >= 0x9")] int32_t switchType;
+    [write_if("source->version >= 0x9")] int32_t switchId;
+    [write_if("source->version >= 0x9")] float switchValue;
+    [write_if("source->version >= 0xC")] int16_t unkShort2;
+    [write_if("source->version >= 0xC")] int16_t unkShort3;
+    [write_if("source->version >= 0xC")] float planeOffset;
+    [write_if("source->version >= 0xD")] float bounceFactor;
+    [write_if("source->version >= 0xF")] int16_t groupId;
+}
+
+
+asset TwinRes_Particles {
+    uint32_t version;
+    [constructor(version)] TwinRes_ParticleSystem* systems;
+    [constructor(version)] TwinRes_ParticleInstance* instances;
+}
+
+asset TwinRes_DefaultParticlesBank {
+    [link_resource("TS_RT_Texture")] uint32_t texture;
+    [link_resource("TS_RT_Material")] uint32_t material;
+}
+
+asset TwinRes_DefaultParticles {
+    [length(3)] TwinRes_DefaultParticlesBank* particlePages;
+    uint32_t version;
+    [constructor(version)] TwinRes_ParticleSystem* systems;
+    [link_resource("TS_RT_Texture")] uint32_t decalTextureId;
+    [link_resource("TS_RT_Material")] uint32_t decalMaterialId;
+    [length(4)] uint8_t* unkData;
+    [length(0x420)] [blob] void* unkBlob;
+    [length(16)] int32_t* unkInts;
+    [write_if("source->unkInts[0] != 0")] [blob] [length(0x890)] void* unkBlob1;
+    [write_if("source->unkInts[1] != 0")] [blob] [length(0x890)] void* unkBlob2;
+    [write_if("source->unkInts[2] != 0")] [blob] [length(0x890)] void* unkBlob3;
+    [write_if("source->unkInts[3] != 0")] [blob] [length(0x890)] void* unkBlob4;
+    [write_if("source->unkInts[4] != 0")] [blob] [length(0x890)] void* unkBlob5;
+    [write_if("source->unkInts[5] != 0")] [blob] [length(0x890)] void* unkBlob6;
+    [write_if("source->unkInts[6] != 0")] [blob] [length(0x890)] void* unkBlob7;
+    [write_if("source->unkInts[7] != 0")] [blob] [length(0x890)] void* unkBlob8;
+    [write_if("source->unkInts[8] != 0")] [blob] [length(0x890)] void* unkBlob9;
+    [write_if("source->unkInts[9] != 0")] [blob] [length(0x890)] void* unkBlob10;
+    [write_if("source->unkInts[10] != 0")] [blob] [length(0x890)] void* unkBlob11;
+    [write_if("source->unkInts[11] != 0")] [blob] [length(0x890)] void* unkBlob12;
+    [write_if("source->unkInts[12] != 0")] [blob] [length(0x890)] void* unkBlob13;
+    [write_if("source->unkInts[13] != 0")] [blob] [length(0x890)] void* unkBlob14;
+    [write_if("source->unkInts[14] != 0")] [blob] [length(0x890)] void* unkBlob15;
+    [write_if("source->unkInts[15] != 0")] [blob] [length(0x890)] void* unkBlob16;
+}

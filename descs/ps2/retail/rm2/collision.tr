@@ -1,0 +1,36 @@
+
+asset TwinRes_CollisionTrigger {
+    Vector3 v1;
+    int32_t minTriggerIndex;
+    Vector3 v2;
+    int32_t maxTriggerIndex;
+}
+
+asset TwinRes_CollisionGroup {
+    uint32_t size;
+    uint32_t offset;
+}
+
+asset TwinRes_CollisionTriangle {
+    union packedTriangleUnion {
+        uint64_t packedTriangle;
+        struct packedTriangleData {
+            int32_t vector1Index : 18;
+            int32_t vector2Index : 18;
+            int32_t vector3Index : 18;
+            int16_t surfaceIndex : 10;
+        };
+    };
+}
+
+asset TwinRes_StaticCollision {
+    uint32_t unkInt;
+    uint32_t triggersAmount;
+    uint32_t groupsAmount;
+    uint32_t trianglesAmount;
+    uint32_t vectorsAmount;
+    [length(triggersAmount)]  TwinRes_CollisionTrigger*  triggers;
+    [length(groupsAmount)]    TwinRes_CollisionGroup*    groups;
+    [length(trianglesAmount)] TwinRes_CollisionTriangle* triangles;
+    [length(vectorsAmount)]   Vector4*                   vectors;
+}
