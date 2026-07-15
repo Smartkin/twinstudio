@@ -1,0 +1,38 @@
+#include "../../../common/auto_struct_camera_occluder.h"
+
+asset TwinRes_ChunkLink {
+    union linkTypeUnion {
+        uint32_t type;
+        struct typeData {
+            bool hasCameraOcclusion : 1;
+            bool unkFlag : 1;
+        };
+    };
+
+    [link_resource("TS_RT_Chunk")] TwinStudio_StringView chunkPath;
+
+    union flagsUnion {
+        uint32_t flags;
+        struct flagsData {
+            bool isAlwaysVisible : 1;
+            bool isVisibleInCameraFrustum : 1;
+            uint8_t unkNum : 5;
+            bool isKeptLoaded : 1;
+            bool isLoadWallActive : 1;
+            uint16_t _pad : 10;
+            bool hasLoadWallMatrix : 1;
+        };
+    };
+
+    Matrix transitionMatrix;
+    Matrix renderMatrix;
+    [write_if("source->hasLoadWallMatrix")] Matrix loadingWall;
+
+    [write_if("source->hasCameraOcclusion")] [no_length("createdObj.hasNext")]
+    TwinRes_ChunkLinkCameraOccluder* occluders;
+}
+
+
+asset TwinRes_ChunkLinks {
+    TwinRes_ChunkLink* links;
+}

@@ -1,0 +1,10 @@
+// Animation settings are unique per animation structure
+
+asset TwinRes_AnimationTransformation {
+    int16_t transformValue;
+}
+
+asset TwinRes_AnimationAnimatedTransformation {
+    [no_bin] [no_json] [constructor] uint16_t animatedTransforms;
+    [length(animatedTransforms)] int16_t* animatedTransform;
+}

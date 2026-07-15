@@ -468,6 +468,8 @@ static bool HandleFieldAlign(TwinRes_StructFieldGeneratorOptions* options, TwinR
 static bool HandleFieldNoLength(TwinRes_StructFieldGeneratorOptions* options, TwinRes_AttributeArgumentsList* arguments)
 {
     TwinStudio_VariantSetBool(&options->noLength.data, true);
+    options->noLength.argumentLength = arguments->length;
+    options->noLength.arguments = arguments->arguments;
     return true;
 }
 
@@ -1111,10 +1113,11 @@ static int GenerateInclude(TwinRes_ParserNode* node, TwinRes_GeneratedFile* genF
 }
 
 
-static int GenerateStructField(TwinRes_ParserNode* node, TwinRes_GeneratedFile* genFile, char* buffer)
+static int GenerateStructField(TwinRes_ParserNode* node, TwinRes_GeneratedFile* genFile, char* buffer, bool selfTypeReference)
 {
     assert(node->type == TwinRes_NodeFieldDefinition);
 
+    static const char structSelfReferenceFormat[] = "   struct "TS_VIEW_FORMAT"* "TS_VIEW_FORMAT";\n";
     static const char structArrayFormat[] = "   "TS_VIEW_FORMAT"* "TS_VIEW_FORMAT";\n";
     static const char structFieldFormat[] = "   "TS_VIEW_FORMAT" "TS_VIEW_FORMAT";\n";
     static const char structBitFieldFormat[] = "   "TS_VIEW_FORMAT" "TS_VIEW_FORMAT" : %d;\n";
@@ -1124,6 +1127,11 @@ static int GenerateStructField(TwinRes_ParserNode* node, TwinRes_GeneratedFile* 
     const TwinStudio_StringView fieldTypeName = fieldDef->type;
     const TwinStudio_StringView fieldName = fieldDef->name;
     const bool isArray = fieldDef->valueType & TwinStudio_VariantArray;
+
+    if (selfTypeReference)
+    {
+        return WriteFile(genFile, buffer, structSelfReferenceFormat, TS_VIEW_ARG(fieldTypeName), TS_VIEW_ARG(fieldName));
+    }
 
     if (isArray)
     {
@@ -1540,7 +1548,7 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             }
             else
             {
-                int arrForLoopStart = WriteFile(genFile, buffer, "   while(TwinStudio_BinGetStreamPosition(deserializer) < TwinStudio_BinGetStreamLength(deserializer)) {\n", TS_VIEW_ARG(structField->name));
+                int arrForLoopStart = WriteFile(genFile, buffer, "   { bool loopCondition = true; while(loopCondition) {\n");
                 if (arrForLoopStart == 0)
                 {
                     return 0;
@@ -1672,13 +1680,35 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
         buffer += fieldBodyWritten;
         if (isArray)
         {
-            int arrEndWritten = WriteFile(genFile, buffer, "   }\n");
-            if (arrEndWritten == 0)
+            if (isInfArray)
             {
-                return 0;
+                char* readCondition = "TwinStudio_BinGetStreamPosition(deserializer) < TwinStudio_BinGetStreamLength(deserializer)";
+                if (structField->options.noLength.argumentLength > 0)
+                {
+                    readCondition = TwinStudio_GetCStringDynamic(&structField->options.noLength.arguments[0].storage.string);
+                }
+                int arrEndWritten = WriteFile(genFile, buffer, "   loopCondition = (%s);}}\n", readCondition);
+                if (structField->options.noLength.argumentLength > 0)
+                {
+                    TWIN_FREE(readCondition);
+                }
+                if (arrEndWritten == 0)
+                {
+                    return 0;
+                }
+                amountWritten += arrEndWritten;
+                buffer += arrEndWritten;
             }
-            amountWritten += arrEndWritten;
-            buffer += arrEndWritten;
+            else
+            {
+                int arrEndWritten = WriteFile(genFile, buffer, "   }\n");
+                if (arrEndWritten == 0)
+                {
+                    return 0;
+                }
+                amountWritten += arrEndWritten;
+                buffer += arrEndWritten;
+            }
         }
 
 finishWriteIf:
@@ -1792,11 +1822,11 @@ static int GenerateStructFieldsJsonSerialization(const TwinRes_ParserStructDefin
             case TwinStudio_VariantString:
                 if (!isArray)
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT");\n   cJSON_AddStringToObject(rootObject, \""TS_VIEW_FORMAT"\", dynCStr);\n   TWIN_FREE(dynCStr)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr"TS_VIEW_FORMAT" = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT");\n   cJSON_AddStringToObject(rootObject, \""TS_VIEW_FORMAT"\", dynCStr"TS_VIEW_FORMAT");\n   TWIN_FREE(dynCStr"TS_VIEW_FORMAT")", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
                 }
                 else 
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT"[i]);\n   cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, cJSON_CreateString(dynCStr));\n   TWIN_FREE(dynCStr", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   char* dynCStr"TS_VIEW_FORMAT" = TwinStudio_GetCStringDynamic(&source->"TS_VIEW_FORMAT"[i]);\n   cJSON_AddItemToArray("TS_VIEW_FORMAT"Json, cJSON_CreateString(dynCStr"TS_VIEW_FORMAT"));\n   TWIN_FREE(dynCStr"TS_VIEW_FORMAT"", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name));
                 }
                 break;
             case TwinStudio_VariantObject:
@@ -2370,7 +2400,14 @@ static int GenerateStructDeclarations(TwinRes_ParserNode* node, TwinRes_Generate
             continue;
         }
 
-        int fieldAmountWritten = GenerateStructField(node, genFile, buffer);
+        bool isSelfTypeReference = false;
+        TwinRes_ParserStructFieldDefinition* fieldDef = node->data;
+        if (strncmp(fieldDef->type.string, structDef->structName.string, TwinStudio_MaxInt(fieldDef->type.length, structDef->structName.length)) == 0)
+        {
+            isSelfTypeReference = true;
+        }
+
+        int fieldAmountWritten = GenerateStructField(node, genFile, buffer, isSelfTypeReference);
         if (fieldAmountWritten == 0)
         {
             return 0;

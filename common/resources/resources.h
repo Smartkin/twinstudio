@@ -6,6 +6,7 @@
 typedef enum {
     TS_RT_Texture,
     TS_RT_Mesh,
+    TS_RT_Lod,
     TS_RT_RigidModel,
     TS_RT_Sound,
     TS_RT_Material,

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "../../../common/auto_struct_animations.h"
 
 asset TwinRes_ShaderAnimationSettings {
     uint16_t unusedFlags;
@@ -16,15 +17,6 @@ asset TwinRes_ShaderAnimationSettings {
 
     uint16_t staticTransformationIndex;
     uint16_t animationTransformationIndex;
-}
-
-asset TwinRes_ShaderAnimationTransformation {
-    int16_t transformValue;
-}
-
-asset TwinRes_ShaderAnimationAnimatedTransformation {
-    [no_bin] [no_json] [constructor] uint16_t animatedTransforms;
-    [length(animatedTransforms)] int16_t* animatedTransform;
 }
 
 asset TwinRes_ShaderAnimation {
@@ -45,10 +37,10 @@ asset TwinRes_ShaderAnimation {
     TwinRes_ShaderAnimationSettings* settings;
 
     [length(staticTransformationsAmount)]
-    TwinRes_ShaderAnimationTransformation* staticTransforms;
+    TwinRes_AnimationTransformation* staticTransforms;
 
     [length(totalFrames)] [constructor(animatedTransformationsAmount)]
-    TwinRes_ShaderAnimationAnimatedTransformation* animatedTransforms;
+    TwinRes_AnimationAnimatedTransformation* animatedTransforms;
 }
 
 enum TwinRes_MaterialShaderType {

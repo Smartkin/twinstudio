@@ -27,7 +27,7 @@ static int WriteOutputFiles(TwinRes_GeneratedFile* files, const char* genLocatio
         FILE* newGenFile = fopen(resultFilePath, "w");
         if (newGenFile == NULL)
         {
-            fprintf(stderr, "Error creating auto generated file! ");
+            fprintf(stderr, "Error creating auto generated file! %s", resultFilePath);
             return 1;
         }
 
@@ -65,7 +65,7 @@ static int GenerateOutput(const char* inputFilePath, const char* genDestination)
     TwinRes_GeneratorOutput output = TwinRes_ParseAndGenerate(baseName, stringData);
     if (output.status == TwinRes_GeneratorFail)
     {
-        fprintf(stderr, "Error creating auto generated file!\n%s\n", output.errorString);
+        fprintf(stderr, "Error creating auto generated file!\n%s: %s\n", baseName, output.errorString);
         goto generatorCleanup;
     }
 

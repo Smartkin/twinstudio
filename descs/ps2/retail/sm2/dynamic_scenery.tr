@@ -1,0 +1,70 @@
+#include "../../../common/auto_struct_camera_occluder.h"
+#include "../../../common/auto_struct_animations.h"
+
+asset TwinRes_DynamicSceneryModelAnimationSettings {
+    union flagsUnion {
+        uint16_t flags;
+        struct flagsData {
+            uint8_t unkValue;
+            uint8_t unusedRotationRelatedParameter : 4;
+        };
+    };
+    
+    union transformChoiceUnion {
+        uint16_t transformChoice;
+        struct transformChoiceStates {
+            uint8_t translateX : 1;
+            uint8_t translateY : 1;
+            uint8_t translateZ : 1;
+            uint8_t rotateX : 1;
+            uint8_t rotateY : 1;
+            uint8_t rotateZ : 1;
+            uint8_t rotateW : 1;
+        };
+    };
+
+    uint16_t staticTransformationIndex;
+    uint16_t animationTransformationIndex;
+}
+
+asset TwinRes_DynamicSceneryModelAnimation {
+    union dataPackedUnion {
+        uint32_t dataPacker;
+        struct dataPackerData {
+            uint8_t  animationSettingsAmount : 7;
+            uint8_t  _pad1 : 2;
+            uint16_t staticTransformationsAmount : 11;
+            uint8_t  _pad2 : 2;
+            uint16_t animatedTransformationsAmount : 10;
+        };
+    };
+    uint16_t totalFrames;
+
+    [length(animationSettingsAmount)]
+    TwinRes_DynamicSceneryModelAnimationSettings* settings;
+
+    [length(staticTransformationsAmount)]
+    TwinRes_AnimationTransformation* staticTransforms;
+
+    [length(totalFrames)] [constructor(animatedTransformationsAmount)]
+    TwinRes_AnimationAnimatedTransformation* animatedTransforms;
+}
+
+asset TwinRes_DynamicSceneryModel {
+    int32_t unkInt;
+    TwinRes_CameraOccluder* cameraOccluders;
+    int32_t animatedFrames;
+
+    bool isLod;
+    union meshLodIdUnion {
+        [link_resource("TS_RT_Mesh")] uint32_t meshId;
+        [link_resource("TS_RT_Lod")] uint32_t lodId;
+    };
+    BoundingBox4 boundingBox;
+}
+
+asset TwinRes_DynamicScenery {
+    int32_t unkInt;
+    [no_json] int16_t dynamicModelsAmount;
+    [length(dynamicModelsAmount)] TwinRes_DynamicSceneryModel* dynamicModels;
+}

@@ -1,0 +1,17 @@
+
+asset TwinRes_CameraOccluder {
+    [length(11)] uint16_t* headers;
+    uint32_t dataSize;
+    [blob] [length(dataSize)] void* occlusionData;
+}
+
+
+asset TwinRes_ChunkLinkCameraOccluder {
+    union typeUnion {
+        int32_t type;
+        struct typeData {
+            bool hasNext : 1;
+        };
+    };
+    TwinRes_CameraOccluder occluder;
+}

@@ -1,7 +1,37 @@
 #include "helpers.h"
 #include "cJSON.h"
+#include "raylib.h"
 #include "serialization/binary_serializer.h"
 #include <stdio.h>
+
+Vector2 Vector2Create()
+{
+    return (Vector2) {};
+}
+
+
+Vector3 Vector3Create()
+{
+    return (Vector3) {};
+}
+
+
+Vector4 Vector4Create()
+{
+    return (Vector4) {};
+}
+
+
+Matrix MatrixCreate()
+{
+    return (Matrix) {};
+}
+
+
+Quaternion QuaternionCreate()
+{
+    return (Quaternion) {};
+}
 
 
 void Vector2BinSerialize(Vector2* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
@@ -19,6 +49,11 @@ void Vector3BinSerialize(Vector3* v, TwinStudio_BinarySerializer* serializer, Tw
 void Vector4BinSerialize(Vector4* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinStudio_BinWriteAny(serializer, v, size);
+}
+
+void BoundingBox4BinSerialize(BoundingBox4* bb, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
+{
+    TwinStudio_BinWriteAny(serializer, bb, size);
 }
 
 
@@ -48,6 +83,12 @@ void Vector3BinDeserialize(Vector3* v, TwinStudio_BinarySerializer* serializer, 
 void Vector4BinDeserialize(Vector4* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinStudio_BinReadStructDirect(serializer, v, size);
+}
+
+
+void BoundingBox4BinDeserialize(BoundingBox4* bb, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
+{
+    TwinStudio_BinReadStructDirect(serializer, bb, size);
 }
 
 
@@ -93,6 +134,16 @@ cJSON* Vector4JsonSerialize(Vector4* v)
 }
 
 
+cJSON* BoundingBox4JsonSerialize(BoundingBox4* bb)
+{
+    cJSON* bbJson = cJSON_CreateObject();
+    cJSON_AddObjectToObject(Vector4JsonSerialize(&bb->min), "min");
+    cJSON_AddObjectToObject(Vector4JsonSerialize(&bb->max), "max");
+
+    return bbJson;
+}
+
+
 cJSON* MatrixJsonSerialize(Matrix* mat)
 {
     cJSON* matJson = cJSON_CreateObject();
@@ -135,6 +186,13 @@ void Vector4JsonDeserialize(Vector4* v, cJSON* source)
     v->y = cJSON_GetObjectItemCaseSensitive(source, "y")->valuedouble;
     v->z = cJSON_GetObjectItemCaseSensitive(source, "z")->valuedouble;
     v->w = cJSON_GetObjectItemCaseSensitive(source, "w")->valuedouble;
+}
+
+
+void BoundingBox4JsonDeserialize(BoundingBox4* bb, cJSON* source)
+{
+    Vector4JsonDeserialize(&bb->min, cJSON_GetObjectItemCaseSensitive(source, "min"));
+    Vector4JsonDeserialize(&bb->max, cJSON_GetObjectItemCaseSensitive(source, "max"));
 }
 
 

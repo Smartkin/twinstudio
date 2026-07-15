@@ -1,0 +1,260 @@
+
+asset TwinRes_BaseLight {
+    uint32_t unkData;
+    float radius;
+    Vector4 color;
+    Vector4 position;
+    Vector4 unkVec1;
+    Vector4 unkVec2;
+}
+
+asset TwinRes_AmbientLight {
+    TwinRes_BaseLight baseLight;
+}
+
+asset TwinRes_DirectionalLight {
+    TwinRes_BaseLight baseLight;
+    Vector4 direction;
+    int16_t unkShort;
+}
+
+asset TwinRes_PointLight {
+    TwinRes_BaseLight baseLight;
+    int16_t unkShort;
+}
+
+asset TwinRes_NegativeLight {
+    TwinRes_BaseLight baseLight;
+    float unkFloat1;
+    float unkFloat2;
+    uint32_t unkUInt1;
+    uint32_t unkUInt2;
+    uint16_t unkUShort1;
+    uint16_t unkUShort2;
+}
+
+asset TwinRes_SceneryLightsEnabledStorage {
+    uint64_t low;
+    uint64_t high;
+}
+
+asset TwinRes_SceneryNodeBase {
+    int32_t hasMeshLods;
+    [write_if("source->hasMeshLods == 0x1613")] int16_t meshesAmount;
+    [write_if("source->hasMeshLods == 0x1613")] int16_t lodsAmount;
+    [write_if("source->hasMeshLods == 0x1613")] [length(meshesAmount)] BoundingBox4* meshBoundingBoxes;
+    [write_if("source->hasMeshLods == 0x1613")] [length(lodsAmount)] BoundingBox4* lodBoundingBoxes;
+
+    [write_if("source->hasMeshLods == 0x1613")] [length(meshesAmount)] [link_resource("TS_RT_Mesh")]
+    uint32_t* meshIds;
+
+    [write_if("source->hasMeshLods == 0x1613")] [length(lodsAmount)] [link_resource("TS_RT_Lod")]
+    uint32_t* lodIds;
+
+    [write_if("source->hasMeshLods == 0x1613")] [length(meshesAmount)]
+    Matrix* meshTransforms;
+
+    [write_if("source->hasMeshLods == 0x1613")] [length(lodsAmount)]
+    Matrix* lodTransforms;
+
+    Vector4 unkVec1;
+    Vector4 unkVec2;
+    Vector4 unkVec3;
+    Vector4 unkVec4;
+
+    union lightsEnabledUnion {
+        TwinRes_SceneryLightsEnabledStorage storage;
+        struct lightsEnabledData {
+            uint8_t light1Enabled : 1;
+            uint8_t light2Enabled : 1;
+            uint8_t light3Enabled : 1;
+            uint8_t light4Enabled : 1;
+            uint8_t light5Enabled : 1;
+            uint8_t light6Enabled : 1;
+            uint8_t light7Enabled : 1;
+            uint8_t light8Enabled : 1;
+            uint8_t light9Enabled : 1;
+            uint8_t light10Enabled : 1;
+            uint8_t light11Enabled : 1;
+            uint8_t light12Enabled : 1;
+            uint8_t light13Enabled : 1;
+            uint8_t light14Enabled : 1;
+            uint8_t light15Enabled : 1;
+            uint8_t light16Enabled : 1;
+            uint8_t light17Enabled : 1;
+            uint8_t light18Enabled : 1;
+            uint8_t light19Enabled : 1;
+            uint8_t light20Enabled : 1;
+            uint8_t light21Enabled : 1;
+            uint8_t light22Enabled : 1;
+            uint8_t light23Enabled : 1;
+            uint8_t light24Enabled : 1;
+            uint8_t light25Enabled : 1;
+            uint8_t light26Enabled : 1;
+            uint8_t light27Enabled : 1;
+            uint8_t light28Enabled : 1;
+            uint8_t light29Enabled : 1;
+            uint8_t light30Enabled : 1;
+            uint8_t light31Enabled : 1;
+            uint8_t light32Enabled : 1;
+            uint8_t light33Enabled : 1;
+            uint8_t light34Enabled : 1;
+            uint8_t light35Enabled : 1;
+            uint8_t light36Enabled : 1;
+            uint8_t light37Enabled : 1;
+            uint8_t light38Enabled : 1;
+            uint8_t light39Enabled : 1;
+            uint8_t light40Enabled : 1;
+            uint8_t light41Enabled : 1;
+            uint8_t light42Enabled : 1;
+            uint8_t light43Enabled : 1;
+            uint8_t light44Enabled : 1;
+            uint8_t light45Enabled : 1;
+            uint8_t light46Enabled : 1;
+            uint8_t light47Enabled : 1;
+            uint8_t light48Enabled : 1;
+            uint8_t light49Enabled : 1;
+            uint8_t light50Enabled : 1;
+            uint8_t light51Enabled : 1;
+            uint8_t light52Enabled : 1;
+            uint8_t light53Enabled : 1;
+            uint8_t light54Enabled : 1;
+            uint8_t light55Enabled : 1;
+            uint8_t light56Enabled : 1;
+            uint8_t light57Enabled : 1;
+            uint8_t light58Enabled : 1;
+            uint8_t light59Enabled : 1;
+            uint8_t light60Enabled : 1;
+            uint8_t light61Enabled : 1;
+            uint8_t light62Enabled : 1;
+            uint8_t light63Enabled : 1;
+            uint8_t light64Enabled : 1;
+            uint8_t light65Enabled : 1;
+            uint8_t light66Enabled : 1;
+            uint8_t light67Enabled : 1;
+            uint8_t light68Enabled : 1;
+            uint8_t light69Enabled : 1;
+            uint8_t light70Enabled : 1;
+            uint8_t light71Enabled : 1;
+            uint8_t light72Enabled : 1;
+            uint8_t light73Enabled : 1;
+            uint8_t light74Enabled : 1;
+            uint8_t light75Enabled : 1;
+            uint8_t light76Enabled : 1;
+            uint8_t light77Enabled : 1;
+            uint8_t light78Enabled : 1;
+            uint8_t light79Enabled : 1;
+            uint8_t light80Enabled : 1;
+            uint8_t light81Enabled : 1;
+            uint8_t light82Enabled : 1;
+            uint8_t light83Enabled : 1;
+            uint8_t light84Enabled : 1;
+            uint8_t light85Enabled : 1;
+            uint8_t light86Enabled : 1;
+            uint8_t light87Enabled : 1;
+            uint8_t light88Enabled : 1;
+            uint8_t light89Enabled : 1;
+            uint8_t light90Enabled : 1;
+            uint8_t light91Enabled : 1;
+            uint8_t light92Enabled : 1;
+            uint8_t light93Enabled : 1;
+            uint8_t light94Enabled : 1;
+            uint8_t light95Enabled : 1;
+            uint8_t light96Enabled : 1;
+            uint8_t light97Enabled : 1;
+            uint8_t light98Enabled : 1;
+            uint8_t light99Enabled : 1;
+            uint8_t light100Enabled : 1;
+            uint8_t light101Enabled : 1;
+            uint8_t light102Enabled : 1;
+            uint8_t light103Enabled : 1;
+            uint8_t light104Enabled : 1;
+            uint8_t light105Enabled : 1;
+            uint8_t light106Enabled : 1;
+            uint8_t light107Enabled : 1;
+            uint8_t light108Enabled : 1;
+            uint8_t light109Enabled : 1;
+            uint8_t light110Enabled : 1;
+            uint8_t light111Enabled : 1;
+            uint8_t light112Enabled : 1;
+            uint8_t light113Enabled : 1;
+            uint8_t light114Enabled : 1;
+            uint8_t light115Enabled : 1;
+            uint8_t light116Enabled : 1;
+            uint8_t light117Enabled : 1;
+            uint8_t light118Enabled : 1;
+            uint8_t light119Enabled : 1;
+            uint8_t light120Enabled : 1;
+            uint8_t light121Enabled : 1;
+            uint8_t light122Enabled : 1;
+            uint8_t light123Enabled : 1;
+            uint8_t light124Enabled : 1;
+            uint8_t light125Enabled : 1;
+            uint8_t light126Enabled : 1;
+            uint8_t light127Enabled : 1;
+            uint8_t light128Enabled : 1;
+        };
+    };
+}
+
+asset TwinRes_SceneryLeaf {
+    TwinRes_SceneryNodeBase baseNode;
+}
+
+asset TwinRes_SceneryNode {
+    TwinRes_SceneryNodeBase baseNode;
+    [length(8)] int32_t* sceneryNodeTypes;
+    [write_if("source->sceneryNodeTypes[0] == 0x1600")] [length(1)] TwinRes_SceneryNode* node1;
+    [write_if("source->sceneryNodeTypes[0] == 0x1605")] [length(1)] TwinRes_SceneryLeaf* leaf1;
+    [write_if("source->sceneryNodeTypes[1] == 0x1600")] [length(1)] TwinRes_SceneryNode* node2;
+    [write_if("source->sceneryNodeTypes[1] == 0x1605")] [length(1)] TwinRes_SceneryLeaf* leaf2;
+    [write_if("source->sceneryNodeTypes[2] == 0x1600")] [length(1)] TwinRes_SceneryNode* node3;
+    [write_if("source->sceneryNodeTypes[2] == 0x1605")] [length(1)] TwinRes_SceneryLeaf* leaf3;
+    [write_if("source->sceneryNodeTypes[3] == 0x1600")] [length(1)] TwinRes_SceneryNode* node4;
+    [write_if("source->sceneryNodeTypes[3] == 0x1605")] [length(1)] TwinRes_SceneryLeaf* leaf4;
+    [write_if("source->sceneryNodeTypes[4] == 0x1600")] [length(1)] TwinRes_SceneryNode* node5;
+    [write_if("source->sceneryNodeTypes[4] == 0x1605")] [length(1)] TwinRes_SceneryLeaf* leaf5;
+    [write_if("source->sceneryNodeTypes[5] == 0x1600")] [length(1)] TwinRes_SceneryNode* node6;
+    [write_if("source->sceneryNodeTypes[5] == 0x1605")] [length(1)] TwinRes_SceneryLeaf* leaf6;
+    [write_if("source->sceneryNodeTypes[6] == 0x1600")] [length(1)] TwinRes_SceneryNode* node7;
+    [write_if("source->sceneryNodeTypes[6] == 0x1605")] [length(1)] TwinRes_SceneryLeaf* leaf7;
+    [write_if("source->sceneryNodeTypes[7] == 0x1600")] [length(1)] TwinRes_SceneryNode* node8;
+    [write_if("source->sceneryNodeTypes[7] == 0x1605")] [length(1)] TwinRes_SceneryLeaf* leaf8;
+}
+
+asset TwinRes_RootScenery {
+    uint32_t unkUInt;
+    TwinRes_SceneryNode node;
+}
+
+asset TwinRes_Scenery {
+    union flagsUnion {
+        uint32_t flags;
+        struct flagsData {
+            uint16_t _pad;
+            uint8_t hasSkydome : 1;
+            uint8_t hasLighting : 1;
+        };
+    };
+
+    TwinStudio_StringView name;
+    uint32_t fogColorIndex;
+    int32_t rootSceneryType;
+    uint8_t unkByte;
+    [write_if("source->hasSkydome")] [link_resource("TS_RT_Skydome")] uint32_t skydomeId;
+
+    // Lighting stuff
+    [write_if("source->hasLighting")] [void_read] [blob] [length(0x400)] void* lightAccessorBuffer;
+    [write_if("source->hasLighting")] int32_t totalLights;
+    [write_if("source->hasLighting")] int32_t ambientLightsAmount;
+    [write_if("source->hasLighting")] int32_t dirLightsAmount;
+    [write_if("source->hasLighting")] int32_t pointLightsAmount;
+    [write_if("source->hasLighting")] int32_t negativeLightsAmount;
+    [write_if("source->hasLighting")] [length(ambientLightsAmount)] TwinRes_AmbientLight* ambientLights;
+    [write_if("source->hasLighting")] [length(dirLightsAmount)] TwinRes_DirectionalLight* directionalLights;
+    [write_if("source->hasLighting")] [length(pointLightsAmount)] TwinRes_PointLight* pointLights;
+    [write_if("source->hasLighting")] [length(negativeLightsAmount)] TwinRes_NegativeLight* negativeLights;
+
+    [write_if("source->rootSceneryType == 0x160A")]
+    TwinRes_RootScenery rootScenery;
+}
