@@ -831,6 +831,12 @@ static bool HandleStructNoWriteSerialization(TwinRes_StructGeneratorOptions* opt
     return true;
 }
 
+static bool HandleStructWriteAll(TwinRes_StructGeneratorOptions* options, TwinRes_AttributeArgumentsList* arguments)
+{
+    TwinStudio_VariantSetBool(&options->writeAll.data, true);
+    return true;
+}
+
 
 static void HandleStructAttribute(TwinStudio_StringView attribName, TwinRes_AttributeArgumentsList* attribArguments, TwinRes_StructGeneratorOptions* options)
 {
@@ -841,6 +847,7 @@ static void HandleStructAttribute(TwinStudio_StringView attribName, TwinRes_Attr
     if (TryHandleStructAttributeWrapper("no_bin", attribName, attribArguments, options, HandleStructNoBinSerialization)) { return; }
     if (TryHandleStructAttributeWrapper("no_read", attribName, attribArguments, options, HandleStructNoReadSerialization)) { return; }
     if (TryHandleStructAttributeWrapper("no_write", attribName, attribArguments, options, HandleStructNoWriteSerialization)) { return; }
+    if (TryHandleStructAttributeWrapper("write_all", attribName, attribArguments, options, HandleStructWriteAll)) { return; }
     
     fprintf(stderr, "WARNING: Skipped unknown or malformed struct attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
 }
@@ -855,7 +862,8 @@ static TwinRes_StructGeneratorOptions GetStructOptions(TwinRes_GeneratorOutput* 
         .excludeFromBin = CREATE_ATTRIBUTE(no_bin, bool, false),
         .excludeFromJson = CREATE_ATTRIBUTE(no_json, bool, false),
         .noRead = CREATE_ATTRIBUTE(no_read, bool, false),
-        .noWrite = CREATE_ATTRIBUTE(no_write, bool, false)
+        .noWrite = CREATE_ATTRIBUTE(no_write, bool, false),
+        .writeAll = CREATE_ATTRIBUTE(write_all, bool, false),
     };
 
     while(lexer->curTok.tokenType == TwinRes_TokAttribOpen)
@@ -880,19 +888,27 @@ static TwinRes_StructGeneratorOptions GetStructOptions(TwinRes_GeneratorOutput* 
 }
 
 
-static TwinRes_ParserNode StructDefinitionNode(TwinRes_GeneratorOutput* output, TwinRes_Lexer* lexer)
+static TwinRes_ParserNode StructDefinitionNode(TwinRes_GeneratorOutput* output, TwinRes_Lexer* lexer, bool isInner)
 {
-    TwinRes_StructGeneratorOptions options = GetStructOptions(output, lexer);
-
     bool isUnion = false;
     if (lexer->curTok.tokenType == TwinRes_TokIdentifier && IsIdentifier(lexer->curTok.string, TS_STRING_VIEW("union")))
     {
         isUnion = true;
     }
 
-    if (!EatToken(lexer, TwinRes_TokIdentifier))
+    if (isInner)
     {
-        return GetEmptyNode();
+        EatToken(lexer, TwinRes_TokIdentifier);
+    }
+
+    TwinRes_StructGeneratorOptions options = GetStructOptions(output, lexer);
+
+    if (!isInner)
+    {
+        if (!EatToken(lexer, TwinRes_TokIdentifier))
+        {
+            return GetEmptyNode();
+        }
     }
 
     const TwinStudio_StringView structName = lexer->curTok.string;
@@ -916,7 +932,7 @@ static TwinRes_ParserNode StructDefinitionNode(TwinRes_GeneratorOutput* output, 
         {
             if (IsIdentifier(lexer->curTok.string, TS_STRING_VIEW("union")) || IsIdentifier(lexer->curTok.string, TS_STRING_VIEW("struct")))
             {
-                TwinRes_ParserNode innerStructNode = StructDefinitionNode(output, lexer);
+                TwinRes_ParserNode innerStructNode = StructDefinitionNode(output, lexer, true);
                 if (innerStructNode.type == TwinRes_NodeEmpty)
                 {
                     continue;
@@ -1365,7 +1381,7 @@ static int GenerateStructFieldsBinarySerialization(const TwinRes_ParserStructDef
 {
     int amountWritten = 0;
     int fieldsAmount = structDef->fields->length;
-    if (structDef->isUnion && fieldsAmount > 1)
+    if (structDef->isUnion && fieldsAmount > 1 && !TS_VARIANT_GET(bool, structDef->options.writeAll.data))
     {
         fieldsAmount = 1;
     }
@@ -1395,7 +1411,7 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
 {
     int amountWritten = 0;
     int fieldsAmount = structDef->fields->length;
-    if (structDef->isUnion && fieldsAmount > 1)
+    if (structDef->isUnion && fieldsAmount > 1 && !TS_VARIANT_GET(bool, structDef->options.writeAll.data))
     {
         fieldsAmount = 1;
     }
@@ -1733,7 +1749,7 @@ static int GenerateStructFieldsJsonSerialization(const TwinRes_ParserStructDefin
 {
     int amountWritten = 0;
     int fieldsAmount = structDef->fields->length;
-    if (structDef->isUnion && fieldsAmount > 1)
+    if (structDef->isUnion && fieldsAmount > 1 && !TS_VARIANT_GET(bool, structDef->options.writeAll.data))
     {
         fieldsAmount = 1;
     }
@@ -1889,7 +1905,7 @@ static int GenerateStructFieldsJsonDeserialization(const TwinRes_ParserStructDef
 {
     int amountWritten = 0;
     int fieldsAmount = structDef->fields->length;
-    if (structDef->isUnion && fieldsAmount > 1)
+    if (structDef->isUnion && fieldsAmount > 1 && !TS_VARIANT_GET(bool, structDef->options.writeAll.data))
     {
         fieldsAmount = 1;
     }
@@ -2659,7 +2675,7 @@ TwinRes_GeneratorOutput TwinRes_ParseAndGenerate(const char* name, char* string)
             case TwinRes_TokIdentifier: // asset definitions
                 if (IsIdentifier(tok.string, TS_STRING_VIEW(assetIdentifier)) || tok.tokenType == TwinRes_TokAttribOpen)
                 {
-                    AppendParserNode(output.ast->data, StructDefinitionNode(&output, &lexer));
+                    AppendParserNode(output.ast->data, StructDefinitionNode(&output, &lexer, false));
                 }
                 else if (IsIdentifier(tok.string, TS_STRING_VIEW(enumIdentifier)))
                 {

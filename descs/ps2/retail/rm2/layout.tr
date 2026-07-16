@@ -1,0 +1,351 @@
+
+asset TwinRes_AiPath {
+    [link_resource("TS_RT_AI_Position")] uint16_t pathBegin;
+    [link_resource("TS_RT_AI_Position")] uint16_t pathEnd;
+    uint16_t arg0;
+    uint16_t arg1;
+    uint16_t arg2;
+}
+
+asset TwinRes_AiPosition {
+    Vector4 position;
+    uint16_t unkShort;
+}
+
+asset TwinRes_CollisionSurface {
+    union collisionFlagsUnion {
+        uint32_t collisionMask;
+        struct collisionFlagsData {
+            uint8_t unkFlag1 : 1;
+            uint8_t unkFlag2 : 1;
+            uint8_t unkFlag3 : 1;
+            uint8_t unkFlag4 : 1;
+            uint8_t unkFlag5 : 1;
+            uint8_t unkFlag6 : 1;
+            uint8_t unkFlag7 : 1;
+            uint8_t unkFlag8 : 1;
+            uint8_t unkFlag9 : 1;
+            uint8_t unkFlag10 : 1;
+            uint8_t unkFlag11 : 1;
+            uint8_t unkFlag12 : 1;
+            uint8_t unkFlag13 : 1;
+            uint8_t unkFlag14 : 1;
+            uint8_t unkFlag15 : 1;
+            uint8_t unkFlag16 : 1;
+            uint8_t unkFlag17 : 1;
+            uint8_t unkFlag18 : 1;
+            uint8_t unkFlag19 : 1;
+            uint8_t unkFlag20 : 1;
+            uint8_t unkFlag21 : 1;
+            uint8_t unkFlag22 : 1;
+            uint8_t unkFlag23 : 1;
+            uint8_t unkFlag24 : 1;
+            uint8_t unkFlag25 : 1;
+            uint8_t unkFlag26 : 1;
+            uint8_t unkFlag27 : 1;
+            uint8_t unkFlag28 : 1;
+            uint8_t unkFlag29 : 1;
+            uint8_t unkFlag30 : 1;
+            uint8_t unkFlag31 : 1;
+            uint8_t unkFlag32 : 1;
+        };
+    };
+
+    uint16_t surfaceType;
+    [link_resource("TS_RT_Sound")] uint16_t stepSoundId1;
+    [link_resource("TS_RT_Sound")] uint16_t stepSoundId2;
+    [link_resource("TS_RT_ParticleSystem")] uint16_t walkOnparticleSystemId1;
+    [link_resource("TS_RT_ParticleSystem")] uint16_t walkOnparticleSystemId2;
+    [link_resource("TS_RT_Sound")] uint16_t landSoundId1;
+    uint16_t unkId;
+    [link_resource("TS_RT_ParticleSystem")] uint16_t landOnParticleSystemId;
+    [link_resource("TS_RT_Sound")] uint16_t landSoundId2;
+    [link_resource("TS_RT_Sound")] uint16_t unkSoundId;
+    [void_read] [no_json] uint16_t _unusedId = 0xFFFF;
+    [length(10)] float* physicsParameters;
+    Vector4 unkVec;
+    BoundingBox4 unkBoundingBox;
+}
+
+asset TwinRes_Instance {
+    Vector4 position;
+    int32_t rotX;
+    int32_t rotY;
+    int32_t rotZ;
+
+    [no_json] int32_t instanceLinksAmount1;
+    [no_json] int32_t instanceLinksAmount2;
+    uint32_t instancesRelated;
+    [link_resource("TS_RT_Instance")] [length(instanceLinksAmount1)] uint16_t* instances;
+
+    [no_json] int32_t positionLinksAmount1;
+    [no_json] int32_t positionLinksAmount2;
+    uint32_t positionsRelated;
+    [link_resource("TS_RT_Position")] [length(positionLinksAmount1)] uint16_t* positions;
+
+    [no_json] int32_t pathLinksAmount1;
+    [no_json] int32_t pathLinksAmount2;
+    uint32_t pathsRelated;
+    [link_resource("TS_RT_Path")] [length(pathLinksAmount1)] uint16_t* paths;
+
+    [link_resource("TS_RT_Object")] uint16_t object;
+
+    int16_t refListIndex;
+    [link_resource("TS_RT_Behavior")] uint16_t onSpawnBehavior;
+
+    union packedParamsUnion {
+        uint32_t packedParams;
+        struct packedParamsData {
+            uint8_t flagsAmountPacked;
+            uint8_t floatsAmountPacked;
+            uint8_t intsAmountPacked;
+            uint8_t _pad;
+        };
+    };
+
+    union packedStateFlagsUnion {
+        uint32_t stateFlags;
+        struct stateFlagsData {
+            bool deactivated : 1;
+            bool collisionActive : 1;
+            bool visible : 1;
+            bool shadowActive : 1;
+            bool playableCharacterCanMoveAlong : 1;
+            bool unknownState1 : 1;
+            bool syncCrossChunkState : 1;
+            bool unknownState2 : 1;
+            bool receiveOnTriggerSignals : 1;
+            bool canDamageCharacter : 1;
+            bool solidToBodySlam : 1;
+            bool solidToSlide : 1;
+            bool solidToSpin : 1;
+            bool solidToTwinSlam : 1;
+            bool solidToThrownCortex : 1;
+            bool targetable : 1;
+            bool canAlwaysDamageCharacter : 1;
+            bool bulletsWillBounceBack : 1;
+            bool unknownState3 : 1;
+            bool unknownState4 : 1;
+            bool unknownState5 : 1;
+            bool unknownState6 : 1;
+            bool unknownState7 : 1;
+            bool unknownState8 : 1;
+            bool unknownState9 : 1;
+            bool unknownState10 : 1;
+            bool unknownState11 : 1;
+            bool unknownState12 : 1;
+            bool unknownState13 : 1;
+            bool unknownState14 : 1;
+            bool unknownState15 : 1;
+            bool unknownState16 : 1;
+        };
+    };
+
+    uint32_t* flagsParams;
+    float* floatParams;
+    uint32_t* integerParams;
+}
+
+// Represents a B-Spline (basis spline)
+asset TwinRes_Path {
+    Vector4* pathControlPoints;
+    Vector2* pathDistancesDts;
+}
+
+asset TwinRes_Position {
+    Vector4 position;
+}
+
+asset TwinRes_InstanceTemplate {
+    TwinStudio_StringView name;
+    [link_resource("TS_RT_Object")] uint16_t object;
+    uint8_t unkByte1;
+    uint8_t unkByte2;
+    uint32_t behaviorLinksAmount;
+    uint32_t header1;
+    uint32_t header2;
+    [link_resource("TS_RT_Behavior")] [length(behaviorLinksAmount)] uint16_t* unkBehaviorIds;
+    uint8_t unkByte3;
+    uint8_t unkByte4;
+    uint32_t instanceProps;
+    uint32_t unkInt;
+    uint32_t* flagsParams;
+    float* floatParams;
+    uint32_t* integerParams;
+}
+
+asset TwinRes_GenericTrigger {
+    uint32_t header;
+    union activatorMaskUnion {
+        uint32_t activatorMask;
+        struct activatorMaskData {
+            bool playableCharacter : 1;
+            bool pickups : 1;
+            bool crates : 1;
+            bool creatures : 1;
+            bool genericObjects : 1;
+            bool grabables : 1;
+            bool payGates : 1;
+            bool graples : 1;
+            bool projectiles : 1;
+        };
+    };
+    float unkFloat;
+    Quaternion rotation;
+    Vector4 position;
+    Vector4 scale;
+    [no_json] uint32_t instancesAmount1;
+    [no_json] uint32_t instancesAmount2;
+    uint32_t instancesExtensionValue;
+    [length(instanceLinksAmount1)] [link_resource("TS_RT_Instance")] uint16_t instances;
+}
+
+asset TwinRes_Trigger {
+    TwinRes_GenericTrigger trigger;
+    [length(4)] uint16_t* messages;
+}
+
+
+asset TwinRes_BaseSubCamera {
+    uint32_t unkInt;
+    float unkFloat1;
+    float unkFloat2;
+}
+
+
+asset TwinRes_BossCamera {
+    TwinRes_BaseSubCamera base;
+    Matrix unkMatrix1;
+    Matrix unkMatrix2;
+    Vector4 unkVec;
+    uint8_t unkByte1;
+    float unkFloat3;
+    float unkFloat4;
+    float unkFloat5;
+    float unkFloat6;
+    uint8_t unkByte2;
+}
+
+
+asset TwinRes_PointCamera {
+    TwinRes_BaseSubCamera base;
+    Vector4 point;
+}
+
+
+asset TwinRes_LineCamera {
+    TwinRes_BaseSubCamera base;
+    Vector4 lineStart;
+    Vector4 lineEnd;
+}
+
+
+// Represents a B-Spline (basis spline)
+asset TwinRes_PathCamera {
+    TwinRes_BaseSubCamera base;
+    Vector4* pathControlPoints;
+    Vector2* pathDistancesDts;
+}
+
+
+asset TwinRes_SplineCameraPointPairs {
+    Vector4 pathPoint;
+    Vector4 interpolationPoint;
+}
+
+
+asset TwinRes_SplineCamera {
+    TwinRes_BaseSubCamera base;
+    [no_json] int32_t unkDataAmounts;
+    float unkFloat3;
+    [length("source->unkDataAmounts + 1")] TwinRes_SplineCameraPointPairs* spline;
+    [length(unkDataAmounts)] uint64_t* unkData;
+    uint16_t unkShort;
+}
+
+
+asset TwinRes_Sub1C09Camera {
+    TwinRes_BaseSubCamera base;
+}
+
+
+asset TwinRes_Point2Camera {
+    TwinRes_BaseSubCamera base;
+    Vector4 point;
+    float unkFloat3;
+    uint8_t unkByte;
+}
+
+
+asset TwinRes_Sub1C0CCamera {
+    [length(4)] uint8_t* unkData;
+}
+
+
+asset TwinRes_Line2Camera {
+    TwinRes_BaseSubCamera base;
+    Vector4 lineStart;
+    Vector4 lineEnd;
+    float unkFloat3;
+    float unkFloat4;
+}
+
+
+asset TwinRes_ZoneCamera {
+    [length(10)] Vector4* unkData;
+}
+
+
+asset TwinRes_Camera {
+    TwinRes_GenericTrigger trigger;
+    uint32_t header;
+    uint16_t unkShort;
+    float unkFloat1;
+    Vector4 unkVec1;
+    Vector4 unkVec2;
+    float unkFloat2;
+    float unkFloat3;
+    uint32_t unkInt1;
+    uint32_t unkInt2;
+    uint32_t unkInt3;
+    uint32_t unkInt4;
+    uint32_t unkInt5;
+    uint32_t unkInt6;
+    float unkFloat4;
+    float unkFloat5;
+    float unkFloat6;
+    float unkFloat7;
+    uint32_t unkInt7;
+    uint32_t unkInt8;
+    uint32_t unkInt9;
+    float unkFloat8;
+    uint32_t cameraType1;
+    uint32_t cameraType2;
+    uint8_t unkByte;
+
+    union [write_all] subCamera1 {
+        [write_if("source->cameraType1 == 0xA19")]  TwinRes_BossCamera bossCamera1;
+        [write_if("source->cameraType1 == 0x1C02")] TwinRes_PointCamera pointCamera1;
+        [write_if("source->cameraType1 == 0x1C03")] TwinRes_LineCamera lineCamera1;
+        [write_if("source->cameraType1 == 0x1C04")] TwinRes_PathCamera pathCamera1;
+        [write_if("source->cameraType1 == 0x1C06")] TwinRes_SplineCamera splineCamera1;
+        [write_if("source->cameraType1 == 0x1C09")] TwinRes_Sub1C09Camera sub1C09Camera1;
+        [write_if("source->cameraType1 == 0x1C0B")] TwinRes_Point2Camera point2Camera1;
+        [write_if("source->cameraType1 == 0x1C0C")] TwinRes_Sub1C0CCamera sub1C0CCCamera1;
+        [write_if("source->cameraType1 == 0x1C0D")] TwinRes_Line2Camera line2Camera1;
+        [write_if("source->cameraType1 == 0x1C0F")] TwinRes_ZoneCamera zoneCamera1;
+    };
+
+    union [write_all] subCamera2 {
+        [write_if("source->cameraType1 == 0xA19")]  TwinRes_BossCamera bossCamera2;
+        [write_if("source->cameraType1 == 0x1C02")] TwinRes_PointCamera pointCamera2;
+        [write_if("source->cameraType1 == 0x1C03")] TwinRes_LineCamera lineCamera2;
+        [write_if("source->cameraType1 == 0x1C04")] TwinRes_PathCamera pathCamera2;
+        [write_if("source->cameraType1 == 0x1C06")] TwinRes_SplineCamera splineCamera2;
+        [write_if("source->cameraType1 == 0x1C09")] TwinRes_Sub1C09Camera sub1C09Camera2;
+        [write_if("source->cameraType1 == 0x1C0B")] TwinRes_Point2Camera point2Camera2;
+        [write_if("source->cameraType1 == 0x1C0C")] TwinRes_Sub1C0CCamera sub1C0CCCamera2;
+        [write_if("source->cameraType1 == 0x1C0D")] TwinRes_Line2Camera line2Camera2;
+        [write_if("source->cameraType1 == 0x1C0F")] TwinRes_ZoneCamera zoneCamera2;
+    };
+}

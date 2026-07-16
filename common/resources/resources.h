@@ -27,7 +27,8 @@ typedef enum {
     TS_RT_Position,
     TS_RT_AI_Position,
     TS_RT_AI_Path,
-    TS_RT_Body
+    TS_RT_Body,
+    TS_RT_ParticleSystem
 } TwinStudio_ResourceType;
 
 #endif // TS_RESOURCES_H

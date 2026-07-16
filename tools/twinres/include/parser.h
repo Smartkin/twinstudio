@@ -49,6 +49,7 @@ typedef struct TwinRes_StructGeneratorOptions {
     TwinRes_AttributeInfo excludeFromJson;
     TwinRes_AttributeInfo noRead;
     TwinRes_AttributeInfo noWrite;
+    TwinRes_AttributeInfo writeAll;
 } TwinRes_StructGeneratorOptions;
 
 
