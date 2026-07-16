@@ -22,6 +22,12 @@ Vector4 Vector4Create()
 }
 
 
+BoundingBox4 BoundingBox4Create()
+{
+    return (BoundingBox4) {};
+}
+
+
 Matrix MatrixCreate()
 {
     return (Matrix) {};
