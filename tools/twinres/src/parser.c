@@ -1822,7 +1822,14 @@ static int GenerateStructFieldsJsonSerialization(const TwinRes_ParserStructDefin
         switch (valueType)
         {
             case TwinStudio_VariantBool:
-                fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddBoolToObject(rootObject, \""TS_VIEW_FORMAT"\", source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), indexWriting);
+                if (!isArray)
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddBoolToObject(rootObject, \""TS_VIEW_FORMAT"\", source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), indexWriting);
+                }
+                else
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_CreateBool(source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), indexWriting);
+                }
                 break;
             case TwinStudio_VariantFloat:
             case TwinStudio_VariantInt8:
@@ -1834,7 +1841,14 @@ static int GenerateStructFieldsJsonSerialization(const TwinRes_ParserStructDefin
             case TwinStudio_VariantInt64:
             case TwinStudio_VariantUInt64:
             case TwinStudio_VariantEnum:
-                fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddNumberToObject(rootObject, \""TS_VIEW_FORMAT"\", source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), indexWriting);
+                if (!isArray)
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_AddNumberToObject(rootObject, \""TS_VIEW_FORMAT"\", source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->name), indexWriting);
+                }
+                else
+                {
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   cJSON_CreateNumber(source->"TS_VIEW_FORMAT"%s)", TS_VIEW_ARG(structField->name), indexWriting);
+                }
                 break;
             case TwinStudio_VariantString:
                 if (!isArray)
