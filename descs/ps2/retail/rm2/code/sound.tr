@@ -1,0 +1,24 @@
+#include "audio/wave.h"
+
+asset TwinRes_Sound {
+    union headerUnion {
+        uint32_t header;
+        struct headerData {
+            uint8_t isMono : 1;
+            uint32_t unknown : 31;
+        };
+    };
+
+    uint8_t unkFlag;
+    uint8_t frequencyId;
+    uint16_t param1;
+    uint16_t param2;
+    uint16_t param3;
+    uint16_t param4;
+    [no_json] uint32_t soundSize;
+    [no_json] uint32_t offset;
+
+    [resource("TwinStudio_Wave")] [length("source->isMono ? source->soundSize : source->soundSize / 2")]
+    [no_bin] [no_json]
+    void* trackData;
+}

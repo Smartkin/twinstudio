@@ -38,6 +38,7 @@ fetchcontent_makeavailable(raylib)
 fetchcontent_makeavailable(ps2imagemaker)
 
 if (TWINSTUDIO_ASAN)
+    add_compile_definitions(ENABLE_OVERRIDE=0)
     add_compile_definitions(TWIN_ASAN)
 endif()
 

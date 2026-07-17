@@ -1,0 +1,119 @@
+#include "../../../../common/auto_struct_animations.h"
+
+asset TwinRes_JointAnimationSettings {
+    union flagsUnion {
+        uint16_t flags;
+        struct flagsData {
+            uint8_t _pad;
+            uint8_t facialShapesAmount : 4;
+            bool    useAdditionalRotation : 1;
+            bool    independentScaling : 1;
+        };
+    };
+
+    union transformChoiceUnion {
+        uint16_t transformChoice;
+        struct transformChoiceStates {
+            uint8_t translateX : 1;
+            uint8_t translateY : 1;
+            uint8_t translateZ : 1;
+            uint8_t rotateX : 1;
+            uint8_t rotateY : 1;
+            uint8_t rotateZ : 1;
+            uint8_t scaleX : 1;
+            uint8_t scaleY : 1;
+            uint8_t scaleZ : 1;
+        };
+    };
+
+    uint16_t staticTransformationIndex;
+    uint16_t animationTransformationIndex;
+}
+
+asset TwinRes_JointAnimation {
+    union dataPackerUnion {
+        uint32_t dataPacker;
+        struct dataPackerData {
+            uint8_t  jointSettingsAmount : 7;
+            uint8_t  _pad1 : 3;
+            uint16_t staticTransformationsAmount : 10;
+            uint8_t  _pad2 : 2;
+            uint16_t animatedTransformationsAmount : 10;
+        };
+    };
+
+    uint16_t totalFrames;
+    [length(jointSettingsAmount)] TwinRes_JointAnimationSettings* jointSettings;
+    [length(staticTransformationsAmount)] TwinRes_AnimationTransformation* staticTransformations;
+    [length(totalFrames)] [constructor(animatedTransformationsAmount)] TwinRes_AnimationAnimatedTransformation* animatedTransformations;
+}
+
+asset TwinRes_MoprhAnimationSettings {
+    union flagsUnion {
+        uint16_t flags;
+        struct flagsData {
+            uint8_t _pad;
+            uint8_t facialShapesAmount : 4;
+            bool    useAdditionalRotation : 1;
+            bool    independentScaling : 1;
+        };
+    };
+
+    union transformChoiceUnion {
+        uint16_t transformChoice;
+        struct transformChoiceStates {
+            uint8_t face1 : 1;
+            uint8_t face2 : 1;
+            uint8_t face3 : 1;
+            uint8_t face4 : 1;
+            uint8_t face5 : 1;
+            uint8_t face6 : 1;
+            uint8_t face7 : 1;
+            uint8_t face8 : 1;
+            uint8_t face9 : 1;
+            uint8_t face10 : 1;
+            uint8_t face11 : 1;
+            uint8_t face12 : 1;
+            uint8_t face13 : 1;
+            uint8_t face14 : 1;
+            uint8_t face15 : 1;
+        };
+    };
+
+    uint16_t staticTransformationIndex;
+    uint16_t animationTransformationIndex;
+}
+
+asset TwinRes_MorphAnimation {
+    union dataPackerUnion {
+        uint32_t dataPacker;
+        struct dataPackerData {
+            uint8_t  morphSettingsAmount : 7;
+            uint8_t  _pad1 : 3;
+            uint16_t staticTransformationsAmount : 10;
+            uint8_t  _pad2 : 2;
+            uint16_t animatedTransformationsAmount : 10;
+        };
+    };
+
+    uint16_t totalFrames;
+    [length(morphSettingsAmount)] TwinRes_MoprhAnimationSettings* morphSettings;
+    [length(staticTransformationsAmount)] TwinRes_AnimationTransformation* staticTransformations;
+    [length(totalFrames)] [constructor(animatedTransformationsAmount)] TwinRes_AnimationAnimatedTransformation* animatedTransformations;
+}
+
+
+asset TwinRes_Animation {
+    union bitfieldUnion {
+        uint32_t bitfield;
+        struct bitfieldData {
+            bool hasAnimationData : 1;
+            bool hasMorphAnimationData : 1;
+            uint16_t totalFrames;
+            uint8_t defaultFps : 5;
+        };
+    };
+
+    TwinRes_JointAnimation jointAnimation;
+    TwinRes_MorphAnimation morphAnimation;
+}

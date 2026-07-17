@@ -18,7 +18,7 @@
 #define CREATE_ATTRIBUTE(attribName, type, initialValue) (TwinRes_AttributeInfo) { .name = TS_STRING_VIEW(#attribName), .data = __TS_VARIANT_CREATE_##type((initialValue)) }
 
 
-static const uint32_t maxStructFields = 128;
+static const uint32_t maxStructFields = 256;
 static const uint32_t maxEnums = 256;
 static const uint32_t maxAttributeArgs = 16;
 static const uint32_t maxAstNodes = UINT16_MAX;
@@ -978,6 +978,7 @@ static TwinRes_ParserNode StructDefinitionNode(TwinRes_GeneratorOutput* output, 
             {
                 TwinRes_StructFieldGeneratorOptions options = GetDefaultFieldOptions();
                 TwinStudio_VariantSetBool(&options.excludeFromJson.data, true);
+                TwinStudio_VariantSetBool(&options.excludeFromBin.data, TS_VARIANT_GET(bool, fieldDef->options.excludeFromBin.data));
                 options.length = fieldDef->options.length;
 
                 TwinRes_ParserStructFieldDefinition* fieldNode = TwinStudio_ArenaAlloc(&output->generatorArena, sizeof(TwinRes_ParserStructFieldDefinition));
@@ -1488,7 +1489,7 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             TwinStudio_StringView conditionCopy = TwinStudio_CopyFromCString(TwinStudio_GetCStringDynamic(&originalCondition));
             char* replacement = NULL;
             char* currentSearch = conditionCopy.dynString;
-            while ((replacement = strstr(currentSearch, "source")) != NULL)
+            while ((replacement = strstr(currentSearch, "source-")) != NULL)
             {
                 memcpy(replacement, "target", sizeof("target") - 1);
                 currentSearch = replacement;
@@ -1968,7 +1969,7 @@ static int GenerateStructFieldsJsonDeserialization(const TwinRes_ParserStructDef
             TwinStudio_StringView conditionCopy = TwinStudio_CopyFromCString(TwinStudio_GetCStringDynamic(&originalCondition));
             char* replacement = NULL;
             char* currentSearch = conditionCopy.dynString;
-            while ((replacement = strstr(currentSearch, "source")) != NULL)
+            while ((replacement = strstr(currentSearch, "source-")) != NULL)
             {
                 memcpy(replacement, "target", sizeof("target") - 1);
                 currentSearch = replacement;

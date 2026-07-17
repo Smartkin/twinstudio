@@ -1,0 +1,123 @@
+
+asset TwinRes_ObjectMessage {
+    union messageUnion {
+        uint32_t message;
+        struct messageData {
+            uint16_t messageId : 10;
+            uint16_t behavior  : 14;
+            uint8_t  behaviorCallerIndex : 1;
+        };
+    };
+}
+
+asset TwinRes_Object {
+    union bitfieldUnion {
+        uint32_t bitfield;
+        struct bitfieldData {
+            uint8_t exitPointsAmount : 6;
+            uint8_t reactJointsAmount : 6;
+            uint8_t subType;
+            uint8_t type;
+            bool unkBool : 1;
+            bool hasInstanceProps : 1;
+            bool referencesResources : 1;
+        };
+    };
+
+    union packedSlotMapUnion {
+        uint64_t slotMap;
+        struct slotMapData {
+            uint8_t bodyAnimationSlotsAmount;
+            uint8_t behaviorSlotsAmount;
+            uint8_t objectSlotsAmount;
+            uint8_t messageSlotsAmount;
+            uint8_t soundSlotsAmount;
+            uint8_t unused1;
+            uint8_t unused2;
+            uint8_t unused3;
+        };
+    };
+
+    TwinStudio_StringView name;
+    TwinRes_ObjectMessage* messages;
+    [link_resource("TS_RT_Body")] uint16_t* ogiSlots;
+    [link_resource("TS_RT_Animation")] uint16_t* animationSlots;
+    [link_resource("TS_RT_Behavior | TS_RT_SequenceBehavior")] uint16_t* behaviorSlots;
+    [link_resource("TS_RT_Object")] uint16_t* objectSlots;
+    [link_resource("TS_RT_Sound")] uint16_t* soundSlots;
+
+    union packedParamsUnion {
+        [write_if("source->hasInstanceProps")] uint32_t packedParams;
+        struct packedParamsData {
+            uint8_t flagsAmountPacked;
+            uint8_t floatsAmountPacked;
+            uint8_t intsAmountPacked;
+            uint8_t _pad;
+        };
+    };
+
+    union packedStateFlagsUnion {
+        [write_if("source->hasInstanceProps")] uint32_t stateFlags;
+        struct stateFlagsData {
+            bool deactivated : 1;
+            bool collisionActive : 1;
+            bool visible : 1;
+            bool shadowActive : 1;
+            bool playableCharacterCanMoveAlong : 1;
+            bool unknownState1 : 1;
+            bool syncCrossChunkState : 1;
+            bool unknownState2 : 1;
+            bool receiveOnTriggerSignals : 1;
+            bool canDamageCharacter : 1;
+            bool solidToBodySlam : 1;
+            bool solidToSlide : 1;
+            bool solidToSpin : 1;
+            bool solidToTwinSlam : 1;
+            bool solidToThrownCortex : 1;
+            bool targetable : 1;
+            bool canAlwaysDamageCharacter : 1;
+            bool bulletsWillBounceBack : 1;
+            bool unknownState3 : 1;
+            bool unknownState4 : 1;
+            bool unknownState5 : 1;
+            bool unknownState6 : 1;
+            bool unknownState7 : 1;
+            bool unknownState8 : 1;
+            bool unknownState9 : 1;
+            bool unknownState10 : 1;
+            bool unknownState11 : 1;
+            bool unknownState12 : 1;
+            bool unknownState13 : 1;
+            bool unknownState14 : 1;
+            bool unknownState15 : 1;
+            bool unknownState16 : 1;
+        };
+    };
+
+    [write_if("source->hasInstanceProps")] uint32_t* flagsParams;
+    [write_if("source->hasInstanceProps")] float* floatParams;
+    [write_if("source->hasInstanceProps")] uint32_t* integerParams;
+
+    union resourceLinkingFlagsUnion {
+        [write_if("source->referencesResources")] uint32_t resourceLinkingFlags;
+        struct resourceLinkingFlagsData {
+            uint8_t linksObjects : 1;
+            uint8_t linksBodies : 1;
+            uint8_t linksAnimations : 1;
+            uint8_t linksBehaviorSequences : 1;
+            uint8_t linksBehaviors : 1;
+            uint8_t linksUnknowns : 1;
+            uint8_t linksSounds : 1;
+        };
+    };
+
+    [write_if("source->referencesResources && source->linksObjects")] [link_resource("TS_RT_Object")] uint16_t* linkedObjects;
+    [write_if("source->referencesResources && source->linksBodies")] [link_resource("TS_RT_Body")] uint16_t* linkedBodies;
+    [write_if("source->referencesResources && source->linksAnimations")] [link_resource("TS_RT_Animation")] uint16_t* linkedAnimations;
+    [write_if("source->referencesResources && source->linksBehaviorSequences")] [link_resource("TS_RT_SequenceBehavior")] uint16_t* linkedBehaviorSequences;
+    [write_if("source->referencesResources && source->linksBehaviors")] [link_resource("TS_RT_SequenceBehaviorAction | TS_RT_Behavior")] uint16_t* linkedBehaviors;
+    [write_if("source->referencesResources && source->linksUnknowns")] uint16_t* linkedUnknowns;
+    [write_if("source->referencesResources && source->linksSounds")] [link_resource("TS_RT_Sound")] uint16_t* linkedSounds;
+
+    // TODO: AgentLab action pack
+}

@@ -20,12 +20,12 @@ asset TwinRes_ParticleSystem {
     [write_if("source->version >= 0xA")] float drawCutOff;
     [write_if("source->version > 0x16 && source->version != 0x20")] float unkFloat2;
     [write_if("source->version > 0x18 && source->version != 0x20")] float unkFloat3;
-    [write_if("source->version < 0x7")] [blob] [read_void] [length(8)] void* _pad2;
+    [write_if("source->version < 0x7")] [blob] [void_read] [length(8)] void* _pad2;
     float velocity;
     Vector3 randomEmit;
-    [write_if("source->version < 0x12")] [blob] [read_void] [length(0xC)] void* _pad3;
+    [write_if("source->version < 0x12")] [blob] [void_read] [length(0xC)] void* _pad3;
     Vector3 randomStart;
-    [write_if("source->version < 0x12")] [blob] [read_void] [length(0xC)] void* _pad4;
+    [write_if("source->version < 0x12")] [blob] [void_read] [length(0xC)] void* _pad4;
     float unkFloat4;
     float unkFloat5;
     float unkFloat6;
@@ -62,18 +62,18 @@ asset TwinRes_ParticleSystem {
     [length(8)] Vector2* unkGradient2;
     Vector2 textureStart;
     Vector2 textureEnd;
-    [write_if("source->version == 0x20")] [blob] [read_void] [length(4)] void* _pad5;
+    [write_if("source->version == 0x20")] [blob] [void_read] [length(4)] void* _pad5;
     [write_if("source->version >= 0x3")] [length(8)] Vector2* collision;
     [write_if("source->version >= 0x3")] uint8_t collisionNumSpheres;
     [write_if("source->version >= 0x11")] uint8_t drawFlag;
-    [write_if("source->version == 0x20")] [blob] [read_void] [length(6)] void* _pad6;
+    [write_if("source->version == 0x20")] [blob] [void_read] [length(6)] void* _pad6;
     [write_if("source->version > 0x16 && source->version < 0x1D && source->version != 0x20")] int32_t _pad7Amount;
 
     [write_if("source->version > 0x16 && source->version < 0x1D && source->version != 0x20")]
-    [blob] [read_void] [length("source->_pad7Amount * 24")] void* _pad7;
+    [blob] [void_read] [length("source->_pad7Amount * 24")] void* _pad7;
 
     [write_if("source->version == 0x20")] float scaleFactorVer32;
-    [write_if("source->version == 0x20")] [blob] [read_void] [length(56)] void* _pad8;
+    [write_if("source->version == 0x20")] [blob] [void_read] [length(56)] void* _pad8;
 
     [write_if("source->version >= 0x10")] int32_t particleGhostsNum;
     [write_if("source->version >= 0x10")] float ghostSeparation;

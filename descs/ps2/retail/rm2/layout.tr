@@ -197,7 +197,7 @@ asset TwinRes_GenericTrigger {
     [no_json] uint32_t instancesAmount1;
     [no_json] uint32_t instancesAmount2;
     uint32_t instancesExtensionValue;
-    [length(instanceLinksAmount1)] [link_resource("TS_RT_Instance")] uint16_t instances;
+    [length(instancesAmount1)] [link_resource("TS_RT_Instance")] uint16_t* instances;
 }
 
 asset TwinRes_Trigger {
@@ -292,7 +292,8 @@ asset TwinRes_Line2Camera {
 
 
 asset TwinRes_ZoneCamera {
-    [length(10)] Vector4* unkData;
+    [length(5)] Vector4* unkData1;
+    [length(5)] Vector4* unkData2;
 }
 
 

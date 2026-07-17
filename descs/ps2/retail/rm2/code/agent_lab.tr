@@ -1,0 +1,1791 @@
+
+asset TwinRes_BehaviorHeader {
+    uint16_t id;
+    uint8_t  priority;
+    bool     isStarter;
+}
+
+asset TwinRes_BehaviorAssigner {
+    int32_t behavior;
+    union assignerUnion {
+        uint32_t assigner;
+        struct assignerData {
+            uint8_t assignType : 4;
+            uint8_t assignLocality : 4;
+            uint8_t assignStatus : 4;
+            uint16_t globalObjectId;
+            uint8_t assignPreference : 4;
+        };
+    };
+}
+
+asset TwinRes_BehaviorStarter {
+    TwinRes_BehaviorHeader header;
+    TwinRes_BehaviorAssigner* assigners;
+}
+
+asset TwinRes_BehaviorControlPacketIntFloat {
+    union intFloat {
+        uint32_t intValue;
+        float    floatValue;
+    };
+}
+
+asset TwinRes_BehaviorControlPacket {
+    [no_json] uint8_t bytesAmount;
+    [no_json] uint8_t floatsAmount;
+    [no_json] uint16_t version = 0x6;
+
+    union packetSettingsUnion {
+        uint32_t packetSettings;
+        struct packetSettingsData {
+            uint8_t space : 3;
+            uint8_t motion : 4;
+            uint8_t continuousRotate : 4;
+            uint8_t accelerationFunction : 2;
+            bool    translates : 1;
+            bool    rotates : 1;
+            bool    translationContinues : 1;
+            bool    tracksDestination : 1;
+            bool    interpolatesAngles : 1;
+            bool    yawFaces : 1;
+            bool    pitchFaces : 1;
+            bool    orientsPredicts : 1;
+            bool    isValid : 1;
+            bool    keyIsLocal : 1;
+            bool    usesRotator : 1;
+            bool    usesInterpolator : 1;
+            bool    usesPhysics : 1;
+            bool    continuouslyRotatesInWorldSpace : 1;
+            uint8_t axes : 3;
+            bool    unkFlag : 1;
+            bool    stalls : 1;
+        };
+    };
+
+    [length(floatsAmount)] TwinRes_BehaviorControlPacketIntFloat* params;
+    [length(bytesAmount)]  uint8_t* floatIndices;
+}
+
+asset TwinRes_BehaviorCondition {
+    union bitfieldUnion {
+        uint32_t bitfield;
+        struct bitfieldData {
+            uint16_t conditionIndex;
+            bool     isNot : 1;
+            uint16_t conditionParameter : 15;
+        };
+    };
+
+    float checkInterval;
+    float returnCheck;
+    float conditionPowerMultiplier;
+}
+
+asset TwinRes_BehaviorMakeInert {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorAddTrail {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+    uint32_t param22;
+    uint32_t param23;
+    uint32_t param24;
+    uint32_t param25;
+    uint32_t param26;
+    uint32_t param27;
+    uint32_t param28;
+    uint32_t param29;
+}
+
+asset TwinRes_BehaviorClearTrail {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorPositionWarp {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorSetKey {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorNextKey {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorRestartPrevious {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSpawnResidentAgent {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorDoAnimation {
+    int32_t param1;
+    float param2;
+    int32_t param3;
+    int32_t param4;
+    int32_t param5;
+    int32_t param6;
+}
+
+asset TwinRes_BehaviorDoParticle {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorDoSound {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+}
+
+asset TwinRes_BehaviorSetWobble {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+    uint32_t param22;
+    uint32_t param23;
+    uint32_t param24;
+    uint32_t param25;
+    uint32_t param26;
+    uint32_t param27;
+    uint32_t param28;
+    uint32_t param29;
+    uint32_t param30;
+    uint32_t param31;
+    uint32_t param32;
+    uint32_t param33;
+    uint32_t param34;
+}
+
+asset TwinRes_BehaviorClearWobble {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorNowMoveForwards {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorNowMoveBackwards {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorNowStrafeLeft {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorNowStrafeRight {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorNowTurnLeft {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorNowTurnRight {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorNowRotateJoint {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorPositionJoint {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorStoreCurrentSpace {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetFocusToKey {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorRotationWarp {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorClearThreats {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorTriggerLinkedObjects {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetState {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorToggleState {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorNextRouteNode {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorDiscardRoute {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSetLogicalRadius {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorSetBehaviourPriority {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetCollisions {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+}
+
+asset TwinRes_BehaviorSetFocusToAgent {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorAttachFocusObject {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorDropAttachedObject {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorThrowAttachedObject {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorUnsupportOverFocus {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnsupportAbove {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorClearFocus {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorClearCollisions {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSendUserMessage {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorBroadcastUserMessage {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorClearAnimation {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorRequestAttachmentFocus {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorRequestMessengersFocus {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetFocusPosition {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+}
+
+asset TwinRes_BehaviorStopMoving {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorAddNoiseToFocusPosition {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorRestartDefaultBehaviour {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorAttachLinkedObject {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorMessageLinkedObject {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorClearUserMessage {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorRequestMessSourceAsFocus {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetCounter {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorModifyCounter {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorContinueColliderMotion {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorRevertColliderMotion {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorColliderLaunchNow {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+}
+
+asset TwinRes_BehaviorForceAnimationUpdate {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorDestroySpawnedAttachment {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorApplyImpulse {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorRequestDetach {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSetObject {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorKeep {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorAttachSpring {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+}
+
+asset TwinRes_BehaviorDetachAllSprings {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSetContactSpringy {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+    uint32_t param22;
+    uint32_t param23;
+    uint32_t param24;
+    uint32_t param25;
+    uint32_t param26;
+    uint32_t param27;
+    uint32_t param28;
+    uint32_t param29;
+    uint32_t param30;
+    uint32_t param31;
+    uint32_t param32;
+    uint32_t param33;
+    uint32_t param34;
+}
+
+asset TwinRes_BehaviorSetContactRigid {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+    uint32_t param22;
+    uint32_t param23;
+    uint32_t param24;
+    uint32_t param25;
+    uint32_t param26;
+    uint32_t param27;
+    uint32_t param28;
+    uint32_t param29;
+    uint32_t param30;
+    uint32_t param31;
+    uint32_t param32;
+    uint32_t param33;
+    uint32_t param34;
+}
+
+asset TwinRes_BehaviorClearContactResponse {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorDestroyMe {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetSound {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+}
+
+asset TwinRes_BehaviorAlterWobblePhase {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorBeginMusic {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorEndContextMusic {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetFocusToAgent2 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetFocusToAgent3 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorAddLives {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorAddLives_Duplicate2 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorAttachFocusObject2 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorRequestMessengersFocus2 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorRequestMessengersFocus3 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorRequestMessSourceAsFocus2 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorRequestMessSourceAsFocus3 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetFocusToKey2 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetFocusToAgent4 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetRotation2 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorRequestMessengersFocus4 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetFocusPosition2 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+}
+
+asset TwinRes_BehaviorAddNoiseToFocusPos2 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorCacheLinkedInstance {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSpawnCachedResidentAgent {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorPhysicsResetVelocity {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorRunScriptSlot {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorForceVolumeController {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorSetSurface {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetShadow {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorSetShadowCircle {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorSetShadowMesh {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorSetShadowRectangle {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorShadowToggle {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorDUMMY_197 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorControllerRumble {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorCreateCrateContents {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorCA_PickUpWumpa {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorCreateDamage {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorSetAgent {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetPlayerRespawnPosition {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorResetGame {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSetCrate {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorTriggerBalancedCrateFalling {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorCA_PickUpHealth {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSetPlayerInput {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorTriggerAllNitroCrates {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorApplyVelocity {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+}
+
+asset TwinRes_BehaviorSetKeyNearestPlayer {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorRaycastFocusPosition {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorApplyVelocityToSelf {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+}
+
+asset TwinRes_BehaviorSetChiChiGrass {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorReduceHitPoints {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetHitPoints {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorDUMMY_SetRayTests {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorRestartDefault {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorDUMMY_NowGoForwardCollidable {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorNowGoBackCollidable {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetGlobalProgression {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorAddCrystal {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorDUMMY_536 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorAddGem {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorDUMMY_538 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorCA_SetPickup {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorCA_SetProjectile {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorCA_AddTrail {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+    uint32_t param22;
+    uint32_t param23;
+    uint32_t param24;
+    uint32_t param25;
+    uint32_t param26;
+    uint32_t param27;
+    uint32_t param28;
+    uint32_t param29;
+}
+
+asset TwinRes_BehaviorCA_ClearTrail {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorCA_DoAnimation {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorCA_DoParticle {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorCA_DoSound {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+}
+
+asset TwinRes_BehaviorCA_CreateDamage {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorShoot {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorGetShortRoute {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+}
+
+asset TwinRes_BehaviorDUMMY_FuelPayGate {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorOpenAllLinkedFurniture {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorCloseAllLinkedFurniture {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorAttachAllLinkedAgents {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorDetachAllLinkedAgents {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSetVehicleHumiliskate {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorSetFocusToPlayer {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorRequestFocus {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorSetFocusProperties {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetCamera {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorRestoreCameraDefaults {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorLinkToFocusCharacter {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnlinkCharacters {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorDamageOriginator {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorRequestFocus2 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorRequestFocus3 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorExitVehicleMode {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetVehicleRollerbrawl {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorSetVehicleHoverboard {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorBecomeSticky {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorBecomeNormal {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorDUMMY_584 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorAddLives_Duplicate {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorDUMMY_586 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorPlayerFaceTowardsCamera {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorCutsceneStart {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorCutsceneEnd {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorCameraSaveParams {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorCameraLoadParams {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorToggleCutsceneCamera {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorStartWhackaworm {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorProgressWhackaworm {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorEndWhackaworm {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSetVehicleWrestleCreature {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorFadeoutScreen {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorDisplayBottomText {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+}
+
+asset TwinRes_BehaviorDismissCharacter {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorCameraFocusObject {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorCameraStopFocusObject {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorClearBottomText {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorDUMMY_609 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorDUMMY_610 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorDisablePlayerControl {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorForceGameOver {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorShowBottomText {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorHideBottomText {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorCharacterSoundProxy {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorEnableVarPercept629 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSwitchCharacter {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorSetPlayerMode {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorPlayMovie {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorAddAmmo {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorEnableBossMode {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorDamageBoss {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorExitBossMode {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorSetGlobalProgression2 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorCameraTopdownMode {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorPlayCredits {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorDisplayBottomTextInstance {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorResetCamera {
+    [no_bin] uint32_t _dummy;
+}
+
+
+asset TwinRes_BehaviorCommand {
+    union bitfieldUnion {
+        uint32_t bitfield;
+        struct bitfieldData {
+            uint16_t commandIndex;
+            uint8_t  unknown1;
+            bool     hasNext : 1;
+            uint8_t  unknown2 : 7;
+        };
+    };
+
+    union [write_all] argumentsUnion {
+        [write_if("source->commandIndex == 0")] TwinRes_BehaviorMakeInert makeInert;
+        [write_if("source->commandIndex == 1")] TwinRes_BehaviorAddTrail addTrail;
+        [write_if("source->commandIndex == 2")] TwinRes_BehaviorClearTrail clearTrail;
+        [write_if("source->commandIndex == 3")] TwinRes_BehaviorPositionWarp positionWarp;
+        [write_if("source->commandIndex == 4")] TwinRes_BehaviorSetKey setKey;
+        [write_if("source->commandIndex == 5")] TwinRes_BehaviorNextKey nextKey;
+        [write_if("source->commandIndex == 7")] TwinRes_BehaviorRestartPrevious restartPrevious;
+        [write_if("source->commandIndex == 8")] TwinRes_BehaviorSpawnResidentAgent spawnResidentAgent;
+        [write_if("source->commandIndex == 9")] TwinRes_BehaviorDoAnimation doAnimation;
+        [write_if("source->commandIndex == 10")] TwinRes_BehaviorDoParticle doParticle;
+        [write_if("source->commandIndex == 11")] TwinRes_BehaviorDoSound doSound;
+        [write_if("source->commandIndex == 12")] TwinRes_BehaviorSetWobble setWobble;
+        [write_if("source->commandIndex == 13")] TwinRes_BehaviorClearWobble clearWobble;
+        [write_if("source->commandIndex == 14")] TwinRes_BehaviorNowMoveForwards nowMoveForwards;
+        [write_if("source->commandIndex == 15")] TwinRes_BehaviorNowMoveBackwards nowMoveBackwards;
+        [write_if("source->commandIndex == 16")] TwinRes_BehaviorNowStrafeLeft nowStrafeLeft;
+        [write_if("source->commandIndex == 17")] TwinRes_BehaviorNowStrafeRight nowStrafeRight;
+        [write_if("source->commandIndex == 18")] TwinRes_BehaviorNowTurnLeft nowTurnLeft;
+        [write_if("source->commandIndex == 19")] TwinRes_BehaviorNowTurnRight nowTurnRight;
+        [write_if("source->commandIndex == 23")] TwinRes_BehaviorNowRotateJoint nowRotateJoint;
+        [write_if("source->commandIndex == 24")] TwinRes_BehaviorPositionJoint positionJoint;
+        [write_if("source->commandIndex == 27")] TwinRes_BehaviorStoreCurrentSpace storeCurrentSpace;
+        [write_if("source->commandIndex == 28")] TwinRes_BehaviorSetFocusToKey setFocusToKey;
+        [write_if("source->commandIndex == 29")] TwinRes_BehaviorRotationWarp rotationWarp;
+        [write_if("source->commandIndex == 31")] TwinRes_BehaviorClearThreats clearThreats;
+        [write_if("source->commandIndex == 33")] TwinRes_BehaviorTriggerLinkedObjects triggerLinkedObjects;
+        [write_if("source->commandIndex == 34")] TwinRes_BehaviorSetState setState;
+        [write_if("source->commandIndex == 35")] TwinRes_BehaviorToggleState toggleState;
+        [write_if("source->commandIndex == 36")] TwinRes_BehaviorNextRouteNode nextRouteNode;
+        [write_if("source->commandIndex == 39")] TwinRes_BehaviorDiscardRoute discardRoute;
+        [write_if("source->commandIndex == 40")] TwinRes_BehaviorSetLogicalRadius setLogicalRadius;
+        [write_if("source->commandIndex == 42")] TwinRes_BehaviorSetBehaviourPriority setBehaviourPriority;
+        [write_if("source->commandIndex == 44")] TwinRes_BehaviorSetCollisions setCollisions;
+        [write_if("source->commandIndex == 45")] TwinRes_BehaviorSetFocusToAgent setFocusToAgent;
+        [write_if("source->commandIndex == 47")] TwinRes_BehaviorAttachFocusObject attachFocusObject;
+        [write_if("source->commandIndex == 48")] TwinRes_BehaviorDropAttachedObject dropAttachedObject;
+        [write_if("source->commandIndex == 49")] TwinRes_BehaviorThrowAttachedObject throwAttachedObject;
+        [write_if("source->commandIndex == 50")] TwinRes_BehaviorUnsupportOverFocus unsupportOverFocus;
+        [write_if("source->commandIndex == 51")] TwinRes_BehaviorUnsupportAbove unsupportAbove;
+        [write_if("source->commandIndex == 52")] TwinRes_BehaviorClearFocus clearFocus;
+        [write_if("source->commandIndex == 53")] TwinRes_BehaviorClearCollisions clearCollisions;
+        [write_if("source->commandIndex == 54")] TwinRes_BehaviorSendUserMessage sendUserMessage;
+        [write_if("source->commandIndex == 55")] TwinRes_BehaviorBroadcastUserMessage broadcastUserMessage;
+        [write_if("source->commandIndex == 56")] TwinRes_BehaviorClearAnimation clearAnimation;
+        [write_if("source->commandIndex == 57")] TwinRes_BehaviorRequestAttachmentFocus requestAttachmentFocus;
+        [write_if("source->commandIndex == 59")] TwinRes_BehaviorRequestMessengersFocus requestMessengersFocus;
+        [write_if("source->commandIndex == 60")] TwinRes_BehaviorSetFocusPosition setFocusPosition;
+        [write_if("source->commandIndex == 61")] TwinRes_BehaviorStopMoving stopMoving;
+        [write_if("source->commandIndex == 62")] TwinRes_BehaviorAddNoiseToFocusPosition addNoiseToFocusPosition;
+        [write_if("source->commandIndex == 63")] TwinRes_BehaviorRestartDefaultBehaviour restartDefaultBehaviour;
+        [write_if("source->commandIndex == 64")] TwinRes_BehaviorAttachLinkedObject attachLinkedObject;
+        [write_if("source->commandIndex == 65")] TwinRes_BehaviorMessageLinkedObject messageLinkedObject;
+        [write_if("source->commandIndex == 66")] TwinRes_BehaviorClearUserMessage clearUserMessage;
+        [write_if("source->commandIndex == 67")] TwinRes_BehaviorRequestMessSourceAsFocus requestMessSourceAsFocus;
+        [write_if("source->commandIndex == 68")] TwinRes_BehaviorSetCounter setCounter;
+        [write_if("source->commandIndex == 69")] TwinRes_BehaviorModifyCounter modifyCounter;
+        [write_if("source->commandIndex == 70")] TwinRes_BehaviorContinueColliderMotion continueColliderMotion;
+        [write_if("source->commandIndex == 71")] TwinRes_BehaviorRevertColliderMotion revertColliderMotion;
+        [write_if("source->commandIndex == 72")] TwinRes_BehaviorColliderLaunchNow colliderLaunchNow;
+        [write_if("source->commandIndex == 74")] TwinRes_BehaviorForceAnimationUpdate forceAnimationUpdate;
+        [write_if("source->commandIndex == 75")] TwinRes_BehaviorDestroySpawnedAttachment destroySpawnedAttachment;
+        [write_if("source->commandIndex == 76")] TwinRes_BehaviorApplyImpulse applyImpulse;
+        [write_if("source->commandIndex == 77")] TwinRes_BehaviorRequestDetach requestDetach;
+        [write_if("source->commandIndex == 78")] TwinRes_BehaviorSetObject setObject;
+        [write_if("source->commandIndex == 79")] TwinRes_BehaviorKeep keep;
+        [write_if("source->commandIndex == 80")] TwinRes_BehaviorAttachSpring attachSpring;
+        [write_if("source->commandIndex == 81")] TwinRes_BehaviorDetachAllSprings detachAllSprings;
+        [write_if("source->commandIndex == 82")] TwinRes_BehaviorSetContactSpringy setContactSpringy;
+        [write_if("source->commandIndex == 83")] TwinRes_BehaviorSetContactRigid setContactRigid;
+        [write_if("source->commandIndex == 84")] TwinRes_BehaviorClearContactResponse clearContactResponse;
+        [write_if("source->commandIndex == 85")] TwinRes_BehaviorDestroyMe destroyMe;
+        [write_if("source->commandIndex == 86")] TwinRes_BehaviorSetSound setSound;
+        [write_if("source->commandIndex == 87")] TwinRes_BehaviorAlterWobblePhase alterWobblePhase;
+        [write_if("source->commandIndex == 88")] TwinRes_BehaviorBeginMusic beginMusic;
+        [write_if("source->commandIndex == 89")] TwinRes_BehaviorEndContextMusic endContextMusic;
+        [write_if("source->commandIndex == 90")] TwinRes_BehaviorSetFocusToAgent2 setFocusToAgent2;
+        [write_if("source->commandIndex == 91")] TwinRes_BehaviorSetFocusToAgent3 setFocusToAgent3;
+        [write_if("source->commandIndex == 92")] TwinRes_BehaviorAddLives addLives;
+        [write_if("source->commandIndex == 93")] TwinRes_BehaviorAddLives_Duplicate2 addLives_Duplicate2;
+        [write_if("source->commandIndex == 94")] TwinRes_BehaviorAttachFocusObject2 attachFocusObject2;
+        [write_if("source->commandIndex == 99")] TwinRes_BehaviorRequestMessengersFocus2 requestMessengersFocus2;
+        [write_if("source->commandIndex == 100")] TwinRes_BehaviorRequestMessengersFocus3 requestMessengersFocus3;
+        [write_if("source->commandIndex == 101")] TwinRes_BehaviorRequestMessSourceAsFocus2 requestMessSourceAsFocus2;
+        [write_if("source->commandIndex == 102")] TwinRes_BehaviorRequestMessSourceAsFocus3 requestMessSourceAsFocus3;
+        [write_if("source->commandIndex == 103")] TwinRes_BehaviorSetFocusToKey2 setFocusToKey2;
+        [write_if("source->commandIndex == 104")] TwinRes_BehaviorSetFocusToAgent4 setFocusToAgent4;
+        [write_if("source->commandIndex == 105")] TwinRes_BehaviorSetRotation2 setRotation2;
+        [write_if("source->commandIndex == 106")] TwinRes_BehaviorRequestMessengersFocus4 requestMessengersFocus4;
+        [write_if("source->commandIndex == 108")] TwinRes_BehaviorSetFocusPosition2 setFocusPosition2;
+        [write_if("source->commandIndex == 109")] TwinRes_BehaviorAddNoiseToFocusPos2 addNoiseToFocusPos2;
+        [write_if("source->commandIndex == 111")] TwinRes_BehaviorCacheLinkedInstance cacheLinkedInstance;
+        [write_if("source->commandIndex == 112")] TwinRes_BehaviorSpawnCachedResidentAgent spawnCachedResidentAgent;
+        [write_if("source->commandIndex == 120")] TwinRes_BehaviorPhysicsResetVelocity physicsResetVelocity;
+        [write_if("source->commandIndex == 124")] TwinRes_BehaviorRunScriptSlot runScriptSlot;
+        [write_if("source->commandIndex == 165")] TwinRes_BehaviorForceVolumeController forceVolumeController;
+        [write_if("source->commandIndex == 167")] TwinRes_BehaviorSetSurface setSurface;
+        [write_if("source->commandIndex == 187")] TwinRes_BehaviorSetShadow setShadow;
+        [write_if("source->commandIndex == 188")] TwinRes_BehaviorSetShadowCircle setShadowCircle;
+        [write_if("source->commandIndex == 189")] TwinRes_BehaviorSetShadowMesh setShadowMesh;
+        [write_if("source->commandIndex == 190")] TwinRes_BehaviorSetShadowRectangle setShadowRectangle;
+        [write_if("source->commandIndex == 191")] TwinRes_BehaviorShadowToggle shadowToggle;
+        [write_if("source->commandIndex == 197")] TwinRes_BehaviorDUMMY_197 dUMMY_197;
+        [write_if("source->commandIndex == 214")] TwinRes_BehaviorControllerRumble controllerRumble;
+        [write_if("source->commandIndex == 512")] TwinRes_BehaviorCreateCrateContents createCrateContents;
+        [write_if("source->commandIndex == 513")] TwinRes_BehaviorCA_PickUpWumpa ca_PickUpWumpa;
+        [write_if("source->commandIndex == 514")] TwinRes_BehaviorCreateDamage createDamage;
+        [write_if("source->commandIndex == 515")] TwinRes_BehaviorSetAgent setAgent;
+        [write_if("source->commandIndex == 516")] TwinRes_BehaviorSetPlayerRespawnPosition setPlayerRespawnPosition;
+        [write_if("source->commandIndex == 517")] TwinRes_BehaviorResetGame resetGame;
+        [write_if("source->commandIndex == 518")] TwinRes_BehaviorSetCrate setCrate;
+        [write_if("source->commandIndex == 519")] TwinRes_BehaviorTriggerBalancedCrateFalling triggerBalancedCrateFalling;
+        [write_if("source->commandIndex == 520")] TwinRes_BehaviorCA_PickUpHealth ca_PickUpHealth;
+        [write_if("source->commandIndex == 521")] TwinRes_BehaviorSetPlayerInput setPlayerInput;
+        [write_if("source->commandIndex == 522")] TwinRes_BehaviorTriggerAllNitroCrates triggerAllNitroCrates;
+        [write_if("source->commandIndex == 523")] TwinRes_BehaviorApplyVelocity applyVelocity;
+        [write_if("source->commandIndex == 524")] TwinRes_BehaviorSetKeyNearestPlayer setKeyNearestPlayer;
+        [write_if("source->commandIndex == 525")] TwinRes_BehaviorRaycastFocusPosition raycastFocusPosition;
+        [write_if("source->commandIndex == 526")] TwinRes_BehaviorApplyVelocityToSelf applyVelocityToSelf;
+        [write_if("source->commandIndex == 527")] TwinRes_BehaviorSetChiChiGrass setChiChiGrass;
+        [write_if("source->commandIndex == 528")] TwinRes_BehaviorReduceHitPoints reduceHitPoints;
+        [write_if("source->commandIndex == 529")] TwinRes_BehaviorSetHitPoints setHitPoints;
+        [write_if("source->commandIndex == 530")] TwinRes_BehaviorDUMMY_SetRayTests dUMMY_SetRayTests;
+        [write_if("source->commandIndex == 531")] TwinRes_BehaviorRestartDefault restartDefault;
+        [write_if("source->commandIndex == 532")] TwinRes_BehaviorDUMMY_NowGoForwardCollidable dUMMY_NowGoForwardCollidable;
+        [write_if("source->commandIndex == 533")] TwinRes_BehaviorNowGoBackCollidable nowGoBackCollidable;
+        [write_if("source->commandIndex == 534")] TwinRes_BehaviorSetGlobalProgression setGlobalProgression;
+        [write_if("source->commandIndex == 535")] TwinRes_BehaviorAddCrystal addCrystal;
+        [write_if("source->commandIndex == 536")] TwinRes_BehaviorDUMMY_536 dUMMY_536;
+        [write_if("source->commandIndex == 537")] TwinRes_BehaviorAddGem addGem;
+        [write_if("source->commandIndex == 538")] TwinRes_BehaviorDUMMY_538 dUMMY_538;
+        [write_if("source->commandIndex == 539")] TwinRes_BehaviorCA_SetPickup ca_SetPickup;
+        [write_if("source->commandIndex == 540")] TwinRes_BehaviorCA_SetProjectile ca_SetProjectile;
+        [write_if("source->commandIndex == 541")] TwinRes_BehaviorCA_AddTrail ca_AddTrail;
+        [write_if("source->commandIndex == 542")] TwinRes_BehaviorCA_ClearTrail ca_ClearTrail;
+        [write_if("source->commandIndex == 543")] TwinRes_BehaviorCA_DoAnimation ca_DoAnimation;
+        [write_if("source->commandIndex == 544")] TwinRes_BehaviorCA_DoParticle ca_DoParticle;
+        [write_if("source->commandIndex == 545")] TwinRes_BehaviorCA_DoSound ca_DoSound;
+        [write_if("source->commandIndex == 546")] TwinRes_BehaviorCA_CreateDamage ca_CreateDamage;
+        [write_if("source->commandIndex == 548")] TwinRes_BehaviorShoot shoot;
+        [write_if("source->commandIndex == 549")] TwinRes_BehaviorGetShortRoute getShortRoute;
+        [write_if("source->commandIndex == 550")] TwinRes_BehaviorDUMMY_FuelPayGate dUMMY_FuelPayGate;
+        [write_if("source->commandIndex == 551")] TwinRes_BehaviorOpenAllLinkedFurniture openAllLinkedFurniture;
+        [write_if("source->commandIndex == 552")] TwinRes_BehaviorCloseAllLinkedFurniture closeAllLinkedFurniture;
+        [write_if("source->commandIndex == 553")] TwinRes_BehaviorAttachAllLinkedAgents attachAllLinkedAgents;
+        [write_if("source->commandIndex == 554")] TwinRes_BehaviorDetachAllLinkedAgents detachAllLinkedAgents;
+        [write_if("source->commandIndex == 555")] TwinRes_BehaviorSetVehicleHumiliskate setVehicleHumiliskate;
+        [write_if("source->commandIndex == 556")] TwinRes_BehaviorSetFocusToPlayer setFocusToPlayer;
+        [write_if("source->commandIndex == 557")] TwinRes_BehaviorRequestFocus requestFocus;
+        [write_if("source->commandIndex == 558")] TwinRes_BehaviorSetFocusProperties setFocusProperties;
+        [write_if("source->commandIndex == 559")] TwinRes_BehaviorSetCamera setCamera;
+        [write_if("source->commandIndex == 560")] TwinRes_BehaviorRestoreCameraDefaults restoreCameraDefaults;
+        [write_if("source->commandIndex == 561")] TwinRes_BehaviorLinkToFocusCharacter linkToFocusCharacter;
+        [write_if("source->commandIndex == 562")] TwinRes_BehaviorUnlinkCharacters unlinkCharacters;
+        [write_if("source->commandIndex == 563")] TwinRes_BehaviorDamageOriginator damageOriginator;
+        [write_if("source->commandIndex == 564")] TwinRes_BehaviorRequestFocus2 requestFocus2;
+        [write_if("source->commandIndex == 565")] TwinRes_BehaviorRequestFocus3 requestFocus3;
+        [write_if("source->commandIndex == 569")] TwinRes_BehaviorExitVehicleMode exitVehicleMode;
+        [write_if("source->commandIndex == 570")] TwinRes_BehaviorSetVehicleRollerbrawl setVehicleRollerbrawl;
+        [write_if("source->commandIndex == 571")] TwinRes_BehaviorSetVehicleHoverboard setVehicleHoverboard;
+        [write_if("source->commandIndex == 577")] TwinRes_BehaviorBecomeSticky becomeSticky;
+        [write_if("source->commandIndex == 581")] TwinRes_BehaviorBecomeNormal becomeNormal;
+        [write_if("source->commandIndex == 584")] TwinRes_BehaviorDUMMY_584 dUMMY_584;
+        [write_if("source->commandIndex == 585")] TwinRes_BehaviorAddLives_Duplicate addLives_Duplicate;
+        [write_if("source->commandIndex == 586")] TwinRes_BehaviorDUMMY_586 dUMMY_586;
+        [write_if("source->commandIndex == 588")] TwinRes_BehaviorPlayerFaceTowardsCamera playerFaceTowardsCamera;
+        [write_if("source->commandIndex == 589")] TwinRes_BehaviorCutsceneStart cutsceneStart;
+        [write_if("source->commandIndex == 590")] TwinRes_BehaviorCutsceneEnd cutsceneEnd;
+        [write_if("source->commandIndex == 592")] TwinRes_BehaviorCameraSaveParams cameraSaveParams;
+        [write_if("source->commandIndex == 593")] TwinRes_BehaviorCameraLoadParams cameraLoadParams;
+        [write_if("source->commandIndex == 594")] TwinRes_BehaviorToggleCutsceneCamera toggleCutsceneCamera;
+        [write_if("source->commandIndex == 596")] TwinRes_BehaviorStartWhackaworm startWhackaworm;
+        [write_if("source->commandIndex == 597")] TwinRes_BehaviorProgressWhackaworm progressWhackaworm;
+        [write_if("source->commandIndex == 598")] TwinRes_BehaviorEndWhackaworm endWhackaworm;
+        [write_if("source->commandIndex == 601")] TwinRes_BehaviorSetVehicleWrestleCreature setVehicleWrestleCreature;
+        [write_if("source->commandIndex == 602")] TwinRes_BehaviorFadeoutScreen fadeoutScreen;
+        [write_if("source->commandIndex == 603")] TwinRes_BehaviorDisplayBottomText displayBottomText;
+        [write_if("source->commandIndex == 605")] TwinRes_BehaviorDismissCharacter dismissCharacter;
+        [write_if("source->commandIndex == 606")] TwinRes_BehaviorCameraFocusObject cameraFocusObject;
+        [write_if("source->commandIndex == 607")] TwinRes_BehaviorCameraStopFocusObject cameraStopFocusObject;
+        [write_if("source->commandIndex == 608")] TwinRes_BehaviorClearBottomText clearBottomText;
+        [write_if("source->commandIndex == 609")] TwinRes_BehaviorDUMMY_609 dUMMY_609;
+        [write_if("source->commandIndex == 610")] TwinRes_BehaviorDUMMY_610 dUMMY_610;
+        [write_if("source->commandIndex == 613")] TwinRes_BehaviorDisablePlayerControl disablePlayerControl;
+        [write_if("source->commandIndex == 618")] TwinRes_BehaviorForceGameOver forceGameOver;
+        [write_if("source->commandIndex == 619")] TwinRes_BehaviorShowBottomText showBottomText;
+        [write_if("source->commandIndex == 620")] TwinRes_BehaviorHideBottomText hideBottomText;
+        [write_if("source->commandIndex == 622")] TwinRes_BehaviorCharacterSoundProxy characterSoundProxy;
+        [write_if("source->commandIndex == 624")] TwinRes_BehaviorEnableVarPercept629 enableVarPercept629;
+        [write_if("source->commandIndex == 625")] TwinRes_BehaviorSwitchCharacter switchCharacter;
+        [write_if("source->commandIndex == 633")] TwinRes_BehaviorSetPlayerMode setPlayerMode;
+        [write_if("source->commandIndex == 634")] TwinRes_BehaviorPlayMovie playMovie;
+        [write_if("source->commandIndex == 636")] TwinRes_BehaviorAddAmmo addAmmo;
+        [write_if("source->commandIndex == 638")] TwinRes_BehaviorEnableBossMode enableBossMode;
+        [write_if("source->commandIndex == 639")] TwinRes_BehaviorDamageBoss damageBoss;
+        [write_if("source->commandIndex == 640")] TwinRes_BehaviorExitBossMode exitBossMode;
+        [write_if("source->commandIndex == 647")] TwinRes_BehaviorSetGlobalProgression2 setGlobalProgression2;
+        [write_if("source->commandIndex == 652")] TwinRes_BehaviorCameraTopdownMode cameraTopdownMode;
+        [write_if("source->commandIndex == 654")] TwinRes_BehaviorPlayCredits playCredits;
+        [write_if("source->commandIndex == 657")] TwinRes_BehaviorDisplayBottomTextInstance displayBottomTextInstance;
+        [write_if("source->commandIndex == 662")] TwinRes_BehaviorResetCamera resetCamera;
+    };
+}
+
+asset TwinRes_BehaviorStateBody {
+    union bitfieldUnion {
+        uint32_t bitfield;
+        struct bitfieldData {
+            uint8_t commandsAmount;
+            bool    hasTraceEnabled : 1;
+            bool    hasCondition : 1;
+            bool    hasStateJump : 1;
+        };
+    };
+
+    [write_if("source->hasStateJump")] int32_t state;
+    [write_if("source->hasCondition")] TwinRes_BehaviorCondition condition;
+    [length(commandsAmount)] TwinRes_BehaviorCommand* commands;
+}
+
+asset TwinRes_BehaviorState {
+    union bitfieldUnion {
+        uint16_t bitfield;
+        struct bitfieldData {
+            uint8_t bodiesAmount : 5;
+            uint8_t unknown1  : 5;
+            bool    unkFlag1  : 1;
+            bool    isNonBlocking : 1;
+            bool    callsObjectSlot : 1;
+            bool    unkFlag2 : 1;
+            bool    hasControlPacket : 1;
+            bool    hasNext : 1;
+        };
+    };
+
+    union [write_all] behaviourOrSlot {
+        [write_if("source->callsObjectSlot")] uint16_t behaviorSlot;
+        [write_if("!source->callsObjectSlot")] [link_resource("TS_RT_Behavior")] uint16_t behaviorGlobal;
+    };
+
+    [write_if("source->hasControlPacket")] TwinRes_BehaviorControlPacket controlPacket;
+    [no_bin] [length(bodiesAmount)] TwinRes_BehaviorStateBody* bodies;
+}
+
+asset TwinRes_BehaviorGraph {
+    TwinRes_BehaviorHeader header;
+    TwinStudio_StringView name;
+    [no_json] int32_t statesAmount;
+    int32_t startState;
+    [length(statesAmount)] TwinRes_BehaviorState* states;
+}

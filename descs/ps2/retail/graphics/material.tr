@@ -21,7 +21,7 @@ asset TwinRes_ShaderAnimationSettings {
 
 asset TwinRes_ShaderAnimation {
     uint32_t header;
-    union dataPackedUnion {
+    union dataPackerUnion {
         uint32_t dataPacker;
         struct dataPackerData {
             uint8_t  animationSettingsAmount : 7;

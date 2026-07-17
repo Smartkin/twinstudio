@@ -6,17 +6,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#ifdef TWIN_ASAN
-#define TWIN_MALLOC malloc
-#define TWIN_REALLOC realloc
-#define TWIN_FREE free
-#define rpmalloc_initialize(...)
-#define rpmalloc_finalize(...)
-#else
 #define TWIN_MALLOC rpmalloc
 #define TWIN_REALLOC rprealloc
 #define TWIN_FREE rpfree
-#endif
 
 typedef struct TwinStudio_Arena {
     void* currentMemory;

@@ -1,0 +1,50 @@
+#include "../../../../common/auto_struct_camera_occluder.h"
+
+asset TwinRes_Joint {
+    uint32_t reactJointId;
+    uint32_t id;
+    uint32_t parentId;
+    uint32_t childrenAmount1;
+    uint32_t childrenAmount2;
+    Vector4  localTranslation;
+    Vector4  worldTranslation;
+    Quaternion localRotation;
+    Quaternion unusedRotation;
+    Quaternion additionalAnimationRotation;
+}
+
+
+asset TwinRes_ExitPoint {
+    uint32_t jointId;
+    uint32_t id;
+    Matrix   transform;
+}
+
+
+asset TwinRes_Body {
+    uint8_t jointsAmount;
+    uint8_t exitPointsAmount;
+    uint8_t reactJointsAmount;
+    uint8_t unknownHeader1;
+    uint8_t unknownHeader2;
+    uint8_t rigidModelsAmount;
+    bool    hasSkin;
+    bool    hasBlendSkin;
+    uint8_t cameraOccludersAmount;
+    uint8_t unknownHeader3;
+    uint8_t unknownHeader4;
+    uint8_t unknownHeader5;
+    uint8_t unknownHeader6;
+    uint8_t unknownHeader7;
+    uint8_t unknownHeader8;
+    uint8_t unknownHeader9;
+    BoundingBox4 boundingBox;
+    [length(jointsAmount)] TwinRes_Joint* joints;
+    [length(exitPointsAmount)] TwinRes_ExitPoint* exitPoints;
+    [length(rigidModelsAmount)] uint8_t* jointIndices;
+    [length(rigidModelsAmount)] [link_resource("TS_RT_RigidModel")] uint32_t* rigidModels;
+    [length(jointsAmount)] Matrix* jointInverseBindMatrices;
+    [link_resource("TS_RT_Skin")] uint32_t skin;
+    [link_resource("TS_RT_BlendSkin")] uint32_t blendSkin;
+    [length(cameraOccludersAmount)] TwinRes_CameraOccluder* cameraOccluders;
+}
