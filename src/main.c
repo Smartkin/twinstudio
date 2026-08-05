@@ -1,7 +1,11 @@
 #include "audio/wave.h"
 #include "memory/memory.h"
 #include "ps2/retail/archive_serializers.h"
+#include "ps2/retail/auto_struct_bd_archive.h"
+#include "ps2/retail/auto_struct_chunk.h"
 #include "ps2/retail/auto_struct_mb_archive.h"
+#include "ps2/retail/chunk_serializer.h"
+#include "ps2/retail/graphics/texture_serialization.h"
 #include "serialization/binary_serializer.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -11,6 +15,7 @@
 #include <rpmalloc.h>
 #include <cJSON.h>
 #include <clay.h>
+#include <string.h>
 #include <tinyfiledialogs.h>
 
 #define TS_RENDERER_IMPLEMENTATION
@@ -23,6 +28,7 @@
 #include "ui/button.h"
 #include "ui/fonts.h"
 #include "ps2/retail/auto_struct_mh_archive.h"
+#include "ps2/retail/auto_struct_bh_archive.h"
 
 
 void HandleClayErrors(Clay_ErrorData errorData)
@@ -31,7 +37,7 @@ void HandleClayErrors(Clay_ErrorData errorData)
 }
 
 
-void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, void* data)
+void UnpackMusicArchives()
 {
     const char* filterPatterns[1];
     filterPatterns[0] = "*.MH";
@@ -87,6 +93,104 @@ void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, voi
 }
 
 
+void UnpackBandicootArchives()
+{
+    const char* filterPatterns[1];
+    filterPatterns[0] = "*.BH";
+    char* openedFile = tinyfd_openFileDialog("Select BH archive", NULL, 1, filterPatterns, "*.BH Bandicoot Header", 0);
+    if (openedFile == NULL)
+    {
+        fprintf(stderr, "No file opened!\n");
+        return;
+    }
+
+    fprintf(stderr, "Opened %s\n", openedFile);
+    TwinRes_BhArchive headerArchive = TwinRes_BhArchiveCreate();
+    TwinStudio_Arena archiveArena = TwinStudio_CreateArena(1024UL * 1024UL * 200UL);
+    TwinStudio_StringView filePath = TwinStudio_CopyFromCStringArena(&archiveArena, openedFile);
+    TwinStudio_BinarySerializer* deserializer = TwinStudio_BinReadFromFile(filePath, false);
+    TwinRes_BhArchiveBinDeserialize(&headerArchive, deserializer, &archiveArena, TwinStudio_BinGetStreamLength(deserializer), NULL);
+    uint32_t recordsAmt = arrlen(headerArchive.records);
+    for (uint32_t i = 0; i < recordsAmt; ++i)
+    {
+        fprintf(stderr, "%d. File "TS_VIEW_FORMAT". Size: %d\n", i + 1, TS_VIEW_ARG(headerArchive.records[i].path), headerArchive.records[i].length);
+    }
+
+    TwinRes_BdArchive dataArchive = TwinRes_BdArchiveCreate();
+    dataArchive.header = headerArchive;
+    TwinStudio_StringView mainArchivePath = TwinStudio_CopyFromCStringArena(&archiveArena, openedFile);
+    mainArchivePath.dynString[mainArchivePath.length - 1] = 'D';
+    TwinStudio_BinarySerializer* mainArchiveDeserializer = TwinStudio_BinReadFromFile(mainArchivePath, true);
+    char* savePath = tinyfd_selectFolderDialog("Select files save folder", NULL);
+    TwinStudio_StringView savePathString = TwinStudio_CopyFromCStringArena(&archiveArena, savePath);
+    for (uint32_t i = 0; i < recordsAmt; ++i)
+    {
+        TwinStudio_Arena itemArena = TwinStudio_CreateArena(1024 * 1024 * 30);
+        TwinRes_BdRecord record = TwinRes_BdArchiveIterateItem(&dataArchive, mainArchiveDeserializer, &itemArena, headerArchive.records[i].length, NULL);
+
+        TwinStudio_StringReplace(&record.header.path, NULL, "\\", "/");
+        char fileSavePathBuffer[1024];
+        snprintf(fileSavePathBuffer, 1024, TS_VIEW_FORMAT"/"TS_VIEW_FORMAT, TS_VIEW_ARG(savePathString), TS_VIEW_ARG(record.header.path));
+
+        TwinStudio_BinarySerializer* fileSaver = TwinStudio_BinSerializerAllocate(record.data, TwinStudio_BinarySerializerModeRead, record.header.length, false);
+        TwinStudio_BinReadVoid(fileSaver, record.header.length);
+        MakeDirectory(GetDirectoryPath(fileSavePathBuffer));
+        TwinStudio_BinWriteToFileC(fileSavePathBuffer, fileSaver);
+        TwinStudio_BinSerializerFree(fileSaver);
+        TwinStudio_ArenaFree(&itemArena);
+    }
+
+    arrfree(headerArchive.records);
+    TwinStudio_ArenaFree(&archiveArena);
+    TwinStudio_BinSerializerFree(deserializer);
+    TwinStudio_BinSerializerFree(mainArchiveDeserializer);
+}
+
+
+void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, void* data)
+{
+    const char* filterPatterns[1];
+    filterPatterns[0] = "*.rm2";
+    char* openedFile = tinyfd_openFileDialog("Select rm2 chunk", NULL, 1, filterPatterns, "*.rm2 Resource Manager 2", 0);
+    if (openedFile == NULL)
+    {
+        fprintf(stderr, "No file opened!\n");
+        return;
+    }
+
+    fprintf(stderr, "Opened %s\n", openedFile);
+
+    TwinStudio_Arena chunkArena = TwinStudio_CreateArena(1024UL * 1024UL * 30UL);
+
+    TwinStudio_StringView resourcePath = TwinStudio_CopyFromCStringArena(&chunkArena, openedFile);
+    TwinStudio_StringView sceneryPath = TwinStudio_CopyFromCStringArena(&chunkArena, openedFile);
+    sceneryPath.dynString[sceneryPath.length - 3] = 's';
+
+    TwinRes_Chunk chunk = TwinRes_ChunkCreate();
+    TwinStudio_BinarySerializer* resourceDeserializer = TwinStudio_BinReadFromFile(resourcePath, true);
+    TwinStudio_BinarySerializer* sceneryDeserializer = TwinStudio_BinReadFromFile(sceneryPath, true);
+    TwinRes_ChunkBinDeserialize(&chunk, &chunkArena, resourceDeserializer, sceneryDeserializer);
+
+    TwinStudio_Arena chunkWriteArena = TwinStudio_CreateArena(1024UL * 1024UL * 30UL);
+    char writePath[1024];
+    snprintf(writePath, 1024, "%.*s_copy.rm2", (int32_t)strlen(openedFile) - 4, openedFile);
+    TwinStudio_StringView resourceWritePath = TwinStudio_CopyFromCStringArena(&chunkWriteArena, writePath);
+    TwinStudio_BinarySerializer* resourceSerializer = TwinStudio_BinWriteToFileStream(resourceWritePath);
+    TwinStudio_StringView sceneryWritePath = TwinStudio_CopyFromCStringArena(&chunkWriteArena, writePath);
+    sceneryWritePath.dynString[sceneryWritePath.length - 3] = 's';
+    TwinStudio_BinarySerializer* scenerySerializer  = TwinStudio_BinWriteToFileStream(sceneryWritePath);
+    TwinRes_ChunkBinSerialize(&chunk, &chunkWriteArena, resourceSerializer, scenerySerializer);
+
+    fprintf(stderr, "Read chunk. Test value from collision %d\n", chunk.chunkResources.collision.unkInt);
+    TwinStudio_BinSerializerFree(resourceDeserializer);
+    TwinStudio_BinSerializerFree(sceneryDeserializer);
+    TwinStudio_BinSerializerFree(resourceSerializer);
+    TwinStudio_BinSerializerFree(scenerySerializer);
+    TwinStudio_ArenaFree(&chunkArena);
+    TwinStudio_ArenaFree(&chunkWriteArena);
+}
+
+
 int main(int argc, char** argv)
 {
     rpmalloc_initialize(NULL);
@@ -97,6 +201,8 @@ int main(int argc, char** argv)
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(clayRequiredMemory, malloc(clayRequiredMemory));
     Clay_Initialize(clayMemory, (Clay_Dimensions) { .width = GetScreenWidth(), .height = GetScreenHeight() }, (Clay_ErrorHandler) { HandleClayErrors });
 
+    TwinRes_ChunkSerializationInit();
+    TwinStudio_TextureSerializationInit();
     TwinStudio_EcsInit();
     TwinStudio_UiInit();
     Clay_SetDebugModeEnabled(true);

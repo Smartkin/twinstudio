@@ -308,7 +308,7 @@ static uint8_t LineToPCM(TwinStudio_BinarySerializer* reader, TwinStudio_BinaryS
 
 static TwinStudio_AdpcmDecodeResult AdpcmDecodeMono(TwinStudio_Arena* arena, void* adpcm, size_t size)
 {
-	uint32_t loopPosition = 0;
+	int32_t loopPosition = -1;
     void* resultData = TwinStudio_ArenaAlloc(arena, size * 4);
     TwinStudio_BinarySerializer* writer = TwinStudio_BinSerializerAllocate(resultData, TwinStudio_BinarySerializerModeWrite, size * 4, false);
     TwinStudio_BinarySerializer* reader = TwinStudio_BinSerializerAllocate(adpcm, TwinStudio_BinarySerializerModeRead, size, false);
@@ -320,9 +320,10 @@ static TwinStudio_AdpcmDecodeResult AdpcmDecodeMono(TwinStudio_Arena* arena, voi
     while ((flag & ADPCM_LOOP_END) == 0 && sampleIndex < maxSamples)
     {
         flag = LineToPCM(reader, writer, &s0, &s1);
-		if ((flag & ADPCM_LOOP_START) != 0 && loopPosition == 0)
+		if ((flag & ADPCM_LOOP_START) != 0 && loopPosition == -1)
 		{
 			loopPosition = sampleIndex;
+			printf("loop marker found!\n");
 		}
 		sampleIndex++;
     }
@@ -370,7 +371,7 @@ static TwinStudio_AdpcmDecodeResult AdpcmDecodeStereo(TwinStudio_Arena* arena, v
     assert(size % 32 == 0);
     assert(interleave % 16 == 0);
 
-	uint32_t loopPosition = 0;
+	int32_t loopPosition = -1;
     void* resultData = TwinStudio_ArenaAlloc(arena, size * 4);
     TwinStudio_BinarySerializer* writer = TwinStudio_BinSerializerAllocate(resultData, TwinStudio_BinarySerializerModeWrite, size * 4, false);
 
@@ -389,9 +390,10 @@ static TwinStudio_AdpcmDecodeResult AdpcmDecodeStereo(TwinStudio_Arena* arena, v
         uint8_t line_r[16];
         memcpy(line_l, ((char*)adpcm) + (i + interleave * (interleave_adv - 1)) * 16, 16);
         memcpy(line_r, ((char*)adpcm) + (i + interleave * (interleave_adv)) * 16, 16);
-		if (((line_l[1] & ADPCM_LOOP_START) != 0 || (line_r[1] & ADPCM_LOOP_START) != 0) && loopPosition == 0)
+		if (((line_l[1] & ADPCM_LOOP_START) != 0 || (line_r[1] & ADPCM_LOOP_START) != 0) && loopPosition == -1)
 		{
 			loopPosition = i;
+			printf("loop marker found!\n");
 		}
 
         if (line_l[1] == ADPCM_FILE_END || line_r[1] == ADPCM_FILE_END)

@@ -17,6 +17,8 @@ asset TwinRes_ParticleSystem {
     uint8_t  textureFilter;
     uint8_t  unkByte3;
     float    unkFloat1;
+    [write_if("source->version >= 0x6")] float cutOnRadius;
+    [write_if("source->version >= 0x6")] float cutOffRadius;
     [write_if("source->version >= 0xA")] float drawCutOff;
     [write_if("source->version > 0x16 && source->version != 0x20")] float unkFloat2;
     [write_if("source->version > 0x18 && source->version != 0x20")] float unkFloat3;

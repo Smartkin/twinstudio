@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stb_ds.h>
 #include <assert.h>
+#include <string.h>
 
 static inline uint32_t SEXT16(uint32_t val, bool usn)
 {
@@ -391,10 +392,22 @@ TwinStudio_VIFOutput TwinStudio_VIFInterpret(TwinStudio_BinarySerializer* reader
     TwinStudio_VIFOutput output = { 0 };
     TwinStudio_VIFInterpreter interpreter = { 0 };
 
+    TwinStudio_DmaTag dmaTag = { 0 };
+    TwinStudio_BinReadStructDirect(reader, &dmaTag, sizeof(TwinStudio_DmaTag));
+    int32_t dmaTagUsed = 0;
+
     while (TwinStudio_BinGetStreamPosition(reader) < TwinStudio_BinGetStreamLength(reader))
     {
         TwinStudio_VIFInstruction instruction;
-        TwinStudio_BinReadStructDirect(reader, &instruction, sizeof(TwinStudio_VIFInstruction));
+        if (dmaTagUsed >= 2)
+        {
+            TwinStudio_BinReadStructDirect(reader, &instruction, sizeof(TwinStudio_VIFInstruction));
+        }
+        else
+        {
+            instruction.fullInstruction = (dmaTag.extra >> (32 * dmaTagUsed)) & 0xFFFFFFFF;
+            dmaTagUsed++;
+        }
         if ((instruction.cmd & UNPACK) == UNPACK)
         {
             uint16_t addr = instruction.unpack.addr;

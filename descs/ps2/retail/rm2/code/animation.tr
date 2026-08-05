@@ -35,9 +35,8 @@ asset TwinRes_JointAnimation {
         uint32_t dataPacker;
         struct dataPackerData {
             uint8_t  jointSettingsAmount : 7;
-            uint8_t  _pad1 : 3;
-            uint16_t staticTransformationsAmount : 10;
-            uint8_t  _pad2 : 2;
+            uint8_t  _pad1 : 4;
+            uint16_t staticTransformationsAmount : 11;
             uint16_t animatedTransformationsAmount : 10;
         };
     };
@@ -89,9 +88,8 @@ asset TwinRes_MorphAnimation {
         uint32_t dataPacker;
         struct dataPackerData {
             uint8_t  morphSettingsAmount : 7;
-            uint8_t  _pad1 : 3;
-            uint16_t staticTransformationsAmount : 10;
-            uint8_t  _pad2 : 2;
+            uint8_t  _pad1 : 4;
+            uint16_t staticTransformationsAmount : 11;
             uint16_t animatedTransformationsAmount : 10;
         };
     };
@@ -109,7 +107,7 @@ asset TwinRes_Animation {
         struct bitfieldData {
             bool hasAnimationData : 1;
             bool hasMorphAnimationData : 1;
-            uint16_t totalFrames;
+            uint16_t totalFrames : 16;
             uint8_t defaultFps : 5;
         };
     };

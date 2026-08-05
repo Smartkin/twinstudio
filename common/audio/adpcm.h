@@ -33,7 +33,7 @@ typedef struct
 typedef struct {
     void* pcmData;
     size_t pcmDataSize;
-	uint32_t loopPosition;
+	int32_t loopPosition;
 } TwinStudio_AdpcmDecodeResult;
 
 typedef struct

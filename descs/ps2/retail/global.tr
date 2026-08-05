@@ -1,0 +1,37 @@
+#include "auto_struct_chunk.h"
+#include "graphics/auto_struct_texture.h"
+
+asset TwinRes_UiSounds {
+    TwinRes_SoundEffectsSection soundEffects;
+}
+
+asset TwinRes_PTC {
+    uint32_t textureId;
+    uint32_t materialId;
+    [link_resource("TS_RT_Texture")] TwinRes_Texture texture;
+    [link_resource("TS_RT_Material")] TwinRes_Material material;
+}
+
+asset TwinRes_PSM {
+    [no_length] TwinRes_PTC* ptcs;
+}
+
+asset TwinRes_CharacterData {
+    Vector4 data;
+}
+
+asset TwinRes_PSF {
+    TwinRes_PTC* fontPages;
+    uint32_t charactersAmount;
+    uint32_t spaceIdentifier;
+    [length(charactersAmount)] TwinRes_CharacterData* characters;
+}
+
+asset TwinRes_TextFile {
+    [length("size")] char* text;
+}
+
+[no_json]
+asset TwinRes_SaveIcon {
+    [length("size")] [blob] void* iconData;
+}

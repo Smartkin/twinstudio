@@ -40,6 +40,9 @@ char* TwinStudio_GetCStringDynamic(TwinStudio_StringView* string); // This alloc
 
 bool TwinStudio_StringContains(const TwinStudio_StringView* string, char c);
 
+// arena can be null if search and replace strings are of equal length
+void TwinStudio_StringReplace(TwinStudio_StringView* string, TwinStudio_Arena* arena, const char* search, const char* replaceWith);
+
 void TwinStudio_FreeString(TwinStudio_StringView* string);
 
 #endif // TS_COMMON_STRING_VIEW_H

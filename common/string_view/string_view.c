@@ -1,5 +1,6 @@
 #include "string_view.h"
 #include "memory/memory.h"
+#include <assert.h>
 #include <rpmalloc.h>
 #include <inttypes.h>
 #include <stdint.h>
@@ -125,6 +126,57 @@ char* TwinStudio_GetCStringDynamic(TwinStudio_StringView* string)
     return cString;
 }
 
+
+void TwinStudio_StringReplace(TwinStudio_StringView *string, TwinStudio_Arena* arena, const char *search, const char *replaceWith)
+{
+    assert(string->isDynamicallyAllocated);
+
+    const int32_t searchLen = strlen(search);
+    const int32_t replaceWithLen = strlen(replaceWith);
+    const int32_t lenDiff = searchLen - replaceWithLen;
+    int32_t replacementCount = 0;
+    // In place replacement. Really fast, really nice
+    if (lenDiff == 0)
+    {
+        char* replacement = NULL;
+        char* currentSearch = string->dynString;
+        
+        while ((replacement = strstr(currentSearch, search)) != NULL)
+        {
+            memcpy(replacement, replaceWith, replaceWithLen);
+            currentSearch = replacement;
+        }
+    }
+    else
+    {
+        TwinStudio_StringView stringCopy = TwinStudio_CopyFromCStringArena(arena, string->string);
+        char* replacement = NULL;
+        char* currentSearch = stringCopy.dynString;
+        
+        int32_t moveTotal = 0;
+        while ((replacement = strstr(currentSearch, search)) != NULL)
+        {
+            const int32_t movedAmount = replacement - currentSearch;
+            if (lenDiff > 0)
+            {
+                moveTotal += movedAmount + searchLen;
+                memcpy(replacement, replaceWith, replaceWithLen);
+                memmove(replacement + replaceWithLen, replacement + replaceWithLen + lenDiff, stringCopy.length - moveTotal);
+            }
+            else
+            {
+                moveTotal += movedAmount + replaceWithLen;
+                memmove(replacement + replaceWithLen, replacement + searchLen, stringCopy.length - moveTotal);
+                memcpy(replacement, replaceWith, replaceWithLen);
+            }
+            currentSearch = replacement;
+            replacementCount++;
+        }
+
+        string->dynString = stringCopy.dynString;
+        string->length += (-lenDiff) * replacementCount;
+    }
+}
 
 void TwinStudio_FreeString(TwinStudio_StringView* string)
 {

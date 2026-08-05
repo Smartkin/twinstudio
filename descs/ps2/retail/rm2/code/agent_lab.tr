@@ -13,8 +13,8 @@ asset TwinRes_BehaviorAssigner {
             uint8_t assignType : 4;
             uint8_t assignLocality : 4;
             uint8_t assignStatus : 4;
-            uint16_t globalObjectId;
             uint8_t assignPreference : 4;
+            uint16_t globalObjectId : 16;
         };
     };
 }
@@ -1527,6 +1527,1775 @@ asset TwinRes_BehaviorResetCamera {
 }
 
 
+asset TwinRes_BehaviorUnknown95 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown96 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+    uint32_t param22;
+    uint32_t param23;
+    uint32_t param24;
+    uint32_t param25;
+    uint32_t param26;
+    uint32_t param27;
+    uint32_t param28;
+    uint32_t param29;
+    uint32_t param30;
+    uint32_t param31;
+    uint32_t param32;
+    uint32_t param33;
+    uint32_t param34;
+    uint32_t param35;
+    uint32_t param36;
+    uint32_t param37;
+    uint32_t param38;
+    uint32_t param39;
+    uint32_t param40;
+    uint32_t param41;
+    uint32_t param42;
+    uint32_t param43;
+    uint32_t param44;
+    uint32_t param45;
+}
+
+asset TwinRes_BehaviorUnknown97 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown98 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown110 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown113 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorUnknown114 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown115 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown116 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown117 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown118 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown119 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown121 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown122 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown123 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown125 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorUnknown126 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown127 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown128 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown129 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown130 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorUnknown131 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown132 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown133 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown134 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown135 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown136 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown137 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown138 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown139 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown140 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown141 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown142 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown143 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown144 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown145 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown146 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown147 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown148 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorUnknown149 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown150 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown151 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown152 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorUnknown153 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorUnknown154 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown155 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown156 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown157 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown158 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+    uint32_t param22;
+    uint32_t param23;
+    uint32_t param24;
+    uint32_t param25;
+    uint32_t param26;
+    uint32_t param27;
+    uint32_t param28;
+    uint32_t param29;
+    uint32_t param30;
+    uint32_t param31;
+    uint32_t param32;
+    uint32_t param33;
+    uint32_t param34;
+    uint32_t param35;
+}
+
+asset TwinRes_BehaviorUnknown159 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown160 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown161 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown162 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown163 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown164 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown166 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown168 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorUnknown169 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown170 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown171 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown172 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown173 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown174 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown175 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown176 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown177 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorUnknown178 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorUnknown179 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorUnknown180 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown181 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown182 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown183 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown184 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown185 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown186 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown192 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown193 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorUnknown194 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown195 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown196 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown198 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown199 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorUnknown200 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown201 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown202 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown203 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown204 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+}
+
+asset TwinRes_BehaviorUnknown205 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown206 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown207 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown208 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown209 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown210 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown211 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown212 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown213 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown215 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown370 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown371 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown372 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorUnknown373 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown374 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown375 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown376 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown377 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown378 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown379 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown380 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown381 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+}
+
+asset TwinRes_BehaviorUnknown382 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown383 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorUnknown384 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+}
+
+asset TwinRes_BehaviorUnknown385 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown386 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown387 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown388 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorUnknown389 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown390 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown391 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown392 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown393 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown394 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown395 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown396 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown397 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorUnknown398 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown399 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+    uint32_t param22;
+    uint32_t param23;
+    uint32_t param24;
+    uint32_t param25;
+    uint32_t param26;
+    uint32_t param27;
+    uint32_t param28;
+    uint32_t param29;
+}
+
+asset TwinRes_BehaviorUnknown400 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown401 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown402 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorUnknown403 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+}
+
+asset TwinRes_BehaviorUnknown404 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorUnknown406 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+}
+
+asset TwinRes_BehaviorUnknown407 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+}
+
+asset TwinRes_BehaviorUnknown408 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown409 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown410 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown411 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown412 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown413 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown414 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown415 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorUnknown416 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown417 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown418 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown419 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown420 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown421 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorUnknown422 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorUnknown423 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+}
+
+asset TwinRes_BehaviorUnknown424 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown425 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown427 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown428 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown429 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown431 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown432 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+}
+
+asset TwinRes_BehaviorUnknown433 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown434 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown435 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+}
+
+asset TwinRes_BehaviorUnknown436 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown437 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown438 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorUnknown439 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown440 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+}
+
+asset TwinRes_BehaviorUnknown441 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+}
+
+asset TwinRes_BehaviorUnknown442 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown443 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown444 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown445 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown446 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown447 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown448 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown449 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+}
+
+asset TwinRes_BehaviorUnknown450 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown451 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown452 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown453 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown454 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown455 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown456 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown457 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown458 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown459 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown460 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown461 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+}
+
+asset TwinRes_BehaviorUnknown462 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown463 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown464 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown465 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown466 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown467 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown468 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown469 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown470 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown471 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown472 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown473 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown474 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown475 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown476 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown477 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown478 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown479 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown480 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown481 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown482 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown483 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown484 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown485 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown486 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown487 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown488 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown489 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown490 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown491 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown492 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown494 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown495 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown496 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown497 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown498 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown499 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown500 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown501 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown502 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown503 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown505 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown506 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown507 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown508 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown509 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown510 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown511 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown566 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown567 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown573 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown574 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+}
+
+asset TwinRes_BehaviorUnknown575 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown576 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown578 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown579 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown580 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+}
+
+asset TwinRes_BehaviorUnknown582 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+}
+
+asset TwinRes_BehaviorUnknown583 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+}
+
+asset TwinRes_BehaviorUnknown587 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown591 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+}
+
+asset TwinRes_BehaviorUnknown595 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown599 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown600 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown604 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown611 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown612 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown614 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown615 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown616 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown617 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown621 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown623 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown626 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown627 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown628 {
+    uint32_t param1;
+    uint32_t param2;
+}
+
+asset TwinRes_BehaviorUnknown629 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+}
+
+asset TwinRes_BehaviorUnknown630 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown631 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown632 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown637 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown641 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown642 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown643 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown644 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown645 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown648 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown649 {
+    [no_bin] uint32_t _dummy;
+}
+asset TwinRes_BehaviorUnknown650 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown651 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown653 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+}
+
+asset TwinRes_BehaviorUnknown655 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+}
+
+asset TwinRes_BehaviorUnknown656 {
+    [no_bin] uint32_t _dummy;
+}
+
+asset TwinRes_BehaviorUnknown658 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+}
+
+asset TwinRes_BehaviorUnknown659 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown660 {
+    uint32_t param1;
+}
+
+asset TwinRes_BehaviorUnknown661 {
+    uint32_t param1;
+    uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
+    uint32_t param5;
+    uint32_t param6;
+    uint32_t param7;
+    uint32_t param8;
+    uint32_t param9;
+    uint32_t param10;
+    uint32_t param11;
+    uint32_t param12;
+    uint32_t param13;
+    uint32_t param14;
+    uint32_t param15;
+    uint32_t param16;
+    uint32_t param17;
+    uint32_t param18;
+    uint32_t param19;
+    uint32_t param20;
+    uint32_t param21;
+    uint32_t param22;
+    uint32_t param23;
+}
+
+
 asset TwinRes_BehaviorCommand {
     union bitfieldUnion {
         uint32_t bitfield;
@@ -1619,6 +3388,10 @@ asset TwinRes_BehaviorCommand {
         [write_if("source->commandIndex == 92")] TwinRes_BehaviorAddLives addLives;
         [write_if("source->commandIndex == 93")] TwinRes_BehaviorAddLives_Duplicate2 addLives_Duplicate2;
         [write_if("source->commandIndex == 94")] TwinRes_BehaviorAttachFocusObject2 attachFocusObject2;
+        [write_if("source->commandIndex == 95")] TwinRes_BehaviorUnknown95 unknown95;
+        [write_if("source->commandIndex == 96")] TwinRes_BehaviorUnknown96 unknown96;
+        [write_if("source->commandIndex == 97")] TwinRes_BehaviorUnknown97 unknown97;
+        [write_if("source->commandIndex == 98")] TwinRes_BehaviorUnknown98 unknown98;
         [write_if("source->commandIndex == 99")] TwinRes_BehaviorRequestMessengersFocus2 requestMessengersFocus2;
         [write_if("source->commandIndex == 100")] TwinRes_BehaviorRequestMessengersFocus3 requestMessengersFocus3;
         [write_if("source->commandIndex == 101")] TwinRes_BehaviorRequestMessSourceAsFocus2 requestMessSourceAsFocus2;
@@ -1629,19 +3402,249 @@ asset TwinRes_BehaviorCommand {
         [write_if("source->commandIndex == 106")] TwinRes_BehaviorRequestMessengersFocus4 requestMessengersFocus4;
         [write_if("source->commandIndex == 108")] TwinRes_BehaviorSetFocusPosition2 setFocusPosition2;
         [write_if("source->commandIndex == 109")] TwinRes_BehaviorAddNoiseToFocusPos2 addNoiseToFocusPos2;
+        [write_if("source->commandIndex == 110")] TwinRes_BehaviorUnknown110 unknown110;
         [write_if("source->commandIndex == 111")] TwinRes_BehaviorCacheLinkedInstance cacheLinkedInstance;
         [write_if("source->commandIndex == 112")] TwinRes_BehaviorSpawnCachedResidentAgent spawnCachedResidentAgent;
+        [write_if("source->commandIndex == 113")] TwinRes_BehaviorUnknown113 unknown113;
+        [write_if("source->commandIndex == 114")] TwinRes_BehaviorUnknown114 unknown114;
+        [write_if("source->commandIndex == 115")] TwinRes_BehaviorUnknown115 unknown115;
+        [write_if("source->commandIndex == 116")] TwinRes_BehaviorUnknown116 unknown116;
+        [write_if("source->commandIndex == 117")] TwinRes_BehaviorUnknown117 unknown117;
+        [write_if("source->commandIndex == 118")] TwinRes_BehaviorUnknown118 unknown118;
+        [write_if("source->commandIndex == 119")] TwinRes_BehaviorUnknown119 unknown119;
         [write_if("source->commandIndex == 120")] TwinRes_BehaviorPhysicsResetVelocity physicsResetVelocity;
+        [write_if("source->commandIndex == 121")] TwinRes_BehaviorUnknown121 unknown121;
+        [write_if("source->commandIndex == 122")] TwinRes_BehaviorUnknown122 unknown122;
+        [write_if("source->commandIndex == 123")] TwinRes_BehaviorUnknown123 unknown123;
         [write_if("source->commandIndex == 124")] TwinRes_BehaviorRunScriptSlot runScriptSlot;
+        [write_if("source->commandIndex == 125")] TwinRes_BehaviorUnknown125 unknown125;
+        [write_if("source->commandIndex == 126")] TwinRes_BehaviorUnknown126 unknown126;
+        [write_if("source->commandIndex == 127")] TwinRes_BehaviorUnknown127 unknown127;
+        [write_if("source->commandIndex == 128")] TwinRes_BehaviorUnknown128 unknown128;
+        [write_if("source->commandIndex == 129")] TwinRes_BehaviorUnknown129 unknown129;
+        [write_if("source->commandIndex == 130")] TwinRes_BehaviorUnknown130 unknown130;
+        [write_if("source->commandIndex == 131")] TwinRes_BehaviorUnknown131 unknown131;
+        [write_if("source->commandIndex == 132")] TwinRes_BehaviorUnknown132 unknown132;
+        [write_if("source->commandIndex == 133")] TwinRes_BehaviorUnknown133 unknown133;
+        [write_if("source->commandIndex == 134")] TwinRes_BehaviorUnknown134 unknown134;
+        [write_if("source->commandIndex == 135")] TwinRes_BehaviorUnknown135 unknown135;
+        [write_if("source->commandIndex == 136")] TwinRes_BehaviorUnknown136 unknown136;
+        [write_if("source->commandIndex == 137")] TwinRes_BehaviorUnknown137 unknown137;
+        [write_if("source->commandIndex == 138")] TwinRes_BehaviorUnknown138 unknown138;
+        [write_if("source->commandIndex == 139")] TwinRes_BehaviorUnknown139 unknown139;
+        [write_if("source->commandIndex == 140")] TwinRes_BehaviorUnknown140 unknown140;
+        [write_if("source->commandIndex == 141")] TwinRes_BehaviorUnknown141 unknown141;
+        [write_if("source->commandIndex == 142")] TwinRes_BehaviorUnknown142 unknown142;
+        [write_if("source->commandIndex == 143")] TwinRes_BehaviorUnknown143 unknown143;
+        [write_if("source->commandIndex == 144")] TwinRes_BehaviorUnknown144 unknown144;
+        [write_if("source->commandIndex == 145")] TwinRes_BehaviorUnknown145 unknown145;
+        [write_if("source->commandIndex == 146")] TwinRes_BehaviorUnknown146 unknown146;
+        [write_if("source->commandIndex == 147")] TwinRes_BehaviorUnknown147 unknown147;
+        [write_if("source->commandIndex == 148")] TwinRes_BehaviorUnknown148 unknown148;
+        [write_if("source->commandIndex == 149")] TwinRes_BehaviorUnknown149 unknown149;
+        [write_if("source->commandIndex == 150")] TwinRes_BehaviorUnknown150 unknown150;
+        [write_if("source->commandIndex == 151")] TwinRes_BehaviorUnknown151 unknown151;
+        [write_if("source->commandIndex == 152")] TwinRes_BehaviorUnknown152 unknown152;
+        [write_if("source->commandIndex == 153")] TwinRes_BehaviorUnknown153 unknown153;
+        [write_if("source->commandIndex == 154")] TwinRes_BehaviorUnknown154 unknown154;
+        [write_if("source->commandIndex == 155")] TwinRes_BehaviorUnknown155 unknown155;
+        [write_if("source->commandIndex == 156")] TwinRes_BehaviorUnknown156 unknown156;
+        [write_if("source->commandIndex == 157")] TwinRes_BehaviorUnknown157 unknown157;
+        [write_if("source->commandIndex == 158")] TwinRes_BehaviorUnknown158 unknown158;
+        [write_if("source->commandIndex == 159")] TwinRes_BehaviorUnknown159 unknown159;
+        [write_if("source->commandIndex == 160")] TwinRes_BehaviorUnknown160 unknown160;
+        [write_if("source->commandIndex == 161")] TwinRes_BehaviorUnknown161 unknown161;
+        [write_if("source->commandIndex == 162")] TwinRes_BehaviorUnknown162 unknown162;
+        [write_if("source->commandIndex == 163")] TwinRes_BehaviorUnknown163 unknown163;
+        [write_if("source->commandIndex == 164")] TwinRes_BehaviorUnknown164 unknown164;
         [write_if("source->commandIndex == 165")] TwinRes_BehaviorForceVolumeController forceVolumeController;
+        [write_if("source->commandIndex == 166")] TwinRes_BehaviorUnknown166 unknown166;
         [write_if("source->commandIndex == 167")] TwinRes_BehaviorSetSurface setSurface;
+        [write_if("source->commandIndex == 168")] TwinRes_BehaviorUnknown168 unknown168;
+        [write_if("source->commandIndex == 169")] TwinRes_BehaviorUnknown169 unknown169;
+        [write_if("source->commandIndex == 170")] TwinRes_BehaviorUnknown170 unknown170;
+        [write_if("source->commandIndex == 171")] TwinRes_BehaviorUnknown171 unknown171;
+        [write_if("source->commandIndex == 172")] TwinRes_BehaviorUnknown172 unknown172;
+        [write_if("source->commandIndex == 173")] TwinRes_BehaviorUnknown173 unknown173;
+        [write_if("source->commandIndex == 174")] TwinRes_BehaviorUnknown174 unknown174;
+        [write_if("source->commandIndex == 175")] TwinRes_BehaviorUnknown175 unknown175;
+        [write_if("source->commandIndex == 176")] TwinRes_BehaviorUnknown176 unknown176;
+        [write_if("source->commandIndex == 177")] TwinRes_BehaviorUnknown177 unknown177;
+        [write_if("source->commandIndex == 178")] TwinRes_BehaviorUnknown178 unknown178;
+        [write_if("source->commandIndex == 179")] TwinRes_BehaviorUnknown179 unknown179;
+        [write_if("source->commandIndex == 180")] TwinRes_BehaviorUnknown180 unknown180;
+        [write_if("source->commandIndex == 181")] TwinRes_BehaviorUnknown181 unknown181;
+        [write_if("source->commandIndex == 182")] TwinRes_BehaviorUnknown182 unknown182;
+        [write_if("source->commandIndex == 183")] TwinRes_BehaviorUnknown183 unknown183;
+        [write_if("source->commandIndex == 184")] TwinRes_BehaviorUnknown184 unknown184;
+        [write_if("source->commandIndex == 185")] TwinRes_BehaviorUnknown185 unknown185;
+        [write_if("source->commandIndex == 186")] TwinRes_BehaviorUnknown186 unknown186;
         [write_if("source->commandIndex == 187")] TwinRes_BehaviorSetShadow setShadow;
         [write_if("source->commandIndex == 188")] TwinRes_BehaviorSetShadowCircle setShadowCircle;
         [write_if("source->commandIndex == 189")] TwinRes_BehaviorSetShadowMesh setShadowMesh;
         [write_if("source->commandIndex == 190")] TwinRes_BehaviorSetShadowRectangle setShadowRectangle;
         [write_if("source->commandIndex == 191")] TwinRes_BehaviorShadowToggle shadowToggle;
+        [write_if("source->commandIndex == 192")] TwinRes_BehaviorUnknown192 unknown192;
+        [write_if("source->commandIndex == 193")] TwinRes_BehaviorUnknown193 unknown193;
+        [write_if("source->commandIndex == 194")] TwinRes_BehaviorUnknown194 unknown194;
+        [write_if("source->commandIndex == 195")] TwinRes_BehaviorUnknown195 unknown195;
+        [write_if("source->commandIndex == 196")] TwinRes_BehaviorUnknown196 unknown196;
         [write_if("source->commandIndex == 197")] TwinRes_BehaviorDUMMY_197 dUMMY_197;
+        [write_if("source->commandIndex == 198")] TwinRes_BehaviorUnknown198 unknown198;
+        [write_if("source->commandIndex == 199")] TwinRes_BehaviorUnknown199 unknown199;
+        [write_if("source->commandIndex == 200")] TwinRes_BehaviorUnknown200 unknown200;
+        [write_if("source->commandIndex == 201")] TwinRes_BehaviorUnknown201 unknown201;
+        [write_if("source->commandIndex == 202")] TwinRes_BehaviorUnknown202 unknown202;
+        [write_if("source->commandIndex == 203")] TwinRes_BehaviorUnknown203 unknown203;
+        [write_if("source->commandIndex == 204")] TwinRes_BehaviorUnknown204 unknown204;
+        [write_if("source->commandIndex == 205")] TwinRes_BehaviorUnknown205 unknown205;
+        [write_if("source->commandIndex == 206")] TwinRes_BehaviorUnknown206 unknown206;
+        [write_if("source->commandIndex == 207")] TwinRes_BehaviorUnknown207 unknown207;
+        [write_if("source->commandIndex == 208")] TwinRes_BehaviorUnknown208 unknown208;
+        [write_if("source->commandIndex == 209")] TwinRes_BehaviorUnknown209 unknown209;
+        [write_if("source->commandIndex == 210")] TwinRes_BehaviorUnknown210 unknown210;
+        [write_if("source->commandIndex == 211")] TwinRes_BehaviorUnknown211 unknown211;
+        [write_if("source->commandIndex == 212")] TwinRes_BehaviorUnknown212 unknown212;
+        [write_if("source->commandIndex == 213")] TwinRes_BehaviorUnknown213 unknown213;
         [write_if("source->commandIndex == 214")] TwinRes_BehaviorControllerRumble controllerRumble;
+        [write_if("source->commandIndex == 215")] TwinRes_BehaviorUnknown215 unknown215;
+        [write_if("source->commandIndex == 370")] TwinRes_BehaviorUnknown370 unknown370;
+        [write_if("source->commandIndex == 371")] TwinRes_BehaviorUnknown371 unknown371;
+        [write_if("source->commandIndex == 372")] TwinRes_BehaviorUnknown372 unknown372;
+        [write_if("source->commandIndex == 373")] TwinRes_BehaviorUnknown373 unknown373;
+        [write_if("source->commandIndex == 374")] TwinRes_BehaviorUnknown374 unknown374;
+        [write_if("source->commandIndex == 375")] TwinRes_BehaviorUnknown375 unknown375;
+        [write_if("source->commandIndex == 376")] TwinRes_BehaviorUnknown376 unknown376;
+        [write_if("source->commandIndex == 377")] TwinRes_BehaviorUnknown377 unknown377;
+        [write_if("source->commandIndex == 378")] TwinRes_BehaviorUnknown378 unknown378;
+        [write_if("source->commandIndex == 379")] TwinRes_BehaviorUnknown379 unknown379;
+        [write_if("source->commandIndex == 380")] TwinRes_BehaviorUnknown380 unknown380;
+        [write_if("source->commandIndex == 381")] TwinRes_BehaviorUnknown381 unknown381;
+        [write_if("source->commandIndex == 382")] TwinRes_BehaviorUnknown382 unknown382;
+        [write_if("source->commandIndex == 383")] TwinRes_BehaviorUnknown383 unknown383;
+        [write_if("source->commandIndex == 384")] TwinRes_BehaviorUnknown384 unknown384;
+        [write_if("source->commandIndex == 385")] TwinRes_BehaviorUnknown385 unknown385;
+        [write_if("source->commandIndex == 386")] TwinRes_BehaviorUnknown386 unknown386;
+        [write_if("source->commandIndex == 387")] TwinRes_BehaviorUnknown387 unknown387;
+        [write_if("source->commandIndex == 388")] TwinRes_BehaviorUnknown388 unknown388;
+        [write_if("source->commandIndex == 389")] TwinRes_BehaviorUnknown389 unknown389;
+        [write_if("source->commandIndex == 390")] TwinRes_BehaviorUnknown390 unknown390;
+        [write_if("source->commandIndex == 391")] TwinRes_BehaviorUnknown391 unknown391;
+        [write_if("source->commandIndex == 392")] TwinRes_BehaviorUnknown392 unknown392;
+        [write_if("source->commandIndex == 393")] TwinRes_BehaviorUnknown393 unknown393;
+        [write_if("source->commandIndex == 394")] TwinRes_BehaviorUnknown394 unknown394;
+        [write_if("source->commandIndex == 395")] TwinRes_BehaviorUnknown395 unknown395;
+        [write_if("source->commandIndex == 396")] TwinRes_BehaviorUnknown396 unknown396;
+        [write_if("source->commandIndex == 397")] TwinRes_BehaviorUnknown397 unknown397;
+        [write_if("source->commandIndex == 398")] TwinRes_BehaviorUnknown398 unknown398;
+        [write_if("source->commandIndex == 399")] TwinRes_BehaviorUnknown399 unknown399;
+        [write_if("source->commandIndex == 400")] TwinRes_BehaviorUnknown400 unknown400;
+        [write_if("source->commandIndex == 401")] TwinRes_BehaviorUnknown401 unknown401;
+        [write_if("source->commandIndex == 402")] TwinRes_BehaviorUnknown402 unknown402;
+        [write_if("source->commandIndex == 403")] TwinRes_BehaviorUnknown403 unknown403;
+        [write_if("source->commandIndex == 404")] TwinRes_BehaviorUnknown404 unknown404;
+        [write_if("source->commandIndex == 406")] TwinRes_BehaviorUnknown406 unknown406;
+        [write_if("source->commandIndex == 407")] TwinRes_BehaviorUnknown407 unknown407;
+        [write_if("source->commandIndex == 408")] TwinRes_BehaviorUnknown408 unknown408;
+        [write_if("source->commandIndex == 409")] TwinRes_BehaviorUnknown409 unknown409;
+        [write_if("source->commandIndex == 410")] TwinRes_BehaviorUnknown410 unknown410;
+        [write_if("source->commandIndex == 411")] TwinRes_BehaviorUnknown411 unknown411;
+        [write_if("source->commandIndex == 412")] TwinRes_BehaviorUnknown412 unknown412;
+        [write_if("source->commandIndex == 413")] TwinRes_BehaviorUnknown413 unknown413;
+        [write_if("source->commandIndex == 414")] TwinRes_BehaviorUnknown414 unknown414;
+        [write_if("source->commandIndex == 415")] TwinRes_BehaviorUnknown415 unknown415;
+        [write_if("source->commandIndex == 416")] TwinRes_BehaviorUnknown416 unknown416;
+        [write_if("source->commandIndex == 417")] TwinRes_BehaviorUnknown417 unknown417;
+        [write_if("source->commandIndex == 418")] TwinRes_BehaviorUnknown418 unknown418;
+        [write_if("source->commandIndex == 419")] TwinRes_BehaviorUnknown419 unknown419;
+        [write_if("source->commandIndex == 420")] TwinRes_BehaviorUnknown420 unknown420;
+        [write_if("source->commandIndex == 421")] TwinRes_BehaviorUnknown421 unknown421;
+        [write_if("source->commandIndex == 422")] TwinRes_BehaviorUnknown422 unknown422;
+        [write_if("source->commandIndex == 423")] TwinRes_BehaviorUnknown423 unknown423;
+        [write_if("source->commandIndex == 424")] TwinRes_BehaviorUnknown424 unknown424;
+        [write_if("source->commandIndex == 425")] TwinRes_BehaviorUnknown425 unknown425;
+        [write_if("source->commandIndex == 427")] TwinRes_BehaviorUnknown427 unknown427;
+        [write_if("source->commandIndex == 428")] TwinRes_BehaviorUnknown428 unknown428;
+        [write_if("source->commandIndex == 429")] TwinRes_BehaviorUnknown429 unknown429;
+        [write_if("source->commandIndex == 431")] TwinRes_BehaviorUnknown431 unknown431;
+        [write_if("source->commandIndex == 432")] TwinRes_BehaviorUnknown432 unknown432;
+        [write_if("source->commandIndex == 433")] TwinRes_BehaviorUnknown433 unknown433;
+        [write_if("source->commandIndex == 434")] TwinRes_BehaviorUnknown434 unknown434;
+        [write_if("source->commandIndex == 435")] TwinRes_BehaviorUnknown435 unknown435;
+        [write_if("source->commandIndex == 436")] TwinRes_BehaviorUnknown436 unknown436;
+        [write_if("source->commandIndex == 437")] TwinRes_BehaviorUnknown437 unknown437;
+        [write_if("source->commandIndex == 438")] TwinRes_BehaviorUnknown438 unknown438;
+        [write_if("source->commandIndex == 439")] TwinRes_BehaviorUnknown439 unknown439;
+        [write_if("source->commandIndex == 440")] TwinRes_BehaviorUnknown440 unknown440;
+        [write_if("source->commandIndex == 441")] TwinRes_BehaviorUnknown441 unknown441;
+        [write_if("source->commandIndex == 442")] TwinRes_BehaviorUnknown442 unknown442;
+        [write_if("source->commandIndex == 443")] TwinRes_BehaviorUnknown443 unknown443;
+        [write_if("source->commandIndex == 444")] TwinRes_BehaviorUnknown444 unknown444;
+        [write_if("source->commandIndex == 445")] TwinRes_BehaviorUnknown445 unknown445;
+        [write_if("source->commandIndex == 446")] TwinRes_BehaviorUnknown446 unknown446;
+        [write_if("source->commandIndex == 447")] TwinRes_BehaviorUnknown447 unknown447;
+        [write_if("source->commandIndex == 448")] TwinRes_BehaviorUnknown448 unknown448;
+        [write_if("source->commandIndex == 449")] TwinRes_BehaviorUnknown449 unknown449;
+        [write_if("source->commandIndex == 450")] TwinRes_BehaviorUnknown450 unknown450;
+        [write_if("source->commandIndex == 451")] TwinRes_BehaviorUnknown451 unknown451;
+        [write_if("source->commandIndex == 452")] TwinRes_BehaviorUnknown452 unknown452;
+        [write_if("source->commandIndex == 453")] TwinRes_BehaviorUnknown453 unknown453;
+        [write_if("source->commandIndex == 454")] TwinRes_BehaviorUnknown454 unknown454;
+        [write_if("source->commandIndex == 455")] TwinRes_BehaviorUnknown455 unknown455;
+        [write_if("source->commandIndex == 456")] TwinRes_BehaviorUnknown456 unknown456;
+        [write_if("source->commandIndex == 457")] TwinRes_BehaviorUnknown457 unknown457;
+        [write_if("source->commandIndex == 458")] TwinRes_BehaviorUnknown458 unknown458;
+        [write_if("source->commandIndex == 459")] TwinRes_BehaviorUnknown459 unknown459;
+        [write_if("source->commandIndex == 460")] TwinRes_BehaviorUnknown460 unknown460;
+        [write_if("source->commandIndex == 461")] TwinRes_BehaviorUnknown461 unknown461;
+        [write_if("source->commandIndex == 462")] TwinRes_BehaviorUnknown462 unknown462;
+        [write_if("source->commandIndex == 463")] TwinRes_BehaviorUnknown463 unknown463;
+        [write_if("source->commandIndex == 464")] TwinRes_BehaviorUnknown464 unknown464;
+        [write_if("source->commandIndex == 465")] TwinRes_BehaviorUnknown465 unknown465;
+        [write_if("source->commandIndex == 466")] TwinRes_BehaviorUnknown466 unknown466;
+        [write_if("source->commandIndex == 467")] TwinRes_BehaviorUnknown467 unknown467;
+        [write_if("source->commandIndex == 468")] TwinRes_BehaviorUnknown468 unknown468;
+        [write_if("source->commandIndex == 469")] TwinRes_BehaviorUnknown469 unknown469;
+        [write_if("source->commandIndex == 470")] TwinRes_BehaviorUnknown470 unknown470;
+        [write_if("source->commandIndex == 471")] TwinRes_BehaviorUnknown471 unknown471;
+        [write_if("source->commandIndex == 472")] TwinRes_BehaviorUnknown472 unknown472;
+        [write_if("source->commandIndex == 473")] TwinRes_BehaviorUnknown473 unknown473;
+        [write_if("source->commandIndex == 474")] TwinRes_BehaviorUnknown474 unknown474;
+        [write_if("source->commandIndex == 475")] TwinRes_BehaviorUnknown475 unknown475;
+        [write_if("source->commandIndex == 476")] TwinRes_BehaviorUnknown476 unknown476;
+        [write_if("source->commandIndex == 477")] TwinRes_BehaviorUnknown477 unknown477;
+        [write_if("source->commandIndex == 478")] TwinRes_BehaviorUnknown478 unknown478;
+        [write_if("source->commandIndex == 479")] TwinRes_BehaviorUnknown479 unknown479;
+        [write_if("source->commandIndex == 480")] TwinRes_BehaviorUnknown480 unknown480;
+        [write_if("source->commandIndex == 481")] TwinRes_BehaviorUnknown481 unknown481;
+        [write_if("source->commandIndex == 482")] TwinRes_BehaviorUnknown482 unknown482;
+        [write_if("source->commandIndex == 483")] TwinRes_BehaviorUnknown483 unknown483;
+        [write_if("source->commandIndex == 484")] TwinRes_BehaviorUnknown484 unknown484;
+        [write_if("source->commandIndex == 485")] TwinRes_BehaviorUnknown485 unknown485;
+        [write_if("source->commandIndex == 486")] TwinRes_BehaviorUnknown486 unknown486;
+        [write_if("source->commandIndex == 487")] TwinRes_BehaviorUnknown487 unknown487;
+        [write_if("source->commandIndex == 488")] TwinRes_BehaviorUnknown488 unknown488;
+        [write_if("source->commandIndex == 489")] TwinRes_BehaviorUnknown489 unknown489;
+        [write_if("source->commandIndex == 490")] TwinRes_BehaviorUnknown490 unknown490;
+        [write_if("source->commandIndex == 491")] TwinRes_BehaviorUnknown491 unknown491;
+        [write_if("source->commandIndex == 492")] TwinRes_BehaviorUnknown492 unknown492;
+        [write_if("source->commandIndex == 494")] TwinRes_BehaviorUnknown494 unknown494;
+        [write_if("source->commandIndex == 495")] TwinRes_BehaviorUnknown495 unknown495;
+        [write_if("source->commandIndex == 496")] TwinRes_BehaviorUnknown496 unknown496;
+        [write_if("source->commandIndex == 497")] TwinRes_BehaviorUnknown497 unknown497;
+        [write_if("source->commandIndex == 498")] TwinRes_BehaviorUnknown498 unknown498;
+        [write_if("source->commandIndex == 499")] TwinRes_BehaviorUnknown499 unknown499;
+        [write_if("source->commandIndex == 500")] TwinRes_BehaviorUnknown500 unknown500;
+        [write_if("source->commandIndex == 501")] TwinRes_BehaviorUnknown501 unknown501;
+        [write_if("source->commandIndex == 502")] TwinRes_BehaviorUnknown502 unknown502;
+        [write_if("source->commandIndex == 503")] TwinRes_BehaviorUnknown503 unknown503;
+        [write_if("source->commandIndex == 505")] TwinRes_BehaviorUnknown505 unknown505;
+        [write_if("source->commandIndex == 506")] TwinRes_BehaviorUnknown506 unknown506;
+        [write_if("source->commandIndex == 507")] TwinRes_BehaviorUnknown507 unknown507;
+        [write_if("source->commandIndex == 508")] TwinRes_BehaviorUnknown508 unknown508;
+        [write_if("source->commandIndex == 509")] TwinRes_BehaviorUnknown509 unknown509;
+        [write_if("source->commandIndex == 510")] TwinRes_BehaviorUnknown510 unknown510;
+        [write_if("source->commandIndex == 511")] TwinRes_BehaviorUnknown511 unknown511;
         [write_if("source->commandIndex == 512")] TwinRes_BehaviorCreateCrateContents createCrateContents;
         [write_if("source->commandIndex == 513")] TwinRes_BehaviorCA_PickUpWumpa ca_PickUpWumpa;
         [write_if("source->commandIndex == 514")] TwinRes_BehaviorCreateDamage createDamage;
@@ -1695,49 +3698,98 @@ asset TwinRes_BehaviorCommand {
         [write_if("source->commandIndex == 563")] TwinRes_BehaviorDamageOriginator damageOriginator;
         [write_if("source->commandIndex == 564")] TwinRes_BehaviorRequestFocus2 requestFocus2;
         [write_if("source->commandIndex == 565")] TwinRes_BehaviorRequestFocus3 requestFocus3;
+        [write_if("source->commandIndex == 566")] TwinRes_BehaviorUnknown566 unknown566;
+        [write_if("source->commandIndex == 567")] TwinRes_BehaviorUnknown567 unknown567;
         [write_if("source->commandIndex == 569")] TwinRes_BehaviorExitVehicleMode exitVehicleMode;
         [write_if("source->commandIndex == 570")] TwinRes_BehaviorSetVehicleRollerbrawl setVehicleRollerbrawl;
         [write_if("source->commandIndex == 571")] TwinRes_BehaviorSetVehicleHoverboard setVehicleHoverboard;
         [write_if("source->commandIndex == 577")] TwinRes_BehaviorBecomeSticky becomeSticky;
+        [write_if("source->commandIndex == 573")] TwinRes_BehaviorUnknown573 unknown573;
+        [write_if("source->commandIndex == 574")] TwinRes_BehaviorUnknown574 unknown574;
+        [write_if("source->commandIndex == 575")] TwinRes_BehaviorUnknown575 unknown575;
+        [write_if("source->commandIndex == 576")] TwinRes_BehaviorUnknown576 unknown576;
+        [write_if("source->commandIndex == 578")] TwinRes_BehaviorUnknown578 unknown578;
+        [write_if("source->commandIndex == 579")] TwinRes_BehaviorUnknown579 unknown579;
+        [write_if("source->commandIndex == 580")] TwinRes_BehaviorUnknown580 unknown580;
         [write_if("source->commandIndex == 581")] TwinRes_BehaviorBecomeNormal becomeNormal;
+        [write_if("source->commandIndex == 582")] TwinRes_BehaviorUnknown582 unknown582;
+        [write_if("source->commandIndex == 583")] TwinRes_BehaviorUnknown583 unknown583;
         [write_if("source->commandIndex == 584")] TwinRes_BehaviorDUMMY_584 dUMMY_584;
         [write_if("source->commandIndex == 585")] TwinRes_BehaviorAddLives_Duplicate addLives_Duplicate;
         [write_if("source->commandIndex == 586")] TwinRes_BehaviorDUMMY_586 dUMMY_586;
+        [write_if("source->commandIndex == 587")] TwinRes_BehaviorUnknown587 unknown587;
         [write_if("source->commandIndex == 588")] TwinRes_BehaviorPlayerFaceTowardsCamera playerFaceTowardsCamera;
         [write_if("source->commandIndex == 589")] TwinRes_BehaviorCutsceneStart cutsceneStart;
         [write_if("source->commandIndex == 590")] TwinRes_BehaviorCutsceneEnd cutsceneEnd;
+        [write_if("source->commandIndex == 591")] TwinRes_BehaviorUnknown591 unknown591;
         [write_if("source->commandIndex == 592")] TwinRes_BehaviorCameraSaveParams cameraSaveParams;
         [write_if("source->commandIndex == 593")] TwinRes_BehaviorCameraLoadParams cameraLoadParams;
         [write_if("source->commandIndex == 594")] TwinRes_BehaviorToggleCutsceneCamera toggleCutsceneCamera;
+        [write_if("source->commandIndex == 595")] TwinRes_BehaviorUnknown595 unknown595;
         [write_if("source->commandIndex == 596")] TwinRes_BehaviorStartWhackaworm startWhackaworm;
         [write_if("source->commandIndex == 597")] TwinRes_BehaviorProgressWhackaworm progressWhackaworm;
         [write_if("source->commandIndex == 598")] TwinRes_BehaviorEndWhackaworm endWhackaworm;
+        [write_if("source->commandIndex == 599")] TwinRes_BehaviorUnknown599 unknown599;
+        [write_if("source->commandIndex == 600")] TwinRes_BehaviorUnknown600 unknown600;
         [write_if("source->commandIndex == 601")] TwinRes_BehaviorSetVehicleWrestleCreature setVehicleWrestleCreature;
         [write_if("source->commandIndex == 602")] TwinRes_BehaviorFadeoutScreen fadeoutScreen;
         [write_if("source->commandIndex == 603")] TwinRes_BehaviorDisplayBottomText displayBottomText;
+        [write_if("source->commandIndex == 604")] TwinRes_BehaviorUnknown604 unknown604;
         [write_if("source->commandIndex == 605")] TwinRes_BehaviorDismissCharacter dismissCharacter;
         [write_if("source->commandIndex == 606")] TwinRes_BehaviorCameraFocusObject cameraFocusObject;
         [write_if("source->commandIndex == 607")] TwinRes_BehaviorCameraStopFocusObject cameraStopFocusObject;
         [write_if("source->commandIndex == 608")] TwinRes_BehaviorClearBottomText clearBottomText;
         [write_if("source->commandIndex == 609")] TwinRes_BehaviorDUMMY_609 dUMMY_609;
         [write_if("source->commandIndex == 610")] TwinRes_BehaviorDUMMY_610 dUMMY_610;
+        [write_if("source->commandIndex == 611")] TwinRes_BehaviorUnknown611 unknown611;
+        [write_if("source->commandIndex == 612")] TwinRes_BehaviorUnknown612 unknown612;
         [write_if("source->commandIndex == 613")] TwinRes_BehaviorDisablePlayerControl disablePlayerControl;
+        [write_if("source->commandIndex == 614")] TwinRes_BehaviorUnknown614 unknown614;
+        [write_if("source->commandIndex == 615")] TwinRes_BehaviorUnknown615 unknown615;
+        [write_if("source->commandIndex == 616")] TwinRes_BehaviorUnknown616 unknown616;
+        [write_if("source->commandIndex == 617")] TwinRes_BehaviorUnknown617 unknown617;
         [write_if("source->commandIndex == 618")] TwinRes_BehaviorForceGameOver forceGameOver;
         [write_if("source->commandIndex == 619")] TwinRes_BehaviorShowBottomText showBottomText;
         [write_if("source->commandIndex == 620")] TwinRes_BehaviorHideBottomText hideBottomText;
+        [write_if("source->commandIndex == 621")] TwinRes_BehaviorUnknown621 unknown621;
         [write_if("source->commandIndex == 622")] TwinRes_BehaviorCharacterSoundProxy characterSoundProxy;
+        [write_if("source->commandIndex == 623")] TwinRes_BehaviorUnknown623 unknown623;
         [write_if("source->commandIndex == 624")] TwinRes_BehaviorEnableVarPercept629 enableVarPercept629;
         [write_if("source->commandIndex == 625")] TwinRes_BehaviorSwitchCharacter switchCharacter;
+        [write_if("source->commandIndex == 626")] TwinRes_BehaviorUnknown626 unknown626;
+        [write_if("source->commandIndex == 627")] TwinRes_BehaviorUnknown627 unknown627;
+        [write_if("source->commandIndex == 628")] TwinRes_BehaviorUnknown628 unknown628;
+        [write_if("source->commandIndex == 629")] TwinRes_BehaviorUnknown629 unknown629;
+        [write_if("source->commandIndex == 630")] TwinRes_BehaviorUnknown630 unknown630;
+        [write_if("source->commandIndex == 631")] TwinRes_BehaviorUnknown631 unknown631;
+        [write_if("source->commandIndex == 632")] TwinRes_BehaviorUnknown632 unknown632;
         [write_if("source->commandIndex == 633")] TwinRes_BehaviorSetPlayerMode setPlayerMode;
         [write_if("source->commandIndex == 634")] TwinRes_BehaviorPlayMovie playMovie;
         [write_if("source->commandIndex == 636")] TwinRes_BehaviorAddAmmo addAmmo;
+        [write_if("source->commandIndex == 637")] TwinRes_BehaviorUnknown637 unknown637;
         [write_if("source->commandIndex == 638")] TwinRes_BehaviorEnableBossMode enableBossMode;
         [write_if("source->commandIndex == 639")] TwinRes_BehaviorDamageBoss damageBoss;
         [write_if("source->commandIndex == 640")] TwinRes_BehaviorExitBossMode exitBossMode;
+        [write_if("source->commandIndex == 641")] TwinRes_BehaviorUnknown641 unknown641;
+        [write_if("source->commandIndex == 642")] TwinRes_BehaviorUnknown642 unknown642;
+        [write_if("source->commandIndex == 643")] TwinRes_BehaviorUnknown643 unknown643;
+        [write_if("source->commandIndex == 644")] TwinRes_BehaviorUnknown644 unknown644;
+        [write_if("source->commandIndex == 645")] TwinRes_BehaviorUnknown645 unknown645;
         [write_if("source->commandIndex == 647")] TwinRes_BehaviorSetGlobalProgression2 setGlobalProgression2;
+        [write_if("source->commandIndex == 648")] TwinRes_BehaviorUnknown648 unknown648;
+        [write_if("source->commandIndex == 649")] TwinRes_BehaviorUnknown649 unknown649;
+        [write_if("source->commandIndex == 650")] TwinRes_BehaviorUnknown650 unknown650;
+        [write_if("source->commandIndex == 651")] TwinRes_BehaviorUnknown651 unknown651;
         [write_if("source->commandIndex == 652")] TwinRes_BehaviorCameraTopdownMode cameraTopdownMode;
+        [write_if("source->commandIndex == 653")] TwinRes_BehaviorUnknown653 unknown653;
         [write_if("source->commandIndex == 654")] TwinRes_BehaviorPlayCredits playCredits;
+        [write_if("source->commandIndex == 655")] TwinRes_BehaviorUnknown655 unknown655;
+        [write_if("source->commandIndex == 656")] TwinRes_BehaviorUnknown656 unknown656;
         [write_if("source->commandIndex == 657")] TwinRes_BehaviorDisplayBottomTextInstance displayBottomTextInstance;
+        [write_if("source->commandIndex == 658")] TwinRes_BehaviorUnknown658 unknown658;
+        [write_if("source->commandIndex == 659")] TwinRes_BehaviorUnknown659 unknown659;
+        [write_if("source->commandIndex == 660")] TwinRes_BehaviorUnknown660 unknown660;
+        [write_if("source->commandIndex == 661")] TwinRes_BehaviorUnknown661 unknown661;
         [write_if("source->commandIndex == 662")] TwinRes_BehaviorResetCamera resetCamera;
     };
 }
@@ -1788,4 +3840,27 @@ asset TwinRes_BehaviorGraph {
     [no_json] int32_t statesAmount;
     int32_t startState;
     [length(statesAmount)] TwinRes_BehaviorState* states;
+}
+
+asset TwinRes_BehaviorCommandPack {
+    TwinRes_BehaviorCommand* commands;
+}
+
+asset TwinRes_BehaviorCommandSequence {
+    uint16_t id;
+    TwinRes_BehaviorCommandPack pack;
+}
+
+asset TwinRes_BehaviorCommandSequences {
+    union headerUnion {
+        uint32_t header;
+        struct headerData {
+            uint8_t instanceSubType;
+            uint8_t indexInGlobalStorage;
+            uint8_t sequencesAmount;
+        };
+    };
+
+    [length(sequencesAmount)] TwinRes_BehaviorCommandSequence* sequences;
+    [no_length("createdObj.hasNext")] TwinRes_BehaviorCommand* initCommands;
 }

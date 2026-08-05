@@ -14,12 +14,20 @@ asset TwinRes_Item {
 }
 
 
-[no_json] [no_read]
-asset TwinRes_Section {
-    uint32_t magic;
+[no_json]
+asset TwinRes_SectionHeader {
+    [no_bin] uint32_t id;
+    uint16_t magic;
+    uint16_t sectionMagic;
     uint32_t itemsCount;
     uint32_t length;
     [length(itemsCount)] TwinRes_ItemRecord* records;
-    [length(itemsCount)] TwinRes_Item* items;
+}
+
+
+[no_json] [no_read]
+asset TwinRes_ItemsCollectionSection {
+    TwinRes_SectionHeader header;
+    [length(header.itemsCount)] TwinRes_Item* items;
     [blob] [length("arrlen(source->extraData)")] void* extraData;
 }

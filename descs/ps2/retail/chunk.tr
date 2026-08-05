@@ -1,0 +1,270 @@
+#include "../auto_struct_base.h"
+#include "graphics/auto_struct_blend_skin.h"
+#include "graphics/auto_struct_lod.h"
+#include "graphics/auto_struct_material.h"
+#include "graphics/auto_struct_rigid_model.h"
+#include "graphics/auto_struct_model.h"
+#include "graphics/auto_struct_rigid_model.h"
+#include "graphics/auto_struct_skin.h"
+#include "graphics/auto_struct_skydome.h"
+#include "graphics/auto_struct_texture.h"
+#include "rm2/auto_struct_collision.h"
+#include "rm2/auto_struct_particles.h"
+#include "rm2/auto_struct_layout.h"
+#include "rm2/code/auto_struct_agent_lab.h"
+#include "rm2/code/agent_lab_helper.h"
+#include "rm2/code/auto_struct_animation.h"
+#include "rm2/code/auto_struct_body.h"
+#include "rm2/code/auto_struct_object.h"
+#include "rm2/code/auto_struct_sound.h"
+#include "sm2/auto_struct_chunk_link.h"
+#include "sm2/auto_struct_dynamic_scenery.h"
+#include "sm2/auto_struct_scenery.h"
+
+[no_json]
+asset TwinRes_TexturesSection {
+    TwinRes_SectionHeader header = { .id = 0, .magic = 1, .sectionMagic = 3 };
+    [length(header.itemsCount)] TwinRes_Texture* textures;
+}
+
+[no_json]
+asset TwinRes_MaterialsSection {
+    TwinRes_SectionHeader header = { .id = 1, .magic = 1, .sectionMagic = 3 };
+    [length(header.itemsCount)] TwinRes_Material* materials;
+}
+
+[no_json]
+asset TwinRes_ModelsSection {
+    TwinRes_SectionHeader header = { .id = 2, .magic = 1, .sectionMagic = 3 };
+    [length(header.itemsCount)] TwinRes_Model* models;
+}
+
+[no_json]
+asset TwinRes_RigidModelsSection {
+    TwinRes_SectionHeader header = { .id = 3, .magic = 1, .sectionMagic = 3 };
+    [length(header.itemsCount)] TwinRes_RigidModel* rigidModels;
+}
+
+[no_json]
+asset TwinRes_SkinsSection {
+    TwinRes_SectionHeader header = { .id = 4, .magic = 1, .sectionMagic = 3 };
+    [length(header.itemsCount)] TwinRes_Skin* skins;
+}
+
+[no_json]
+asset TwinRes_BlendSkinsSection {
+    TwinRes_SectionHeader header = { .id = 5, .magic = 1, .sectionMagic = 3 };
+    [length(header.itemsCount)] TwinRes_BlendSkin* blendSkins;
+}
+
+[no_json]
+asset TwinRes_MeshesSection {
+    TwinRes_SectionHeader header = { .id = 6, .magic = 1, .sectionMagic = 3 };
+    [length(header.itemsCount)] TwinRes_RigidModel* meshes;
+}
+
+[no_json]
+asset TwinRes_LodsSection {
+    TwinRes_SectionHeader header = { .id = 7, .magic = 1, .sectionMagic = 3 };
+    [length(header.itemsCount)] TwinRes_Lod* lods;
+}
+
+[no_json]
+asset TwinRes_SkydomesSection {
+    TwinRes_SectionHeader header = { .id = 8, .magic = 1, .sectionMagic = 3 };
+    [length(header.itemsCount)] TwinRes_Skydome* skydomes;
+}
+
+[no_json] [no_bin]
+asset TwinRes_GraphicsSection {
+    TwinRes_SectionHeader header = { .id = 11, .magic = 1, .sectionMagic = 1 };
+    TwinRes_TexturesSection texturesSection;
+    TwinRes_MaterialsSection materialsSection;
+    TwinRes_ModelsSection modelsSection;
+    TwinRes_RigidModelsSection rigidModelsSection;
+    TwinRes_SkinsSection skinsSection;
+    TwinRes_BlendSkinsSection blendSkinsSection;
+    TwinRes_MeshesSection meshesSection;
+    TwinRes_LodsSection lodsSection;
+    TwinRes_SkydomesSection skydomesSection;
+}
+
+[no_json]
+asset TwinRes_ObjectsSection {
+    TwinRes_SectionHeader header = { .id = 0, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_Object* objects;
+}
+
+[no_json]
+asset TwinRes_AgentLabBehaviorsStorage {
+    [constructor] [no_bin] uint32_t id;
+    union [write_all] BehaviorsStorage {
+        [write_if("(source->id % 2) == 0")] TwinRes_BehaviorStarter starter;
+        [write_if("(source->id % 2) == 1")] [custom_bin("TwinRes_BehaviorGraphBinSerializeFull", "TwinRes_BehaviorGraphBinDeserializeFull")] TwinRes_BehaviorGraph graph;
+    };
+}
+
+[no_json]
+asset TwinRes_AgentLabBehaviorsSection {
+    TwinRes_SectionHeader header = { .id = 1, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] [constructor("header.records[i].itemId")] TwinRes_AgentLabBehaviorsStorage* behaviors;
+}
+
+[no_json]
+asset TwinRes_AnimationsSection {
+    TwinRes_SectionHeader header = { .id = 2, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_Animation* animations;
+}
+
+[no_json]
+asset TwinRes_BodiesSection {
+    TwinRes_SectionHeader header = { .id = 3, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_Body* bodies;
+}
+
+[no_json]
+asset TwinRes_AgentLabSequencesSection {
+    TwinRes_SectionHeader header = { .id = 4, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_BehaviorCommandSequences* sequences;
+}
+
+
+asset TwinRes_SoundEffectsSection {
+    [no_json] TwinRes_SectionHeader header = { .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_Sound* soundEffects;
+    [no_json] [no_bin] void* soundData;
+}
+
+[no_json] [no_bin]
+asset TwinRes_CodeSection {
+    TwinRes_SectionHeader header = { .id = 10, .magic = 1, .sectionMagic = 1 };
+    TwinRes_ObjectsSection objectsSection;
+    TwinRes_AgentLabBehaviorsSection behaviorsSection;
+    TwinRes_AnimationsSection animationsSection;
+    TwinRes_BodiesSection bodiesSection;
+    TwinRes_AgentLabSequencesSection sequencesSection;
+    TwinRes_Item unusedItem;
+    TwinRes_SoundEffectsSection soundEffectsSection;
+    TwinRes_SoundEffectsSection englishEffectsSection;
+    TwinRes_SoundEffectsSection frenchEffectsSection;
+    TwinRes_SoundEffectsSection germanEffectsSection;
+    TwinRes_SoundEffectsSection spanishEffectsSection;
+    TwinRes_SoundEffectsSection italianEffectsSection;
+    TwinRes_SoundEffectsSection japaneseEffectsSection;
+}
+
+asset TwinRes_InstanceTemplatesSection {
+    [no_json] TwinRes_SectionHeader header = { .id = 0, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_InstanceTemplate* instanceTemplates;
+}
+
+asset TwinRes_AiPositionsSection {
+    [no_json] TwinRes_SectionHeader header = { .id = 1, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_AiPosition* aiPositions;
+}
+
+asset TwinRes_AiPathsSection {
+    [no_json] TwinRes_SectionHeader header = { .id = 2, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_AiPath* aiPaths;
+}
+
+asset TwinRes_PositionsSection {
+    [no_json] TwinRes_SectionHeader header = { .id = 3, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_Position* positions;
+}
+
+asset TwinRes_PathsSection {
+    [no_json] TwinRes_SectionHeader header = { .id = 4, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_Path* paths;
+}
+
+asset TwinRes_CollisionSurfacesSection {
+    [no_json] TwinRes_SectionHeader header = { .id = 5, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_CollisionSurface* surfaces;
+}
+
+asset TwinRes_InstancesSection {
+    [no_json] TwinRes_SectionHeader header = { .id = 6, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_Instance* instances;
+}
+
+asset TwinRes_TriggersSection {
+    [no_json] TwinRes_SectionHeader header = { .id = 7, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_Trigger* triggers;
+}
+
+asset TwinRes_CamerasSection {
+    [no_json] TwinRes_SectionHeader header = { .id = 8, .magic = 1, .sectionMagic = 1 };
+    [length(header.itemsCount)] TwinRes_Camera* cameras;
+}
+
+[no_bin]
+asset TwinRes_LayoutSection {
+    [no_json] TwinRes_SectionHeader header = { .magic = 1, .sectionMagic = 1 };
+    TwinRes_InstanceTemplatesSection instanceTemplatesSection;
+    TwinRes_AiPositionsSection aiPositionsSection;
+    TwinRes_AiPathsSection aiPathsSection;
+    TwinRes_PositionsSection positionsSection;
+    TwinRes_PathsSection pathsSection;
+    TwinRes_CollisionSurfacesSection surfacesSection;
+    TwinRes_InstancesSection instancesSection;
+    TwinRes_TriggersSection triggersSection;
+    TwinRes_CamerasSection camerasSection;
+}
+
+[no_bin]
+asset TwinRes_ResourceChunk {
+    [no_json] TwinRes_SectionHeader header = { .magic = 1, .sectionMagic = 1 };
+    [no_json] TwinRes_GraphicsSection graphicsSection;
+    [no_json] TwinRes_CodeSection codeSection;
+    TwinRes_Particles particles;
+    [link_resource("TS_RT_Collision")] TwinRes_StaticCollision collision;
+    TwinRes_LayoutSection layout1Section;
+    TwinRes_LayoutSection layout2Section;
+    TwinRes_LayoutSection layout3Section;
+    TwinRes_LayoutSection layout4Section;
+    TwinRes_LayoutSection layout5Section;
+    TwinRes_LayoutSection layout6Section;
+    TwinRes_LayoutSection layout7Section;
+    TwinRes_LayoutSection layout8Section;
+}
+
+[no_bin]
+asset TwinRes_DefaultResourceChunk {
+    [no_json] TwinRes_SectionHeader header = { .magic = 1, .sectionMagic = 1 };
+    [no_json] TwinRes_GraphicsSection graphicsSection;
+    [no_json] TwinRes_CodeSection codeSection;
+    TwinRes_DefaultParticles particles;
+    [no_json] TwinRes_Item collision;
+    TwinRes_LayoutSection layout1Section;
+    TwinRes_LayoutSection layout2Section;
+    TwinRes_LayoutSection layout3Section;
+    TwinRes_LayoutSection layout4Section;
+    TwinRes_LayoutSection layout5Section;
+    TwinRes_LayoutSection layout6Section;
+    TwinRes_LayoutSection layout7Section;
+    TwinRes_LayoutSection layout8Section;
+}
+
+[no_bin]
+asset TwinRes_SceneryChunk {
+    [no_json] TwinRes_SectionHeader header = { .magic = 1, .sectionMagic = 1 };
+    [no_json] TwinRes_GraphicsSection graphicsSection;
+    [link_resource("TS_RT_Scenery")] TwinRes_Scenery    scenery;
+    [no_json] TwinRes_Item    unusedItem1;
+    [no_json] TwinRes_Item    unusedItem2;
+    [no_json] TwinRes_Item    unusedItem3;
+    [link_resource("TS_RT_DynamicScenery")] TwinRes_DynamicScenery    dynamicScenery;
+    TwinRes_ChunkLinks    chunkLinks;
+}
+
+[no_read] [no_write]
+asset TwinRes_Chunk {
+    TwinRes_ResourceChunk chunkResources;
+    TwinRes_SceneryChunk sceneryResources;
+}
+
+[no_read] [no_write]
+asset TwinRes_DefaultResources {
+    TwinRes_DefaultResourceChunk defaultResources;
+}

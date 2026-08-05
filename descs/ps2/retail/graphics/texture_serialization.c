@@ -109,14 +109,14 @@ void ImageBinSerialize(Image* texture, TwinStudio_BinarySerializer* serializer, 
 
             for (uint32_t i = 0; i < pixels; ++i)
             {
-                uint32_t paletteIndex = PaletteIndex(palette, ((Color*)texture->data)[i], paletteIndex);
-                if (paletteIndex == -1)
+                uint32_t foundIndex = PaletteIndex(palette, ((Color*)texture->data)[i], paletteIndex);
+                if (foundIndex == -1)
                 {
                     textureData[i] = 0xFF;
                 }
                 else
                 {
-                    textureData[i] = paletteIndex;
+                    textureData[i] = foundIndex;
                 }
             }
 
@@ -177,9 +177,9 @@ void ImageBinSerialize(Image* texture, TwinStudio_BinarySerializer* serializer, 
                 prevData = mipData;
             }
             TwinStudio_WriteTexPSMCT32(rawTextureData, twinTexture->clutBufferBasePointer, 1, 0, 0, 16, 16, paletteData);
-            uint8_t* gifData = TwinStudio_ArenaAlloc(&tempArena, format->rrw * 256);
+            uint8_t* gifData = TwinStudio_ArenaAlloc(&tempArena, format->rrw * format->rrh * 4);
             TwinStudio_ReadTexPSMCT32(gifData, 0, 1, 0, 0, format->rrw, format->rrh, rawTextureData);
-            imageTag = TwinStudio_ColorsToTag(TwinStudio_BytesToColors(gifData, format->rrw * format->rrh, &tempArena), (format->rrw * format->rrh) / 4, &tempArena);
+            imageTag = TwinStudio_ColorsToTag(TwinStudio_BytesToColors(gifData, format->rrw * format->rrh * 4, &tempArena), format->rrw * format->rrh, &tempArena);
             break;
         }
     }
@@ -238,8 +238,8 @@ void ImageBinDeserialize(Image* texture, TwinStudio_BinarySerializer* deserializ
         case 19: // PSMT8
         {
             uint8_t* gifData = TwinStudio_TagToBytes(&output.gifTags[1], arena);
-            int32_t rrw = output.gifTags[0].outputs[0].gsOutput[1].apd.data32[0];
-            int32_t rrh = output.gifTags[0].outputs[0].gsOutput[1].apd.data32[1];
+            int32_t rrw = output.gifTags[0].outputs[1].gsOutput[0].apd.data32[0];
+            int32_t rrh = output.gifTags[0].outputs[1].gsOutput[0].apd.data32[1];
             int32_t width = texture->width;
             int32_t height = texture->height;
             const uint32_t allocSize = output.gifTags[1].outputsLength * 16;

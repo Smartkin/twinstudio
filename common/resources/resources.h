@@ -30,6 +30,9 @@ typedef enum {
     TS_RT_Body = 1 << 23,
     TS_RT_ParticleSystem = 1 << 24,
     TS_RT_SequenceBehaviorAction = 1 << 25,
+    TS_RT_DynamicScenery = 1 << 26,
+    TS_RT_Scenery = 1 << 27,
+    TS_RT_Collision = 1 << 28,
 } TwinStudio_ResourceType;
 
 #endif // TS_RESOURCES_H

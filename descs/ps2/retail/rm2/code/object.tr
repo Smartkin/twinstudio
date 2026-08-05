@@ -1,3 +1,4 @@
+#include "auto_struct_agent_lab.h"
 
 asset TwinRes_ObjectMessage {
     union messageUnion {
@@ -16,8 +17,8 @@ asset TwinRes_Object {
         struct bitfieldData {
             uint8_t exitPointsAmount : 6;
             uint8_t reactJointsAmount : 6;
-            uint8_t subType;
-            uint8_t type;
+            uint8_t subType : 8;
+            uint8_t type : 8;
             bool unkBool : 1;
             bool hasInstanceProps : 1;
             bool referencesResources : 1;
@@ -119,5 +120,5 @@ asset TwinRes_Object {
     [write_if("source->referencesResources && source->linksUnknowns")] uint16_t* linkedUnknowns;
     [write_if("source->referencesResources && source->linksSounds")] [link_resource("TS_RT_Sound")] uint16_t* linkedSounds;
 
-    // TODO: AgentLab action pack
+    TwinRes_BehaviorCommandPack commandPack;
 }

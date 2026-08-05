@@ -40,6 +40,7 @@ static TwinStudio_GifAddressOutput ProcessGsInput(TwinStudio_BinarySerializer* s
                 default:
                     break;
             }
+            break;
         case REGLIST:
             output.gsOuputsLength = 1;
             output.gsOutput[0].apd.data = input.raw.low;
@@ -93,7 +94,7 @@ TwinStudio_ResultingGifTag TwinStudio_GifTagRead(TwinStudio_BinarySerializer* se
         result.outputs = TwinStudio_ArenaAlloc(arena, (sizeof *result.outputs) * result.outputsLength);
     }
 
-    int32_t outputIndex;
+    int32_t outputIndex = 0;
     if (gifTag.pre == 1)
     {
         TwinStudio_GsRegOutput* output = &result.outputs[0].gsOutput[0];
@@ -114,7 +115,8 @@ TwinStudio_ResultingGifTag TwinStudio_GifTagRead(TwinStudio_BinarySerializer* se
                 }
                 if ((nreg & 1) == 1)
                 {
-                    result.outputs[outputIndex++] = ProcessGsInput(serializer, gifTag.flg, gifTag.packedRegs[j].reg0);
+                    TwinStudio_GifAddressOutput processedOutput = ProcessGsInput(serializer, gifTag.flg, gifTag.packedRegs[j].reg0);
+                    result.outputs[outputIndex++] = processedOutput;
                 }
             }
             break;

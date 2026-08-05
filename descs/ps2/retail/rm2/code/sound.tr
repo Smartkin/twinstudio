@@ -17,8 +17,10 @@ asset TwinRes_Sound {
     uint16_t param4;
     [no_json] uint32_t soundSize;
     [no_json] uint32_t offset;
+    [no_bin] int32_t localization = -1;
 
     [resource("TwinStudio_Wave")] [length("source->isMono ? source->soundSize : source->soundSize / 2")]
     [no_bin] [no_json]
     void* trackData;
+    [no_bin] [no_json] uint8_t* adpcmData;
 }

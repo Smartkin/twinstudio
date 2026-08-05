@@ -47,4 +47,5 @@ asset TwinRes_Body {
     [link_resource("TS_RT_Skin")] uint32_t skin;
     [link_resource("TS_RT_BlendSkin")] uint32_t blendSkin;
     [length(cameraOccludersAmount)] TwinRes_CameraOccluder* cameraOccluders;
+    [length(cameraOccludersAmount)] uint8_t* occluderJointAttachment;
 }

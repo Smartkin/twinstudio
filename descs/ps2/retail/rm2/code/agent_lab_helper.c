@@ -25,8 +25,8 @@ void TwinRes_BehaviorGraphBinDeserializeFull(TwinRes_BehaviorGraph* target, Twin
         arrsetcap(target->states[i].bodies, target->states[i].bodiesAmount);
         for (uint32_t j = 0; j < target->states[i].bodiesAmount; ++j)
         {
-            TwinRes_BehaviorStateBody createdObj;
-            TwinRes_BehaviorStateBodyBinDeserialize(target->states[i].bodies + j, deserializer, arena, size, target->states + i);
+            TwinRes_BehaviorStateBody createdObj = TwinRes_BehaviorStateBodyCreate();
+            TwinRes_BehaviorStateBodyBinDeserialize(&createdObj, deserializer, arena, size, target->states + i);
             arrput(target->states[i].bodies, createdObj);
         }
     }

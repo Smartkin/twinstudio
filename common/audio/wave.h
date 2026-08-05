@@ -11,7 +11,7 @@ typedef struct TwinStudio_Wave {
     uint32_t dataSize;
     uint32_t samplerate;
     uint8_t channels;
-    uint32_t loopPosition;
+    int32_t loopPosition;
 } TwinStudio_Wave;
 
 void TwinStudio_WaveSaveToFile(TwinStudio_StringView path, TwinStudio_Wave wave);

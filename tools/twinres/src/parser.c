@@ -18,7 +18,7 @@
 #define CREATE_ATTRIBUTE(attribName, type, initialValue) (TwinRes_AttributeInfo) { .name = TS_STRING_VIEW(#attribName), .data = __TS_VARIANT_CREATE_##type((initialValue)) }
 
 
-static const uint32_t maxStructFields = 256;
+static const uint32_t maxStructFields = 1024;
 static const uint32_t maxEnums = 256;
 static const uint32_t maxAttributeArgs = 16;
 static const uint32_t maxAstNodes = UINT16_MAX;
@@ -235,9 +235,18 @@ static TwinRes_ParserNode LiteralNode(TwinRes_GeneratorOutput* output, TwinRes_L
             const char* objDefStart = lexer->curChar - 1;
             const uint32_t textIdx = lexer->textIndex - 1;
             EatToken(lexer, TwinRes_TokOpenBracket);
-            while (lexer->curTok.tokenType != TwinRes_TokCloseBracket)
+            int32_t objectDefinitionDepth = 0;
+            while (lexer->curTok.tokenType != TwinRes_TokCloseBracket || objectDefinitionDepth > 0)
             {
                 TwinRes_LexerNextToken(lexer);
+                if (lexer->curTok.tokenType == TwinRes_TokOpenBracket)
+                {
+                    objectDefinitionDepth++;
+                }
+                else if (lexer->curTok.tokenType == TwinRes_TokCloseBracket)
+                {
+                    objectDefinitionDepth--;
+                }
             }
             const uint32_t defLength = lexer->textIndex - textIdx;
             EatToken(lexer, TwinRes_TokCloseBracket);
@@ -534,6 +543,19 @@ static bool HandleFieldConstructor(TwinRes_StructFieldGeneratorOptions* options,
     return true;
 }
 
+static bool HandleFieldCustomBin(TwinRes_StructFieldGeneratorOptions* options, TwinRes_AttributeArgumentsList* arguments)
+{
+    if (arguments->length < 2)
+    {
+        return false;
+    }
+    
+    TwinStudio_VariantSetBool(&options->customBin.data, true);
+    options->customBin.argumentLength = arguments->length;
+    options->customBin.arguments = arguments->arguments;
+    return true;
+}
+
 
 static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_AttributeArgumentsList* arguments, TwinRes_StructFieldGeneratorOptions* options)
 {
@@ -552,6 +574,7 @@ static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_Attri
     if (TryHandleStructFieldAttributeWrapper("link_resource", attribName, arguments, options, HandleFieldLinkResource)) { return; }
     if (TryHandleStructFieldAttributeWrapper("void_read", attribName, arguments, options, HandleFieldVoidRead)) { return; }
     if (TryHandleStructFieldAttributeWrapper("constructor", attribName, arguments, options, HandleFieldConstructor)) { return; }
+    if (TryHandleStructFieldAttributeWrapper("custom_bin", attribName, arguments, options, HandleFieldCustomBin)) { return; }
     fprintf(stderr, "WARNING: Skipped unknown or malformed struct field attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
 }
 
@@ -574,6 +597,7 @@ static inline TwinRes_StructFieldGeneratorOptions GetDefaultFieldOptions()
         .linkResource = CREATE_ATTRIBUTE(link_resource, bool, false),
         .voidRead = CREATE_ATTRIBUTE(void_read, bool, false),
         .constructor = CREATE_ATTRIBUTE(constructor, bool, false),
+        .customBin = CREATE_ATTRIBUTE(custom_bin, bool, false)
     };
 }
 
@@ -1261,6 +1285,16 @@ static int GenerateStructFieldBinarySerialization(TwinRes_ParserNode* node, Twin
 
     const bool isBigEndian = TS_VARIANT_GET(bool, structField->options.toBigEndian.data);
     const TwinStudio_VariantType valueType = structField->valueType & (~TwinStudio_VariantArray);
+    const bool customBinSerial = TS_VARIANT_GET(bool, structField->options.customBin.data);
+    char serialFuncName[2048];
+    if (valueType == TwinStudio_VariantObject && customBinSerial)
+    {
+        snprintf(serialFuncName, 2048, TS_VIEW_FORMAT, TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.customBin.arguments[0])));
+    }
+    else
+    {
+        snprintf(serialFuncName, 2048, TS_VIEW_FORMAT"BinSerialize", TS_VIEW_ARG(structField->type));
+    }
     switch (valueType)
     {
         case TwinStudio_VariantUInt8:
@@ -1322,11 +1356,11 @@ static int GenerateStructFieldBinarySerialization(TwinRes_ParserNode* node, Twin
         case TwinStudio_VariantObject:
             if (!isLengthDefined)
             {
-                fieldBodyWritten = WriteFile(genFile, buffer, "%s"TS_VIEW_FORMAT"BinSerialize(&source->"TS_VIEW_FORMAT"%s, serializer, arena, sizeof("TS_VIEW_FORMAT"), source);\n", extraSpaces, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), indexWriting, TS_VIEW_ARG(structField->type));
+                fieldBodyWritten = WriteFile(genFile, buffer, "%s%s(&source->"TS_VIEW_FORMAT"%s, serializer, arena, sizeof("TS_VIEW_FORMAT"), source);\n", extraSpaces, serialFuncName, TS_VIEW_ARG(structField->name), indexWriting, TS_VIEW_ARG(structField->type));
             }
             else
             {
-                fieldBodyWritten = WriteFile(genFile, buffer, "%s"TS_VIEW_FORMAT"BinSerialize(&source->"TS_VIEW_FORMAT"%s, serializer, arena, %s, source);\n", extraSpaces, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), indexWriting, sizeFormat);
+                fieldBodyWritten = WriteFile(genFile, buffer, "%s%s(&source->"TS_VIEW_FORMAT"%s, serializer, arena, %s, source);\n", extraSpaces, serialFuncName, TS_VIEW_ARG(structField->name), indexWriting, sizeFormat);
             }
             break;
         default:
@@ -1638,6 +1672,16 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             default:
                 break;
         }
+        const bool customBinSerial = TS_VARIANT_GET(bool, structField->options.customBin.data);
+        char deserialFuncName[2048];
+        if (valueType == TwinStudio_VariantObject && customBinSerial)
+        {
+            snprintf(deserialFuncName, 2048, TS_VIEW_FORMAT, TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.customBin.arguments[1])));
+        }
+        else
+        {
+            snprintf(deserialFuncName, 2048, TS_VIEW_FORMAT"BinDeserialize", TS_VIEW_ARG(structField->type));
+        }
         if (isArray)
         {
             if (valueType != TwinStudio_VariantObject)
@@ -1655,13 +1699,13 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             {
                 if (isLengthDefined)
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, %s, target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
-                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, TS_VIEW_ARG(structField->type), sizeFormat, TS_VIEW_ARG(structField->name));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); %s(&createdObj, deserializer, arena, %s, target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
+                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, deserialFuncName, sizeFormat, TS_VIEW_ARG(structField->name));
                 }
                 else
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); "TS_VIEW_FORMAT"BinDeserialize(&createdObj, deserializer, arena, sizeof("TS_VIEW_FORMAT"), target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
-                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); %s(&createdObj, deserializer, arena, sizeof("TS_VIEW_FORMAT"), target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
+                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, deserialFuncName, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
                 }
             }
         }
@@ -1682,11 +1726,11 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             {
                 if (isLengthDefined)
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "   "TS_VIEW_FORMAT"BinDeserialize(&target->"TS_VIEW_FORMAT", deserializer, arena, %s, target);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), sizeFormat);
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   %s(&target->"TS_VIEW_FORMAT", deserializer, arena, %s, target);\n", deserialFuncName, TS_VIEW_ARG(structField->name), sizeFormat);
                 }
                 else
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "   "TS_VIEW_FORMAT"BinDeserialize(&target->"TS_VIEW_FORMAT", deserializer, arena, sizeof("TS_VIEW_FORMAT"), target);\n", TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   %s(&target->"TS_VIEW_FORMAT", deserializer, arena, sizeof("TS_VIEW_FORMAT"), target);\n", deserialFuncName, TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type));
                 }
             }
         }
@@ -2365,7 +2409,7 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
             amountWritten += fieldsWritten;
             buffer += fieldsWritten;
 
-            int bodyEndWritten = WriteFile(genFile, buffer, "   cJSON_Delete(json);\n}\n\n");
+            int bodyEndWritten = WriteFile(genFile, buffer, "   }\n\n");
             if (bodyEndWritten == 0)
             {
                 return 0;

@@ -56,6 +56,9 @@ void  TwinStudio_BinReadVoid(TwinStudio_BinarySerializer* serializer, size_t siz
 
 
 void  TwinStudio_BinWriteToFile(TwinStudio_StringView path, TwinStudio_BinarySerializer* serializer);
+void  TwinStudio_BinWriteToFileC(const char* path, TwinStudio_BinarySerializer* serializer);
+TwinStudio_BinarySerializer* TwinStudio_BinWriteToFileStream(TwinStudio_StringView path);
+TwinStudio_BinarySerializer* TwinStudio_BinWriteToFileStreamC(const char* path);
 TwinStudio_BinarySerializer* TwinStudio_BinReadFromFile(TwinStudio_StringView path, bool streamFile);
 
 #endif // TS_BIN_SERIALIZER_H

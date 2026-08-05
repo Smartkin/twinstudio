@@ -42,71 +42,71 @@ Quaternion QuaternionCreate()
 
 void Vector2BinSerialize(Vector2* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinWriteAny(serializer, v, size);
+    TwinStudio_BinWriteAny(serializer, v, sizeof(Vector2));
 }
 
 
 void Vector3BinSerialize(Vector3* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinWriteAny(serializer, v, size);
+    TwinStudio_BinWriteAny(serializer, v, sizeof(Vector3));
 }
 
 
 void Vector4BinSerialize(Vector4* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinWriteAny(serializer, v, size);
+    TwinStudio_BinWriteAny(serializer, v, sizeof(Vector4));
 }
 
 void BoundingBox4BinSerialize(BoundingBox4* bb, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinWriteAny(serializer, bb, size);
+    TwinStudio_BinWriteAny(serializer, bb, sizeof(BoundingBox4));
 }
 
 
 void MatrixBinSerialize(Matrix* mat, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinWriteAny(serializer, mat, size);
+    TwinStudio_BinWriteAny(serializer, mat, sizeof(Matrix));
 }
 
 
 void QuaternionBinSerialize(Quaternion* q, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinWriteAny(serializer, q, size);
+    TwinStudio_BinWriteAny(serializer, q, sizeof(Quaternion));
 }
 
 void Vector2BinDeserialize(Vector2* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinReadStructDirect(serializer, v, size);
+    TwinStudio_BinReadStructDirect(serializer, v, sizeof(Vector2));
 }
 
 
 void Vector3BinDeserialize(Vector3* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinReadStructDirect(serializer, v, size);
+    TwinStudio_BinReadStructDirect(serializer, v, sizeof(Vector3));
 }
 
 
 void Vector4BinDeserialize(Vector4* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinReadStructDirect(serializer, v, size);
+    TwinStudio_BinReadStructDirect(serializer, v, sizeof(Vector4));
 }
 
 
 void BoundingBox4BinDeserialize(BoundingBox4* bb, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinReadStructDirect(serializer, bb, size);
+    TwinStudio_BinReadStructDirect(serializer, bb, sizeof(BoundingBox4));
 }
 
 
 void MatrixBinDeserialize(Matrix* mat, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinReadStructDirect(serializer, mat, size);
+    TwinStudio_BinReadStructDirect(serializer, mat, sizeof(Matrix));
 }
 
 
 void QuaternionBinDeserialize(Quaternion* q, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinStudio_BinReadStructDirect(serializer, q, size);
+    TwinStudio_BinReadStructDirect(serializer, q, sizeof(Quaternion));
 }
 
 

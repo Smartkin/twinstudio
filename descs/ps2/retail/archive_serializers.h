@@ -10,7 +10,7 @@
 
 void TwinRes_MbArchiveDeserialize(TwinRes_MbArchive* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData);
 void TwinRes_BdArchiveDeserialize(TwinRes_BdArchive* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData);
-TwinRes_MbRecord* TwinRes_MbArhiveIterateItem(TwinRes_MbArchive* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData);
-TwinRes_BdRecord* TwinRes_BdArhiveIterateItem(TwinRes_BdArchive* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData);
+TwinRes_MbRecord TwinRes_MbArchiveIterateItem(TwinRes_MbArchive* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData);
+TwinRes_BdRecord TwinRes_BdArchiveIterateItem(TwinRes_BdArchive* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData);
 
 #endif // TR_ARCHIVE_SERIALIZERS_H

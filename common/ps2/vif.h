@@ -6,6 +6,7 @@
 #include "memory/memory.h"
 #include "serialization/binary_serializer.h"
 #include "gif_tag.h"
+#include "defines/defines.h"
 
 
 typedef enum
@@ -54,91 +55,96 @@ typedef enum
 
 typedef struct TwinStudio_VIFInstruction {
     union {
-        uint16_t immediate;
+        uint32_t fullInstruction;
         struct {
-            uint8_t cl;
-            uint8_t wl;
-        } stcycl;
-        struct {
-            uint16_t offset : 10;
-            uint8_t _pad : 6;
-        } offset;
-        struct {
-            uint16_t base : 10;
-            uint8_t _pad : 6;
-        } base;
-        struct {
-            uint16_t addr : 10;
-            uint8_t _pad : 6;
-        } itop;
-        struct {
-            uint8_t mode : 2;
-            uint16_t _pad : 14;
-        } stmod;
-        struct {
-            uint16_t _pad : 15;
-            uint8_t mask : 1;
-        } mskpath3;
-        struct {
-            uint16_t mark;
-        } mark;
-        struct {
-            uint16_t _;
-        } flushe;
-        struct {
-            uint16_t _;
-        } flush;
-        struct {
-            uint16_t _;
-        } flusha;
-        struct {
-            uint16_t execaddr;
-        } mscal;
-        struct {
-            uint16_t _;
-        } mscnt;
-        struct {
-            uint16_t execaddr;
-        } mscalf;
-        struct {
-            uint16_t _;
-        } stmask;
-        struct {
-            uint16_t _;
-        } strow;
-        struct {
-            uint16_t _;
-        } stcol;
-        struct {
-            uint16_t loadaddr;
-        } mpg;
-        struct {
-            uint16_t size;
-        } direct;
-        struct {
-            uint16_t size;
-        } directhl;
-        struct {
-            uint16_t addr : 10;
-            uint8_t  _pad : 4;
-            uint8_t usn   : 1;
-            uint8_t flg   : 1;
-        } unpack;
-    };
-    uint8_t num;
-    union {
-        uint8_t command;
-        struct {
-            TwinStudio_VIFCode cmd : 7;
-            uint8_t interrupt : 1;
+            union {
+                uint16_t immediate;
+                struct {
+                    uint8_t cl;
+                    uint8_t wl;
+                } stcycl;
+                struct {
+                    uint16_t offset : 10;
+                    uint8_t _pad : 6;
+                } offset;
+                struct {
+                    uint16_t base : 10;
+                    uint8_t _pad : 6;
+                } base;
+                struct {
+                    uint16_t addr : 10;
+                    uint8_t _pad : 6;
+                } itop;
+                struct {
+                    uint8_t mode : 2;
+                    uint16_t _pad : 14;
+                } stmod;
+                struct {
+                    uint16_t _pad : 15;
+                    uint8_t mask : 1;
+                } mskpath3;
+                struct {
+                    uint16_t mark;
+                } mark;
+                struct {
+                    uint16_t _;
+                } flushe;
+                struct {
+                    uint16_t _;
+                } flush;
+                struct {
+                    uint16_t _;
+                } flusha;
+                struct {
+                    uint16_t execaddr;
+                } mscal;
+                struct {
+                    uint16_t _;
+                } mscnt;
+                struct {
+                    uint16_t execaddr;
+                } mscalf;
+                struct {
+                    uint16_t _;
+                } stmask;
+                struct {
+                    uint16_t _;
+                } strow;
+                struct {
+                    uint16_t _;
+                } stcol;
+                struct {
+                    uint16_t loadaddr;
+                } mpg;
+                struct {
+                    uint16_t size;
+                } direct;
+                struct {
+                    uint16_t size;
+                } directhl;
+                struct {
+                    uint16_t addr : 10;
+                    uint8_t  _pad : 4;
+                    uint8_t usn   : 1;
+                    uint8_t flg   : 1;
+                } unpack;
+            };
+            uint8_t num;
+            union {
+                uint8_t command;
+                TS_COMPACT_STRUCT {
+                    TwinStudio_VIFCode cmd : 7;
+                    uint8_t interrupt : 1;
+                };
+                struct {
+                    uint8_t vl : 2;
+                    uint8_t vn : 2;
+                    uint8_t m : 1;
+                    uint8_t ident : 2;
+                    uint8_t interrupt : 1;
+                } unpck;
+            };
         };
-        struct {
-            uint8_t vl : 2;
-            uint8_t vn : 2;
-            uint8_t m : 1;
-            uint8_t ident : 2;
-            uint8_t interrupt : 1;
-        } unpck;
     };
 } TwinStudio_VIFInstruction;
 

@@ -3,6 +3,7 @@
 #include "rpmalloc.h"
 #include "string_view/string_view.h"
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -582,19 +583,44 @@ void TwinStudio_BinReadVoid(TwinStudio_BinarySerializer* serializer, size_t size
     AdvanceSerializer(serializer, size);
 }
 
-void TwinStudio_BinWriteToFile(TwinStudio_StringView path, TwinStudio_BinarySerializer* serializer)
+void  TwinStudio_BinWriteToFileC(const char* path, TwinStudio_BinarySerializer* serializer)
 {
-    FILE* f = fopen(TwinStudio_GetCString(&path), "wb");
+    FILE* f = fopen(path, "wb");
     fwrite(serializer->data, serializer->dataIndex + 1, 1, f);
     fclose(f);
+}
+
+void TwinStudio_BinWriteToFile(TwinStudio_StringView path, TwinStudio_BinarySerializer* serializer)
+{
+    char* cPath = TwinStudio_GetCStringDynamic(&path);
+    TwinStudio_BinWriteToFileC(cPath, serializer);
+    TWIN_FREE(cPath);
+}
+
+
+TwinStudio_BinarySerializer* TwinStudio_BinWriteToFileStream(TwinStudio_StringView path)
+{
+    char* cPath = TwinStudio_GetCStringDynamic(&path);
+    TwinStudio_BinarySerializer* result = TwinStudio_BinWriteToFileStreamC(cPath);
+    TWIN_FREE(cPath);
+    return result;
+}
+
+
+TwinStudio_BinarySerializer* TwinStudio_BinWriteToFileStreamC(const char* path)
+{
+    FILE* f = fopen(path, "wb");
+    TwinStudio_BinarySerializer* serializer = TwinStudio_BinSerializerAllocate(f, TwinStudio_BinarySerializerModeWrite, 0, true);
+    return serializer;
 }
 
 
 TwinStudio_BinarySerializer* TwinStudio_BinReadFromFile(TwinStudio_StringView path, bool streamFile)
 {
-    const char* cPath = TwinStudio_GetCString(&path);
+    char* cPath = TwinStudio_GetCStringDynamic(&path);
     const uint64_t fileSize = GetFileLength(cPath);
     FILE* f = fopen(cPath, "rb");
+    TWIN_FREE(cPath);
     if (!streamFile)
     {
         void* data = TWIN_MALLOC(fileSize);

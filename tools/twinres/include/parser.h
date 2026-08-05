@@ -69,6 +69,7 @@ typedef struct TwinRes_StructFieldGeneratorOptions {
     TwinRes_AttributeInfo linkResource;
     TwinRes_AttributeInfo voidRead;
     TwinRes_AttributeInfo constructor;
+    TwinRes_AttributeInfo customBin;
 } TwinRes_StructFieldGeneratorOptions;
 
 

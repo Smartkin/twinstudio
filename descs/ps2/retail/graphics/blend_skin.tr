@@ -4,7 +4,7 @@
 asset TwinRes_BlendSkinModelPartMorph {
     uint32_t faceVifDataLength;
     uint32_t vertexesAmount;
-    [blob] [length("arrlen(source->vifData)")] void* vifData;
+    [blob] [length("source->faceVifDataLength << 4")] void* vifData;
 }
 
 [no_json]
