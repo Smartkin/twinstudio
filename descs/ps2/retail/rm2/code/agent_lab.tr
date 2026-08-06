@@ -3846,9 +3846,9 @@ asset TwinRes_BehaviorCommandPack {
     TwinRes_BehaviorCommand* commands;
 }
 
-asset TwinRes_BehaviorCommandSequence {
-    uint16_t id;
+asset TwinRes_BehaviorCustomCommand {
     TwinRes_BehaviorCommandPack pack;
+    uint16_t id;
 }
 
 asset TwinRes_BehaviorCommandSequences {
@@ -3861,6 +3861,6 @@ asset TwinRes_BehaviorCommandSequences {
         };
     };
 
-    [length(sequencesAmount)] TwinRes_BehaviorCommandSequence* sequences;
+    [length(sequencesAmount)] TwinRes_BehaviorCustomCommand* customCommands;
     [no_length("createdObj.hasNext")] TwinRes_BehaviorCommand* initCommands;
 }

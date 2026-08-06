@@ -338,15 +338,15 @@ asset TwinRes_Camera {
     };
 
     union [write_all] subCamera2 {
-        [write_if("source->cameraType1 == 0xA19")]  TwinRes_BossCamera bossCamera2;
-        [write_if("source->cameraType1 == 0x1C02")] TwinRes_PointCamera pointCamera2;
-        [write_if("source->cameraType1 == 0x1C03")] TwinRes_LineCamera lineCamera2;
-        [write_if("source->cameraType1 == 0x1C04")] TwinRes_PathCamera pathCamera2;
-        [write_if("source->cameraType1 == 0x1C06")] TwinRes_SplineCamera splineCamera2;
-        [write_if("source->cameraType1 == 0x1C09")] TwinRes_Sub1C09Camera sub1C09Camera2;
-        [write_if("source->cameraType1 == 0x1C0B")] TwinRes_Point2Camera point2Camera2;
-        [write_if("source->cameraType1 == 0x1C0C")] TwinRes_Sub1C0CCamera sub1C0CCCamera2;
-        [write_if("source->cameraType1 == 0x1C0D")] TwinRes_Line2Camera line2Camera2;
-        [write_if("source->cameraType1 == 0x1C0F")] TwinRes_ZoneCamera zoneCamera2;
+        [write_if("source->cameraType2 == 0xA19")]  TwinRes_BossCamera bossCamera2;
+        [write_if("source->cameraType2 == 0x1C02")] TwinRes_PointCamera pointCamera2;
+        [write_if("source->cameraType2 == 0x1C03")] TwinRes_LineCamera lineCamera2;
+        [write_if("source->cameraType2 == 0x1C04")] TwinRes_PathCamera pathCamera2;
+        [write_if("source->cameraType2 == 0x1C06")] TwinRes_SplineCamera splineCamera2;
+        [write_if("source->cameraType2 == 0x1C09")] TwinRes_Sub1C09Camera sub1C09Camera2;
+        [write_if("source->cameraType2 == 0x1C0B")] TwinRes_Point2Camera point2Camera2;
+        [write_if("source->cameraType2 == 0x1C0C")] TwinRes_Sub1C0CCamera sub1C0CCCamera2;
+        [write_if("source->cameraType2 == 0x1C0D")] TwinRes_Line2Camera line2Camera2;
+        [write_if("source->cameraType2 == 0x1C0F")] TwinRes_ZoneCamera zoneCamera2;
     };
 }

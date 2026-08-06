@@ -5,7 +5,10 @@
 #include "ps2/retail/auto_struct_chunk.h"
 #include "ps2/retail/auto_struct_mb_archive.h"
 #include "ps2/retail/chunk_serializer.h"
+#include "ps2/retail/graphics/auto_struct_blend_skin.h"
+#include "ps2/retail/graphics/auto_struct_skin.h"
 #include "ps2/retail/graphics/texture_serialization.h"
+#include "ps2/vif.h"
 #include "serialization/binary_serializer.h"
 #include <stdbool.h>
 #include <stdio.h>
