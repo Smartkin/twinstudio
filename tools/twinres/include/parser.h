@@ -50,6 +50,7 @@ typedef struct TwinRes_StructGeneratorOptions {
     TwinRes_AttributeInfo noRead;
     TwinRes_AttributeInfo noWrite;
     TwinRes_AttributeInfo writeAll;
+    TwinRes_AttributeInfo resource;
 } TwinRes_StructGeneratorOptions;
 
 
@@ -70,6 +71,7 @@ typedef struct TwinRes_StructFieldGeneratorOptions {
     TwinRes_AttributeInfo voidRead;
     TwinRes_AttributeInfo constructor;
     TwinRes_AttributeInfo customBin;
+    TwinRes_AttributeInfo ctxId;
 } TwinRes_StructFieldGeneratorOptions;
 
 

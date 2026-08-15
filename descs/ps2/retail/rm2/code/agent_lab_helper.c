@@ -16,9 +16,9 @@ void TwinRes_BehaviorGraphBinSerializeFull(TwinRes_BehaviorGraph* source, TwinSt
     }
 }
 
-void TwinRes_BehaviorGraphBinDeserializeFull(TwinRes_BehaviorGraph* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void TwinRes_BehaviorGraphBinDeserializeFull(TwinStudio_DeserializationContext* ctx, TwinRes_BehaviorGraph* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinRes_BehaviorGraphBinDeserialize(target, deserializer, arena, size, userData);
+    TwinRes_BehaviorGraphBinDeserialize(ctx, target, deserializer, arena, size, userData);
 
     for (uint32_t i = 0; i < arrlen(target->states); ++i)
     {
@@ -26,7 +26,7 @@ void TwinRes_BehaviorGraphBinDeserializeFull(TwinRes_BehaviorGraph* target, Twin
         for (uint32_t j = 0; j < target->states[i].bodiesAmount; ++j)
         {
             TwinRes_BehaviorStateBody createdObj = TwinRes_BehaviorStateBodyCreate();
-            TwinRes_BehaviorStateBodyBinDeserialize(&createdObj, deserializer, arena, size, target->states + i);
+            TwinRes_BehaviorStateBodyBinDeserialize(ctx, &createdObj, deserializer, arena, size, target->states + i);
             arrput(target->states[i].bodies, createdObj);
         }
     }

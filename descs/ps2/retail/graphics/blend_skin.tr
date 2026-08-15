@@ -25,7 +25,7 @@ asset TwinRes_BlendSkinModel {
     [length(partsAmount)] [constructor(morphsAmount)] TwinRes_BlendSkinModelPart* modelParts;
 }
 
-[no_json]
+[no_json] [resource("TS_RT_BlendSkin")]
 asset TwinRes_BlendSkin {
     uint32_t modelsAmount;
     uint32_t morphsAmount;

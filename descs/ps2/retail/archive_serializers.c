@@ -15,7 +15,7 @@ static TwinRes_MbRecord MbArchiveDeserializeOneItem(TwinRes_MbArchive* target, T
     TwinStudio_BinSerializerSetPosition(deserializer, headerRecord->offset);
     TwinRes_MbRecord record = TwinRes_MbRecordCreate();
     record.header = *headerRecord;
-    TwinRes_MbRecordBinDeserialize(&record, deserializer, arena, headerRecord->size, target);
+    TwinRes_MbRecordBinDeserialize(NULL, &record, deserializer, arena, headerRecord->size, target);
     return record;
 }
 
@@ -26,7 +26,7 @@ static TwinRes_BdRecord BdArchiveDeserializeOneItem(TwinRes_BdArchive* target, T
     TwinStudio_BinSerializerSetPosition(deserializer, headerRecord->offset);
     TwinRes_BdRecord record = TwinRes_BdRecordCreate();
     record.header = *headerRecord;
-    TwinRes_BdRecordBinDeserialize(&record, deserializer, arena, headerRecord->length, target);
+    TwinRes_BdRecordBinDeserialize(NULL, &record, deserializer, arena, headerRecord->length, target);
     return record;
 }
 

@@ -1,5 +1,6 @@
 #include "audio/wave.h"
 
+[resource("TS_RT_Sound | TS_RT_Localized")]
 asset TwinRes_Sound {
     union headerUnion {
         uint32_t header;

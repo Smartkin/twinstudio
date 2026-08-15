@@ -7,7 +7,7 @@ asset TwinRes_SkinPart {
     [blob] [length(vifDataLength)] void* vifData;
 }
 
-[no_json]
+[no_json] [resource("TS_RT_Skin")]
 asset TwinRes_Skin {
     TwinRes_SkinPart* skinParts;
 }

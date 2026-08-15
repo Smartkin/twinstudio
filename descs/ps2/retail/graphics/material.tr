@@ -127,6 +127,7 @@ asset TwinRes_MaterialShader {
     TwinRes_ShaderAnimation animation;
 }
 
+[resource("TS_RT_Material")]
 asset TwinRes_Material {
     uint64_t appliedShaders;
     uint32_t dmaChainIndex;

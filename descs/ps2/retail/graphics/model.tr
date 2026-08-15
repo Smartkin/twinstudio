@@ -8,7 +8,7 @@ asset TwinRes_ModelPart {
     [blob] [length(unusedBlobLength)] void* unusedBlob;
 }
 
-[no_json]
+[no_json] [resource("TS_RT_Model")]
 asset TwinRes_Model {
     TwinRes_ModelPart* modelParts;
 }

@@ -18,6 +18,7 @@ asset TwinRes_TextureFormats {
     [length(15)] TwinRes_TextureFormat* formats;
 }
 
+[resource("TS_RT_Texture")]
 asset TwinRes_Texture {
     [no_json] uint32_t textureDataLength;
     [no_json] uint32_t headerSignature = 0xbbcccdcd;

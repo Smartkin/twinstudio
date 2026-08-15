@@ -18,7 +18,10 @@ add_library(common STATIC ui/ui.c
     audio/adpcm.c
     image/ez_swizzle.c
     ps2/gif_tag.c
-    ps2/vif.c)
+    ps2/vif.c
+    resources/resources.c
+    resources/chunk_resources.c
+    render/mesh.c)
 target_include_directories(common PUBLIC .)
 target_link_libraries(common PUBLIC dependencies flecs::flecs_static raylib)
 target_compile_features(common PRIVATE c_std_11)

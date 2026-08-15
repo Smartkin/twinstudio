@@ -5,11 +5,13 @@
 #include "ps2/retail/auto_struct_chunk.h"
 #include "ps2/retail/auto_struct_mb_archive.h"
 #include "ps2/retail/chunk_serializer.h"
-#include "ps2/retail/graphics/auto_struct_blend_skin.h"
-#include "ps2/retail/graphics/auto_struct_skin.h"
 #include "ps2/retail/graphics/texture_serialization.h"
-#include "ps2/vif.h"
+#include "ps2/retail/rm2/code/auto_struct_body.h"
+#include "render/mesh.h"
+#include "resources/chunk_resources.h"
+#include "resources/resources.h"
 #include "serialization/binary_serializer.h"
+#include "serialization/helpers.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +34,7 @@
 #include "ui/fonts.h"
 #include "ps2/retail/auto_struct_mh_archive.h"
 #include "ps2/retail/auto_struct_bh_archive.h"
+#include "converters/mesh_converters.h"
 
 
 void HandleClayErrors(Clay_ErrorData errorData)
@@ -56,7 +59,7 @@ void UnpackMusicArchives()
     TwinStudio_Arena archiveArena = TwinStudio_CreateArena(1024UL * 1024UL * 200UL);
     TwinStudio_StringView filePath = TwinStudio_CopyFromCStringArena(&archiveArena, openedFile);
     TwinStudio_BinarySerializer* deserializer = TwinStudio_BinReadFromFile(filePath, false);
-    TwinRes_MhArchiveBinDeserialize(&headerArchive, deserializer, &archiveArena, TwinStudio_BinGetStreamLength(deserializer), NULL);
+    TwinRes_MhArchiveBinDeserialize(NULL, &headerArchive, deserializer, &archiveArena, TwinStudio_BinGetStreamLength(deserializer), NULL);
     for (uint32_t i = 0; i < headerArchive.recordsAmount; ++i)
     {
         fprintf(stderr, "Track %d. Size: %d\n", i + 1, headerArchive.records[i].size);
@@ -112,7 +115,7 @@ void UnpackBandicootArchives()
     TwinStudio_Arena archiveArena = TwinStudio_CreateArena(1024UL * 1024UL * 200UL);
     TwinStudio_StringView filePath = TwinStudio_CopyFromCStringArena(&archiveArena, openedFile);
     TwinStudio_BinarySerializer* deserializer = TwinStudio_BinReadFromFile(filePath, false);
-    TwinRes_BhArchiveBinDeserialize(&headerArchive, deserializer, &archiveArena, TwinStudio_BinGetStreamLength(deserializer), NULL);
+    TwinRes_BhArchiveBinDeserialize(NULL, &headerArchive, deserializer, &archiveArena, TwinStudio_BinGetStreamLength(deserializer), NULL);
     uint32_t recordsAmt = arrlen(headerArchive.records);
     for (uint32_t i = 0; i < recordsAmt; ++i)
     {
@@ -172,7 +175,24 @@ void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, voi
     TwinRes_Chunk chunk = TwinRes_ChunkCreate();
     TwinStudio_BinarySerializer* resourceDeserializer = TwinStudio_BinReadFromFile(resourcePath, true);
     TwinStudio_BinarySerializer* sceneryDeserializer = TwinStudio_BinReadFromFile(sceneryPath, true);
-    TwinRes_ChunkBinDeserialize(&chunk, &chunkArena, resourceDeserializer, sceneryDeserializer);
+    TwinStudio_DeserializationContext ctx = { 0 };
+    TwinStudio_ChunkResourceManager chunkResources = { 0 };
+    ctx.chunkResManager = &chunkResources;
+    ctx.curItemTwinId = 0;
+    TwinRes_ChunkBinDeserialize(&ctx, &chunk, &chunkArena, resourceDeserializer, sceneryDeserializer);
+    TwinStudio_DumpChunkResources(&chunkResources);
+
+    size_t bodyAmt = 0;
+    TwinStudio_ChunkResource* bodiesRes = TwinStudio_GetChunkResourcesByType(&chunkResources, TS_RT_Body, &bodyAmt);
+    TwinStudio_Arena convertArena = TwinStudio_CreateArena(1024UL * 1024UL * 10UL);
+    for (size_t i = 0; i < bodyAmt; ++i)
+    {
+        TwinRes_Body* body = (bodiesRes + i)->data;
+        TwinStudio_RenderBody renderBody = TwinStudio_ConvertPs2Body(&chunkResources, body, &convertArena);
+        // TODO: Test GLTF conversion here
+    }
+
+    TwinStudio_ArenaFree(&convertArena);
 
     TwinStudio_Arena chunkWriteArena = TwinStudio_CreateArena(1024UL * 1024UL * 30UL);
     char writePath[1024];
@@ -184,11 +204,9 @@ void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, voi
     TwinStudio_BinarySerializer* scenerySerializer  = TwinStudio_BinWriteToFileStream(sceneryWritePath);
     TwinRes_ChunkBinSerialize(&chunk, &chunkWriteArena, resourceSerializer, scenerySerializer);
 
-    fprintf(stderr, "Read chunk. Test value from collision %d\n", chunk.chunkResources.collision.unkInt);
+    fprintf(stderr, "Read chunk");
     TwinStudio_BinSerializerFree(resourceDeserializer);
-    TwinStudio_BinSerializerFree(sceneryDeserializer);
     TwinStudio_BinSerializerFree(resourceSerializer);
-    TwinStudio_BinSerializerFree(scenerySerializer);
     TwinStudio_ArenaFree(&chunkArena);
     TwinStudio_ArenaFree(&chunkWriteArena);
 }
@@ -213,7 +231,7 @@ int main(int argc, char** argv)
     TwinStudio_UiButtonDesc testBtn = {
         .id = TS_STRING_VIEW("TEST_BUTTON"),
         .font = TwinStudio_FontInter,
-        .label = TS_STRING_VIEW("Click Me!"),
+        .label = TS_STRING_VIEW("Open chunk and convert Body to RenderBody to GLTF!"),
         .clickCallback = HandleButtonClick
     };
 

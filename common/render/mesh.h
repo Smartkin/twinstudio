@@ -14,7 +14,7 @@ typedef enum {
 
 
 typedef struct TwinStudio_Material {
-    void** textures;
+    Image* texture;
 } TwinStudio_Material;
 
 
@@ -26,7 +26,7 @@ typedef struct TwinStudio_MeshVertex {
     Vector4 color;
     Vector4 emit;
     Vector3* morphOffsets;
-    float  weights[3];
+    float   weights[3];
     int32_t jointIndices[3];
     union {
         uint8_t presentFields;
@@ -40,18 +40,31 @@ typedef struct TwinStudio_MeshVertex {
 } TwinStudio_MeshVertex;
 
 typedef struct TwinStudio_MeshFace {
-    TwinStudio_MeshVertex vertexes[3];
+    uint32_t idx[3];
     TwinStudio_Material material;
 } TwinStudio_MeshFace;
 
 typedef struct TwinStudio_Mesh {
     TwinStudio_MeshFace* faces;
+    TwinStudio_MeshVertex* vertexes;
 } TwinStudio_Mesh;
 
 typedef struct TwinStudio_Animation {
+    Vector3** positionSpline; // per joint
+    Vector3** scaleSpline; // per joint
+    Quaternion** rotationSpline; // per joint
+    float** morphSpline; // per morph face
 } TwinStudio_Animation;
 
 typedef struct TwinStudio_Joint {
+    uint32_t reactJointId;
+    uint32_t id;
+    uint32_t parentId;
+    uint32_t childrenAmount;
+    Vector4  localTranslation;
+    Vector4  worldTranslation;
+    Quaternion localRotation;
+    Quaternion additionalAnimationRotation;
 } TwinStudio_Joint;
 
 typedef struct TwinStudio_ExitPoint {
@@ -61,13 +74,17 @@ typedef struct TwinStudio_ExitPoint {
 } TwinStudio_ExitPoint;
 
 typedef struct TwinStudio_RenderBody {
-    TwinStudio_Mesh* blendSkin;
-    TwinStudio_Mesh* skin;
-    TwinStudio_Mesh** rigidBodies;
+    TwinStudio_Mesh blendSkin;
+    TwinStudio_Mesh skin;
+    TwinStudio_Mesh* rigidBodies;
     TwinStudio_Joint* joints;
     TwinStudio_ExitPoint* exitPoints;
     TwinStudio_Animation** animations;
 } TwinStudio_RenderBody;
 
+
+int32_t TwinStudio_MeshAddVertex(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v);
+void TwinStudio_MeshAddFace(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v1, TwinStudio_MeshVertex v2, TwinStudio_MeshVertex v3, TwinStudio_Material material);
+void TwinStudio_MeshAddFaceI(TwinStudio_Mesh* mesh, int32_t idx1, int32_t idx2, int32_t idx3, TwinStudio_Material material);
 
 #endif // TS_MESH_H

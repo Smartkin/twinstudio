@@ -6,6 +6,12 @@
 #include <cJSON.h>
 #include "binary_serializer.h"
 #include "memory/memory.h"
+#include "resources/chunk_resources.h"
+
+typedef struct TwinStudio_DeserializationContext {
+    TwinStudio_ChunkResourceManager* chunkResManager;
+    uint32_t curItemTwinId;
+} TwinStudio_DeserializationContext;
 
 typedef struct BoundingBox4 {
     Vector4 min;
@@ -26,12 +32,12 @@ void BoundingBox4BinSerialize(BoundingBox4* bb, TwinStudio_BinarySerializer* ser
 void MatrixBinSerialize(Matrix* mat, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
 void QuaternionBinSerialize(Quaternion* q, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
 
-void Vector2BinDeserialize(Vector2* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
-void Vector3BinDeserialize(Vector3* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
-void Vector4BinDeserialize(Vector4* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
-void BoundingBox4BinDeserialize(BoundingBox4* bb, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
-void MatrixBinDeserialize(Matrix* mat, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
-void QuaternionBinDeserialize(Quaternion* q, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
+void Vector2BinDeserialize(TwinStudio_DeserializationContext* ctx, Vector2* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
+void Vector3BinDeserialize(TwinStudio_DeserializationContext* ctx, Vector3* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
+void Vector4BinDeserialize(TwinStudio_DeserializationContext* ctx, Vector4* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
+void BoundingBox4BinDeserialize(TwinStudio_DeserializationContext* ctx, BoundingBox4* bb, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
+void MatrixBinDeserialize(TwinStudio_DeserializationContext* ctx, Matrix* mat, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
+void QuaternionBinDeserialize(TwinStudio_DeserializationContext* ctx, Quaternion* q, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);
 
 
 cJSON* Vector2JsonSerialize(Vector2* v);

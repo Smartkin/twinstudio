@@ -24,55 +24,55 @@
 [no_json]
 asset TwinRes_TexturesSection {
     TwinRes_SectionHeader header = { .id = 0, .magic = 1, .sectionMagic = 3 };
-    [length(header.itemsCount)] TwinRes_Texture* textures;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Texture* textures;
 }
 
 [no_json]
 asset TwinRes_MaterialsSection {
     TwinRes_SectionHeader header = { .id = 1, .magic = 1, .sectionMagic = 3 };
-    [length(header.itemsCount)] TwinRes_Material* materials;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Material* materials;
 }
 
 [no_json]
 asset TwinRes_ModelsSection {
     TwinRes_SectionHeader header = { .id = 2, .magic = 1, .sectionMagic = 3 };
-    [length(header.itemsCount)] TwinRes_Model* models;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Model* models;
 }
 
 [no_json]
 asset TwinRes_RigidModelsSection {
     TwinRes_SectionHeader header = { .id = 3, .magic = 1, .sectionMagic = 3 };
-    [length(header.itemsCount)] TwinRes_RigidModel* rigidModels;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_RigidModel* rigidModels;
 }
 
 [no_json]
 asset TwinRes_SkinsSection {
     TwinRes_SectionHeader header = { .id = 4, .magic = 1, .sectionMagic = 3 };
-    [length(header.itemsCount)] TwinRes_Skin* skins;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Skin* skins;
 }
 
 [no_json]
 asset TwinRes_BlendSkinsSection {
     TwinRes_SectionHeader header = { .id = 5, .magic = 1, .sectionMagic = 3 };
-    [length(header.itemsCount)] TwinRes_BlendSkin* blendSkins;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_BlendSkin* blendSkins;
 }
 
 [no_json]
 asset TwinRes_MeshesSection {
     TwinRes_SectionHeader header = { .id = 6, .magic = 1, .sectionMagic = 3 };
-    [length(header.itemsCount)] TwinRes_RigidModel* meshes;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_RigidModel* meshes;
 }
 
 [no_json]
 asset TwinRes_LodsSection {
     TwinRes_SectionHeader header = { .id = 7, .magic = 1, .sectionMagic = 3 };
-    [length(header.itemsCount)] TwinRes_Lod* lods;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Lod* lods;
 }
 
 [no_json]
 asset TwinRes_SkydomesSection {
     TwinRes_SectionHeader header = { .id = 8, .magic = 1, .sectionMagic = 3 };
-    [length(header.itemsCount)] TwinRes_Skydome* skydomes;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Skydome* skydomes;
 }
 
 [no_json] [no_bin]
@@ -92,7 +92,7 @@ asset TwinRes_GraphicsSection {
 [no_json]
 asset TwinRes_ObjectsSection {
     TwinRes_SectionHeader header = { .id = 0, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_Object* objects;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Object* objects;
 }
 
 [no_json]
@@ -107,31 +107,31 @@ asset TwinRes_AgentLabBehaviorsStorage {
 [no_json]
 asset TwinRes_AgentLabBehaviorsSection {
     TwinRes_SectionHeader header = { .id = 1, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] [constructor("header.records[i].itemId")] TwinRes_AgentLabBehaviorsStorage* behaviors;
+    [length(header.itemsCount)] [constructor("header.records[i].itemId")] [ctx_id("target->header.records[i].itemId")] TwinRes_AgentLabBehaviorsStorage* behaviors;
 }
 
 [no_json]
 asset TwinRes_AnimationsSection {
     TwinRes_SectionHeader header = { .id = 2, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_Animation* animations;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Animation* animations;
 }
 
 [no_json]
 asset TwinRes_BodiesSection {
     TwinRes_SectionHeader header = { .id = 3, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_Body* bodies;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Body* bodies;
 }
 
 [no_json]
 asset TwinRes_AgentLabSequencesSection {
     TwinRes_SectionHeader header = { .id = 4, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_BehaviorCommandSequences* sequences;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_BehaviorCommandSequences* sequences;
 }
 
 
 asset TwinRes_SoundEffectsSection {
     [no_json] TwinRes_SectionHeader header = { .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_Sound* soundEffects;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Sound* soundEffects;
     [no_json] [no_bin] void* soundData;
 }
 
@@ -155,47 +155,47 @@ asset TwinRes_CodeSection {
 
 asset TwinRes_InstanceTemplatesSection {
     [no_json] TwinRes_SectionHeader header = { .id = 0, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_InstanceTemplate* instanceTemplates;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_InstanceTemplate* instanceTemplates;
 }
 
 asset TwinRes_AiPositionsSection {
     [no_json] TwinRes_SectionHeader header = { .id = 1, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_AiPosition* aiPositions;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_AiPosition* aiPositions;
 }
 
 asset TwinRes_AiPathsSection {
     [no_json] TwinRes_SectionHeader header = { .id = 2, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_AiPath* aiPaths;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_AiPath* aiPaths;
 }
 
 asset TwinRes_PositionsSection {
     [no_json] TwinRes_SectionHeader header = { .id = 3, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_Position* positions;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Position* positions;
 }
 
 asset TwinRes_PathsSection {
     [no_json] TwinRes_SectionHeader header = { .id = 4, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_Path* paths;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Path* paths;
 }
 
 asset TwinRes_CollisionSurfacesSection {
     [no_json] TwinRes_SectionHeader header = { .id = 5, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_CollisionSurface* surfaces;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_CollisionSurface* surfaces;
 }
 
 asset TwinRes_InstancesSection {
     [no_json] TwinRes_SectionHeader header = { .id = 6, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_Instance* instances;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Instance* instances;
 }
 
 asset TwinRes_TriggersSection {
     [no_json] TwinRes_SectionHeader header = { .id = 7, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_Trigger* triggers;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Trigger* triggers;
 }
 
 asset TwinRes_CamerasSection {
     [no_json] TwinRes_SectionHeader header = { .id = 8, .magic = 1, .sectionMagic = 1 };
-    [length(header.itemsCount)] TwinRes_Camera* cameras;
+    [length(header.itemsCount)] [ctx_id("target->header.records[i].itemId")] TwinRes_Camera* cameras;
 }
 
 [no_bin]
@@ -226,7 +226,7 @@ asset TwinRes_ResourceChunk {
     TwinRes_LayoutSection layout5Section;
     TwinRes_LayoutSection layout6Section;
     TwinRes_LayoutSection layout7Section;
-    TwinRes_LayoutSection layout8Section;
+    [no_json] TwinRes_Item layout8Section;
 }
 
 [no_bin]

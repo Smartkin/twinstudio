@@ -200,7 +200,7 @@ void ImageBinSerialize(Image* texture, TwinStudio_BinarySerializer* serializer, 
     TwinStudio_ArenaFree(&tempArena);
 }
 
-void ImageBinDeserialize(Image* texture, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void ImageBinDeserialize(TwinStudio_DeserializationContext* ctx, Image* texture, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinStudio_Arena tempArena = TwinStudio_CreateArena(1024 * 1024);
     TwinRes_Texture* twinTexture = userData;

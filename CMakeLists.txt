@@ -67,9 +67,11 @@ target_sources(twindescgenerator INTERFACE ${GENERATED_DESCS})
 add_subdirectory(descs)
 add_dependencies(twindescs twindescgenerator)
 
-add_executable(twinstudio src/main.c)
+add_executable(twinstudio src/main.c
+ src/converters/mesh_converters.c)
 target_link_libraries(twinstudio PUBLIC common twindescgenerator twindescs dependencies raylib PS2ImageMakerStatic flecs::flecs_static)
 target_include_directories(twinstudio PUBLIC common)
+target_include_directories(twinstudio PUBLIC src)
 
 target_compile_features(twinstudio PRIVATE c_std_11)
 

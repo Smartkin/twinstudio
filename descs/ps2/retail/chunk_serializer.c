@@ -196,11 +196,11 @@ static void TwinRes_SoundEffectsSerializerWrapper(void* source, TwinStudio_Binar
     TwinStudio_BinSerializerFree(stereoSoundDataSerial);
 }
 
-static void TwinRes_SoundEffectsDeserializerWrapper(void* target, TwinStudio_BinarySerializer* deserial, TwinStudio_Arena* arena, size_t size, void* userData)
+static void TwinRes_SoundEffectsDeserializerWrapper(TwinStudio_DeserializationContext* ctx, void* target, TwinStudio_BinarySerializer* deserial, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinRes_SoundEffectsSection* sfxSection = target;
     const size_t baseOffset = TwinStudio_BinGetStreamPosition(deserial);
-    TwinRes_SoundEffectsSectionBinDeserialize(target, deserial, arena, size, userData);
+    TwinRes_SoundEffectsSectionBinDeserialize(ctx, target, deserial, arena, size, userData);
     const uint32_t extraLength = size - (TwinStudio_BinGetStreamPosition(deserial) - baseOffset);
     sfxSection->soundData = TwinStudio_BinReadBlob(deserial, arena, extraLength);
 
@@ -254,7 +254,7 @@ static void TwinRes_SoundEffectsDeserializerWrapper(void* target, TwinStudio_Bin
             .trackSize = sfx->soundSize,
             .sampleRate = GetSoundSampleRate(sfx->frequencyId)
         };
-        TwinStudio_WaveBinDeserialize(&sfx->trackData, soundDataDeserial, arena, sfx->soundSize, &fakeRecord);
+        TwinStudio_WaveBinDeserialize(ctx, &sfx->trackData, soundDataDeserial, arena, sfx->soundSize, &fakeRecord);
     }
 
     TwinStudio_BinSerializerFree(soundDataDeserial);
@@ -288,19 +288,19 @@ void TwinRes_ChunkSerializationInit()
     rm2Serdes[4] = SECTION_SERDE(TwinRes_ResourceChunk, TwinRes_LayoutSection, layout5Section);
     rm2Serdes[5] = SECTION_SERDE(TwinRes_ResourceChunk, TwinRes_LayoutSection, layout6Section);
     rm2Serdes[6] = SECTION_SERDE(TwinRes_ResourceChunk, TwinRes_LayoutSection, layout7Section);
-    rm2Serdes[7] = SECTION_SERDE(TwinRes_ResourceChunk, TwinRes_LayoutSection, layout8Section);
+    rm2Serdes[7] = SECTION_SERDE(TwinRes_ResourceChunk, TwinRes_Item, layout8Section);
     rm2Serdes[8] = SECTION_SERDE(TwinRes_ResourceChunk, TwinRes_Particles, particles);
     rm2Serdes[9] = SECTION_SERDE(TwinRes_ResourceChunk, TwinRes_StaticCollision, collision);
     rm2Serdes[10] = SECTION_SERDE(TwinRes_ResourceChunk, TwinRes_CodeSection, codeSection);
     rm2Serdes[11] = SECTION_SERDE(TwinRes_ResourceChunk, TwinRes_GraphicsSection, graphicsSection);
 
     defaultSerdes[0] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_LayoutSection, layout1Section);
-    defaultSerdes[1] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_LayoutSection, layout2Section);
-    defaultSerdes[2] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_LayoutSection, layout3Section);
-    defaultSerdes[3] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_LayoutSection, layout4Section);
-    defaultSerdes[4] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_LayoutSection, layout5Section);
-    defaultSerdes[5] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_LayoutSection, layout6Section);
-    defaultSerdes[6] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_LayoutSection, layout7Section);
+    defaultSerdes[1] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_Item, layout2Section);
+    defaultSerdes[2] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_Item, layout3Section);
+    defaultSerdes[3] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_Item, layout4Section);
+    defaultSerdes[4] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_Item, layout5Section);
+    defaultSerdes[5] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_Item, layout6Section);
+    defaultSerdes[6] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_Item, layout7Section);
     defaultSerdes[7] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_LayoutSection, layout8Section);
     defaultSerdes[8] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_DefaultParticles, particles);
     defaultSerdes[9] = SECTION_SERDE(TwinRes_DefaultResourceChunk, TwinRes_Item, collision);
@@ -361,18 +361,19 @@ void TwinRes_SectionSerialize(void* source, TwinRes_SectionSerdeInfo* serializer
 }
 
 
-void TwinRes_SectionDeserialize(void* target, TwinRes_SectionSerdeInfo* deserializers, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void TwinRes_SectionDeserialize(TwinStudio_DeserializationContext* ctx, void* target, TwinRes_SectionSerdeInfo* deserializers, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinRes_SectionHeader* header = target;
     const uint32_t baseOffset = TwinStudio_BinGetStreamPosition(deserializer);
-    TwinRes_SectionHeaderBinDeserialize(header, deserializer, arena, 0, NULL);
+    TwinRes_SectionHeaderBinDeserialize(ctx, header, deserializer, arena, 0, NULL);
     for (uint32_t i = 0; i < header->itemsCount; ++i)
     {
         const TwinRes_ItemRecord* record = header->records + i;
         TwinStudio_BinSerializerSetPosition(deserializer, baseOffset + record->offset);
 
         TwinRes_SectionSerdeInfo* serde = deserializers + record->itemId;
-        serde->deserialFunc((uint8_t*)(target) + serde->targetOffset, deserializer, arena, record->size, target);
+        ctx->curItemTwinId = record->itemId;
+        serde->deserialFunc(ctx, (uint8_t*)(target) + serde->targetOffset, deserializer, arena, record->size, target);
     }
 }
 
@@ -382,9 +383,9 @@ void TwinRes_LayoutSectionBinSerialize(TwinRes_LayoutSection* source, TwinStudio
     TwinRes_SectionSerialize(source, layoutSerdes, serializer, arena, size, userData);
 }
 
-void TwinRes_LayoutSectionBinDeserialize(TwinRes_LayoutSection* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void TwinRes_LayoutSectionBinDeserialize(TwinStudio_DeserializationContext* ctx, TwinRes_LayoutSection* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinRes_SectionDeserialize(target, layoutSerdes, deserializer, arena, size, userData);
+    TwinRes_SectionDeserialize(ctx, target, layoutSerdes, deserializer, arena, size, userData);
 }
 
 void TwinRes_CodeSectionBinSerialize(TwinRes_CodeSection* source, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
@@ -392,9 +393,9 @@ void TwinRes_CodeSectionBinSerialize(TwinRes_CodeSection* source, TwinStudio_Bin
     TwinRes_SectionSerialize(source, codeSerdes, serializer, arena, size, userData);
 }
 
-void TwinRes_CodeSectionBinDeserialize(TwinRes_CodeSection* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void TwinRes_CodeSectionBinDeserialize(TwinStudio_DeserializationContext* ctx, TwinRes_CodeSection* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinRes_SectionDeserialize(target, codeSerdes, deserializer, arena, size, userData);
+    TwinRes_SectionDeserialize(ctx, target, codeSerdes, deserializer, arena, size, userData);
 }
 
 void TwinRes_GraphicsSectionBinSerialize(TwinRes_GraphicsSection* source, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
@@ -402,9 +403,9 @@ void TwinRes_GraphicsSectionBinSerialize(TwinRes_GraphicsSection* source, TwinSt
     TwinRes_SectionSerialize(source, graphicsSerdes, serializer, arena, size, userData);
 }
 
-void TwinRes_GraphicsSectionBinDeserialize(TwinRes_GraphicsSection* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void TwinRes_GraphicsSectionBinDeserialize(TwinStudio_DeserializationContext* ctx, TwinRes_GraphicsSection* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinRes_SectionDeserialize(target, graphicsSerdes, deserializer, arena, size, userData);
+    TwinRes_SectionDeserialize(ctx, target, graphicsSerdes, deserializer, arena, size, userData);
 }
 
 void TwinRes_ChunkBinSerialize(TwinRes_Chunk* source, TwinStudio_Arena* arena, TwinStudio_BinarySerializer* resourceSerializer, TwinStudio_BinarySerializer* scenerySerializer)
@@ -414,10 +415,10 @@ void TwinRes_ChunkBinSerialize(TwinRes_Chunk* source, TwinStudio_Arena* arena, T
 }
 
 
-void TwinRes_ChunkBinDeserialize(TwinRes_Chunk* target, TwinStudio_Arena* arena, TwinStudio_BinarySerializer* resourceDeserializer, TwinStudio_BinarySerializer* sceneryDeserializer)
+void TwinRes_ChunkBinDeserialize(TwinStudio_DeserializationContext* ctx, TwinRes_Chunk* target, TwinStudio_Arena* arena, TwinStudio_BinarySerializer* resourceDeserializer, TwinStudio_BinarySerializer* sceneryDeserializer)
 {
-    TwinRes_ResourceChunkBinDeserialize(&target->chunkResources, resourceDeserializer, arena, 0, target);
-    TwinRes_SceneryChunkBinDeserialize(&target->sceneryResources, sceneryDeserializer, arena, 0, target);
+    TwinRes_ResourceChunkBinDeserialize(ctx, &target->chunkResources, resourceDeserializer, arena, 0, target);
+    TwinRes_SceneryChunkBinDeserialize(ctx, &target->sceneryResources, sceneryDeserializer, arena, 0, target);
 }
 
 
@@ -443,9 +444,9 @@ void TwinRes_DefaultResourcesBinSerialize(TwinRes_DefaultResources* source, Twin
     TwinRes_SectionSerialize(&source->defaultResources, defaultSerdes, resourceSerializer, arena, 0, NULL);
 }
 
-void TwinRes_DefaultResourcesBinDeserialize(TwinRes_DefaultResources* target, TwinStudio_Arena* arena, TwinStudio_BinarySerializer* resourceDeserializer)
+void TwinRes_DefaultResourcesBinDeserialize(TwinStudio_DeserializationContext* ctx, TwinRes_DefaultResources* target, TwinStudio_Arena* arena, TwinStudio_BinarySerializer* resourceDeserializer)
 {
-    TwinRes_SectionDeserialize(&target->defaultResources, defaultSerdes, resourceDeserializer, arena, 0, NULL);
+    TwinRes_SectionDeserialize(ctx, &target->defaultResources, defaultSerdes, resourceDeserializer, arena, 0, NULL);
 }
 
 cJSON* TwinRes_DefaultResourcesJsonSerialize(TwinRes_DefaultResources* source)
@@ -467,9 +468,9 @@ void TwinRes_ResourceChunkBinSerialize(TwinRes_ResourceChunk* source, TwinStudio
     TwinRes_SectionSerialize(source, rm2Serdes, serializer, arena, size, userData);
 }
 
-void TwinRes_ResourceChunkBinDeserialize(TwinRes_ResourceChunk* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void TwinRes_ResourceChunkBinDeserialize(TwinStudio_DeserializationContext* ctx, TwinRes_ResourceChunk* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinRes_SectionDeserialize(target, rm2Serdes, deserializer, arena, size, userData);
+    TwinRes_SectionDeserialize(ctx, target, rm2Serdes, deserializer, arena, size, userData);
 }
 
 void TwinRes_DefaultResourceChunkBinSerialize(TwinRes_DefaultResourceChunk* source, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
@@ -477,9 +478,9 @@ void TwinRes_DefaultResourceChunkBinSerialize(TwinRes_DefaultResourceChunk* sour
     TwinRes_SectionSerialize(source, defaultSerdes, serializer, arena, size, userData);
 }
 
-void TwinRes_DefaultResourceChunkBinDeserialize(TwinRes_DefaultResourceChunk* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void TwinRes_DefaultResourceChunkBinDeserialize(TwinStudio_DeserializationContext* ctx, TwinRes_DefaultResourceChunk* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinRes_SectionDeserialize(target, defaultSerdes, deserializer, arena, size, userData);
+    TwinRes_SectionDeserialize(ctx, target, defaultSerdes, deserializer, arena, size, userData);
 }
 
 void TwinRes_SceneryChunkBinSerialize(TwinRes_SceneryChunk* source, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
@@ -487,7 +488,7 @@ void TwinRes_SceneryChunkBinSerialize(TwinRes_SceneryChunk* source, TwinStudio_B
     TwinRes_SectionSerialize(source, sm2Serdes, serializer, arena, size, userData);
 }
 
-void TwinRes_SceneryChunkBinDeserialize(TwinRes_SceneryChunk* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void TwinRes_SceneryChunkBinDeserialize(TwinStudio_DeserializationContext* ctx, TwinRes_SceneryChunk* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    TwinRes_SectionDeserialize(target, sm2Serdes, deserializer, arena, size, userData);
+    TwinRes_SectionDeserialize(ctx, target, sm2Serdes, deserializer, arena, size, userData);
 }

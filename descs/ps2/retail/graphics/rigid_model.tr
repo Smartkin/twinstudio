@@ -1,5 +1,5 @@
 
-
+[resource("TS_RT_RigidModel")]
 asset TwinRes_RigidModel {
     uint32_t header;
     [link_resource("TS_RT_Material")] uint32_t* materials;

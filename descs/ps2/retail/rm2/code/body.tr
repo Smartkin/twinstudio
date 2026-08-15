@@ -21,6 +21,7 @@ asset TwinRes_ExitPoint {
 }
 
 
+[resource("TS_RT_Body")]
 asset TwinRes_Body {
     uint8_t jointsAmount;
     uint8_t exitPointsAmount;

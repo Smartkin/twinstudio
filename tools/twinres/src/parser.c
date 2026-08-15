@@ -556,6 +556,20 @@ static bool HandleFieldCustomBin(TwinRes_StructFieldGeneratorOptions* options, T
     return true;
 }
 
+static bool HandleFieldCtxId(TwinRes_StructFieldGeneratorOptions* options, TwinRes_AttributeArgumentsList* arguments)
+{
+    if (arguments->length < 1)
+    {
+        return false;
+    }
+    
+    TwinStudio_VariantSetBool(&options->ctxId.data, true);
+    options->ctxId.argumentLength = arguments->length;
+    options->ctxId.arguments = arguments->arguments;
+    return true;
+}
+
+
 
 static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_AttributeArgumentsList* arguments, TwinRes_StructFieldGeneratorOptions* options)
 {
@@ -575,6 +589,7 @@ static void HandleFieldAttribute(TwinStudio_StringView attribName, TwinRes_Attri
     if (TryHandleStructFieldAttributeWrapper("void_read", attribName, arguments, options, HandleFieldVoidRead)) { return; }
     if (TryHandleStructFieldAttributeWrapper("constructor", attribName, arguments, options, HandleFieldConstructor)) { return; }
     if (TryHandleStructFieldAttributeWrapper("custom_bin", attribName, arguments, options, HandleFieldCustomBin)) { return; }
+    if (TryHandleStructFieldAttributeWrapper("ctx_id", attribName, arguments, options, HandleFieldCtxId)) { return; }
     fprintf(stderr, "WARNING: Skipped unknown or malformed struct field attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
 }
 
@@ -597,7 +612,8 @@ static inline TwinRes_StructFieldGeneratorOptions GetDefaultFieldOptions()
         .linkResource = CREATE_ATTRIBUTE(link_resource, bool, false),
         .voidRead = CREATE_ATTRIBUTE(void_read, bool, false),
         .constructor = CREATE_ATTRIBUTE(constructor, bool, false),
-        .customBin = CREATE_ATTRIBUTE(custom_bin, bool, false)
+        .customBin = CREATE_ATTRIBUTE(custom_bin, bool, false),
+        .ctxId = CREATE_ATTRIBUTE(ctx_id, bool, false),
     };
 }
 
@@ -861,6 +877,24 @@ static bool HandleStructWriteAll(TwinRes_StructGeneratorOptions* options, TwinRe
     return true;
 }
 
+static bool HandleStructResource(TwinRes_StructGeneratorOptions* options, TwinRes_AttributeArgumentsList* arguments)
+{
+    if (arguments->length < 1)
+    {
+        return false;
+    }
+
+    if (arguments->arguments[0].type != TwinStudio_VariantString)
+    {
+        return false;
+    }
+
+    TwinStudio_VariantSetBool(&options->resource.data, true);
+    options->resource.argumentLength = arguments->length;
+    options->resource.arguments = arguments->arguments;
+    return true;
+}
+
 
 static void HandleStructAttribute(TwinStudio_StringView attribName, TwinRes_AttributeArgumentsList* attribArguments, TwinRes_StructGeneratorOptions* options)
 {
@@ -872,6 +906,7 @@ static void HandleStructAttribute(TwinStudio_StringView attribName, TwinRes_Attr
     if (TryHandleStructAttributeWrapper("no_read", attribName, attribArguments, options, HandleStructNoReadSerialization)) { return; }
     if (TryHandleStructAttributeWrapper("no_write", attribName, attribArguments, options, HandleStructNoWriteSerialization)) { return; }
     if (TryHandleStructAttributeWrapper("write_all", attribName, attribArguments, options, HandleStructWriteAll)) { return; }
+    if (TryHandleStructAttributeWrapper("resource", attribName, attribArguments, options, HandleStructResource)) { return; }
     
     fprintf(stderr, "WARNING: Skipped unknown or malformed struct attribute "TS_VIEW_FORMAT"\n", TS_VIEW_ARG(attribName));
 }
@@ -888,6 +923,7 @@ static TwinRes_StructGeneratorOptions GetStructOptions(TwinRes_GeneratorOutput* 
         .noRead = CREATE_ATTRIBUTE(no_read, bool, false),
         .noWrite = CREATE_ATTRIBUTE(no_write, bool, false),
         .writeAll = CREATE_ATTRIBUTE(write_all, bool, false),
+        .resource = CREATE_ATTRIBUTE(resource, bool, false)
     };
 
     while(lexer->curTok.tokenType == TwinRes_TokAttribOpen)
@@ -1600,7 +1636,7 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             }
             else
             {
-                int arrForLoopStart = WriteFile(genFile, buffer, "   { bool loopCondition = true; while(loopCondition) {\n");
+                int arrForLoopStart = WriteFile(genFile, buffer, "   { bool loopCondition = true; uint32_t i = 0; while(loopCondition) {\n");
                 if (arrForLoopStart == 0)
                 {
                     return 0;
@@ -1619,6 +1655,19 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
                 amountWritten += prePutWritten;
                 buffer += prePutWritten;
             }
+        }
+
+        const bool isCtxId = TS_VARIANT_GET(bool, structField->options.ctxId.data);
+        if (isCtxId)
+        {
+            static const char idSet[] = "   ctx->curItemTwinId = "TS_VIEW_FORMAT";\n";
+            int idWritten = WriteFile(genFile, buffer, idSet, TS_VIEW_ARG(TS_VARIANT_GET(TwinStudio_StringView, structField->options.ctxId.arguments[0])));
+            if (idWritten == 0)
+            {
+                return 0;
+            }
+            amountWritten += idWritten;
+            buffer += idWritten;
         }
         
         int fieldBodyWritten = 0;
@@ -1699,13 +1748,13 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             {
                 if (isLengthDefined)
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); %s(&createdObj, deserializer, arena, %s, target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
-                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, deserialFuncName, sizeFormat, TS_VIEW_ARG(structField->name));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); arrput(target->"TS_VIEW_FORMAT", createdObj); %s(ctx, target->"TS_VIEW_FORMAT" + i, deserializer, arena, %s, target);\n",
+                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, TS_VIEW_ARG(structField->name), deserialFuncName, TS_VIEW_ARG(structField->name), sizeFormat);
                 }
                 else
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); %s(&createdObj, deserializer, arena, sizeof("TS_VIEW_FORMAT"), target); arrput(target->"TS_VIEW_FORMAT", createdObj);\n",
-                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, deserialFuncName, TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->name));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "      "TS_VIEW_FORMAT" createdObj = "TS_VIEW_FORMAT"Create(%s); arrput(target->"TS_VIEW_FORMAT", createdObj); %s(ctx, target->"TS_VIEW_FORMAT" + i, deserializer, arena, sizeof("TS_VIEW_FORMAT"), target);\n",
+                        TS_VIEW_ARG(structField->type), TS_VIEW_ARG(structField->type), constructorBuffer, TS_VIEW_ARG(structField->name), deserialFuncName, TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type));
                 }
             }
         }
@@ -1726,11 +1775,11 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
             {
                 if (isLengthDefined)
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "   %s(&target->"TS_VIEW_FORMAT", deserializer, arena, %s, target);\n", deserialFuncName, TS_VIEW_ARG(structField->name), sizeFormat);
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   %s(ctx, &target->"TS_VIEW_FORMAT", deserializer, arena, %s, target);\n", deserialFuncName, TS_VIEW_ARG(structField->name), sizeFormat);
                 }
                 else
                 {
-                    fieldBodyWritten = WriteFile(genFile, buffer, "   %s(&target->"TS_VIEW_FORMAT", deserializer, arena, sizeof("TS_VIEW_FORMAT"), target);\n", deserialFuncName, TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type));
+                    fieldBodyWritten = WriteFile(genFile, buffer, "   %s(ctx, &target->"TS_VIEW_FORMAT", deserializer, arena, sizeof("TS_VIEW_FORMAT"), target);\n", deserialFuncName, TS_VIEW_ARG(structField->name), TS_VIEW_ARG(structField->type));
                 }
             }
         }
@@ -1749,7 +1798,7 @@ static int GenerateStructFieldsBinaryDeserialization(const TwinRes_ParserStructD
                 {
                     readCondition = TwinStudio_GetCStringDynamic(&structField->options.noLength.arguments[0].storage.string);
                 }
-                int arrEndWritten = WriteFile(genFile, buffer, "   loopCondition = (%s);}}\n", readCondition);
+                int arrEndWritten = WriteFile(genFile, buffer, "   loopCondition = (%s); ++i;}}\n", readCondition);
                 if (structField->options.noLength.argumentLength > 0)
                 {
                     TWIN_FREE(readCondition);
@@ -2306,7 +2355,7 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
     if (!excludeBinSerial)
     {
         static const char binSerialDecl[] = "void "TS_VIEW_FORMAT"BinSerialize("TS_VIEW_FORMAT"* source, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)\n{\n";
-        static const char binDeserialDecl[] = "void "TS_VIEW_FORMAT"BinDeserialize("TS_VIEW_FORMAT"* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)\n{\n";
+        static const char binDeserialDecl[] = "void "TS_VIEW_FORMAT"BinDeserialize(TwinStudio_DeserializationContext* ctx, "TS_VIEW_FORMAT"* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)\n{\n";
 
         if (!excludeSerial)
         {
@@ -2345,6 +2394,20 @@ static int GenerateStructDefinitions(TwinRes_ParserNode* node, TwinRes_Generated
             int fieldsWritten = GenerateStructFieldsBinaryDeserialization(structDef, genFile, buffer);
             amountWritten += fieldsWritten;
             buffer += fieldsWritten;
+
+            const bool isResource = TS_VARIANT_GET(bool, structDef->options.resource.data);
+            if (isResource)
+            {
+                static const char resAddCall[] = "   TwinStudio_AddChunkResource(ctx->chunkResManager, "TS_VIEW_FORMAT", TS_SRT_None, ctx->curItemTwinId, target);\n";
+                TwinStudio_StringView resType = TS_VARIANT_GET(TwinStudio_StringView, structDef->options.resource.arguments[0]);
+                int resAddWritten = WriteFile(genFile, buffer, resAddCall, TS_VIEW_ARG(resType));
+                if (resAddWritten == 0)
+                {
+                    return 0;
+                }
+                amountWritten += resAddWritten;
+                buffer += resAddWritten;
+            }
 
             static const char binDeserialBody[] = "}\n\n";
             int bodyWritten = WriteFile(genFile, buffer, binDeserialBody, TS_VIEW_ARG(structName));
@@ -2556,7 +2619,7 @@ static int GenerateStructDeclarations(TwinRes_ParserNode* node, TwinRes_Generate
     if (!excludeBinSerial)
     {
         static const char binSerialDecl[] = "void "TS_VIEW_FORMAT"BinSerialize("TS_VIEW_FORMAT"* source, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData);\n";
-        static const char binDeserialDecl[] = "void "TS_VIEW_FORMAT"BinDeserialize("TS_VIEW_FORMAT"* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData);\n";
+        static const char binDeserialDecl[] = "void "TS_VIEW_FORMAT"BinDeserialize(TwinStudio_DeserializationContext* ctx, "TS_VIEW_FORMAT"* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData);\n";
         
         if (!excludeSerial)
         {
@@ -2677,6 +2740,7 @@ static void TwinRes_ParseAndGenerateStructFiles(TwinRes_GeneratorOutput* output,
         "#include \"defines/defines.h\"\n"
         "#include \"memory/memory.h\"\n"
         "#include \"resources/resources.h\"\n"
+        "#include \"resources/chunk_resources.h\"\n"
         "#include \"serialization/binary_serializer.h\"\n"
         "#include \"serialization/helpers.h\"\n"
         "#include \"string_view/string_view.h\"\n";

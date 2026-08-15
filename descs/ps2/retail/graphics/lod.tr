@@ -16,6 +16,7 @@ asset TwinRes_LodCompressed {
     [link_resource("TS_RT_Mesh")] [length(meshAmount)] uint32_t* meshes;
 }
 
+[resource("TS_RT_Lod")]
 asset TwinRes_Lod {
     int32_t lodType;
     [write_if("source->lodType == 0x1001")]

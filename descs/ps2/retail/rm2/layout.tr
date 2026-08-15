@@ -61,7 +61,7 @@ asset TwinRes_CollisionSurface {
     [link_resource("TS_RT_ParticleSystem")] uint16_t landOnParticleSystemId;
     [link_resource("TS_RT_Sound")] uint16_t landSoundId2;
     [link_resource("TS_RT_Sound")] uint16_t unkSoundId;
-    [void_read] [no_json] uint16_t _unusedId = 0xFFFF;
+    [void_read] [length(2)] [no_json] uint16_t _unusedId = 0xFFFF;
     [length(10)] float* physicsParameters;
     Vector4 unkVec;
     BoundingBox4 unkBoundingBox;

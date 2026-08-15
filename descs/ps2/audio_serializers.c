@@ -98,7 +98,7 @@ void TwinStudio_WaveBinSerialize(TwinStudio_Wave* source, TwinStudio_BinarySeria
 }
 
 
-void TwinStudio_WaveBinDeserialize(TwinStudio_Wave* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void TwinStudio_WaveBinDeserialize(TwinStudio_DeserializationContext* ctx, TwinStudio_Wave* target, TwinStudio_BinarySerializer* deserializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinRes_MbRecord* record = userData;
     if (record->header.type == TwinRes_MRT_Null)

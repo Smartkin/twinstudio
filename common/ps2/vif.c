@@ -387,6 +387,15 @@ static uint32_t* Pack(TwinStudio_VIFVector* vectors, uint32_t amount, TwinStudio
 }
 
 
+TwinStudio_VIFOutput TwinStudio_VIFInterpretData(void* data, size_t dataSize, TwinStudio_Arena* arena)
+{
+    TwinStudio_BinarySerializer* vifReader = TwinStudio_BinSerializerAllocate(data, TwinStudio_BinarySerializerModeRead, dataSize, false);
+    TwinStudio_VIFOutput output = TwinStudio_VIFInterpret(vifReader, arena);
+    TwinStudio_BinSerializerFree(vifReader);
+    return output;
+}
+
+
 TwinStudio_VIFOutput TwinStudio_VIFInterpret(TwinStudio_BinarySerializer* reader, TwinStudio_Arena* arena)
 {
     TwinStudio_VIFOutput output = { 0 };
@@ -482,18 +491,11 @@ TwinStudio_VIFOutput TwinStudio_VIFInterpret(TwinStudio_BinarySerializer* reader
                         }
                         else
                         {
-                            arrput(output.emits, tmpStorage[i]);
+                            arrput(output.jointWeights, tmpStorage[i]);
                         }
                         break;
                     case 6:
-                        if (output.scaleVector.integer.x == 0 && output.scaleVector.integer.y == 0)
-                        {
-                            arrput(output.emits, tmpStorage[i]);
-                        }
-                        else
-                        {
-                            arrput(output.jointWeights, tmpStorage[i]);
-                        }
+                        arrput(output.emits, tmpStorage[i]);
                         break;
                     case 7:
                         arrput(output.blendFaceOffsets, tmpStorage[i]);

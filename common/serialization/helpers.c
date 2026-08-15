@@ -74,37 +74,37 @@ void QuaternionBinSerialize(Quaternion* q, TwinStudio_BinarySerializer* serializ
     TwinStudio_BinWriteAny(serializer, q, sizeof(Quaternion));
 }
 
-void Vector2BinDeserialize(Vector2* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void Vector2BinDeserialize(TwinStudio_DeserializationContext* ctx, Vector2* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinStudio_BinReadStructDirect(serializer, v, sizeof(Vector2));
 }
 
 
-void Vector3BinDeserialize(Vector3* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void Vector3BinDeserialize(TwinStudio_DeserializationContext* ctx, Vector3* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinStudio_BinReadStructDirect(serializer, v, sizeof(Vector3));
 }
 
 
-void Vector4BinDeserialize(Vector4* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void Vector4BinDeserialize(TwinStudio_DeserializationContext* ctx, Vector4* v, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinStudio_BinReadStructDirect(serializer, v, sizeof(Vector4));
 }
 
 
-void BoundingBox4BinDeserialize(BoundingBox4* bb, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void BoundingBox4BinDeserialize(TwinStudio_DeserializationContext* ctx, BoundingBox4* bb, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinStudio_BinReadStructDirect(serializer, bb, sizeof(BoundingBox4));
 }
 
 
-void MatrixBinDeserialize(Matrix* mat, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void MatrixBinDeserialize(TwinStudio_DeserializationContext* ctx, Matrix* mat, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinStudio_BinReadStructDirect(serializer, mat, sizeof(Matrix));
 }
 
 
-void QuaternionBinDeserialize(Quaternion* q, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
+void QuaternionBinDeserialize(TwinStudio_DeserializationContext* ctx, Quaternion* q, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
     TwinStudio_BinReadStructDirect(serializer, q, sizeof(Quaternion));
 }
