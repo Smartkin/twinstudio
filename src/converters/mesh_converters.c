@@ -21,6 +21,9 @@
 #include <string.h>
 
 
+#define BLEND_SKIN_INDEX_MAP_SIZE 4096
+
+
 static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_RenderBody* renderBody, TwinRes_BlendSkin* blendSkin, TwinStudio_Arena* arena)
 {
     TwinStudio_Mesh mesh = { 0 };
@@ -29,8 +32,7 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
     {
         TwinRes_BlendSkinModel* blendModel = blendSkin->models + i;
         TwinRes_Material* material = TwinStudio_GetChunkResource(chunkRes, blendModel->materialLinkType, TS_SRT_None, blendModel->material).data;
-        static const uint32_t indexMapSize = 4096;
-        int32_t indexMap[indexMapSize];
+        int32_t indexMap[BLEND_SKIN_INDEX_MAP_SIZE];
         uint32_t indexMapIdx = 0;
         for (size_t j = 0; j < arrlen(blendModel->modelParts); ++j)
         {
@@ -112,7 +114,7 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
                 }
 
                 indexMap[indexMapIdx++] = TwinStudio_MeshAddVertex(&mesh, vertex);
-                assert(indexMapIdx <= indexMapSize);
+                assert(indexMapIdx <= BLEND_SKIN_INDEX_MAP_SIZE);
             }
 
             bool winding = false;
