@@ -65,23 +65,23 @@ typedef struct TwinStudio_VIFInstruction {
                 } stcycl;
                 struct {
                     uint16_t offset : 10;
-                    uint8_t _pad : 6;
+                    uint16_t _pad : 6;
                 } offset;
                 struct {
                     uint16_t base : 10;
-                    uint8_t _pad : 6;
+                    uint16_t _pad : 6;
                 } base;
                 struct {
                     uint16_t addr : 10;
-                    uint8_t _pad : 6;
+                    uint16_t _pad : 6;
                 } itop;
                 struct {
-                    uint8_t mode : 2;
+                    uint16_t mode : 2;
                     uint16_t _pad : 14;
                 } stmod;
                 struct {
                     uint16_t _pad : 15;
-                    uint8_t mask : 1;
+                    uint16_t mask : 1;
                 } mskpath3;
                 struct {
                     uint16_t mark;
@@ -124,16 +124,16 @@ typedef struct TwinStudio_VIFInstruction {
                 } directhl;
                 struct {
                     uint16_t addr : 10;
-                    uint8_t  _pad : 4;
-                    uint8_t usn   : 1;
-                    uint8_t flg   : 1;
+                    uint16_t  _pad : 4;
+                    uint16_t usn   : 1;
+                    uint16_t flg   : 1;
                 } unpack;
             };
             uint8_t num;
             union {
                 uint8_t command;
                 TS_COMPACT_STRUCT {
-                    TwinStudio_VIFCode cmd : 7;
+                    uint8_t cmd : 7; //TwinStudio_VIFCode
                     uint8_t interrupt : 1;
                 };
                 struct {

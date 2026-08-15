@@ -36,8 +36,8 @@
 
 typedef TS_COMPACT_STRUCT
 {
-	unsigned shift:      4;
-	unsigned predict:    4;
+	uint8_t shift:      4;
+	uint8_t predict:    4;
 	uint8_t  flags;
 	uint8_t  sample[14]; /* 4bits each */
 } AdpcmBlock;

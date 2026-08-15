@@ -16,14 +16,14 @@ typedef enum {
 
 
 typedef struct TwinStudio_DmaTag {
-    uint16_t qwc   : 16;
-    uint16_t __pad : 10;
-    uint8_t pce    : 2;
-    uint8_t id     : 3;
-    uint8_t irq    : 1;
-    uint32_t addr  : 31;
-    uint8_t spr    : 1;
-    uint64_t extra;
+    uint64_t qwc    : 16;
+    uint64_t __pad  : 10;
+    uint64_t pce    : 2;
+    uint64_t id     : 3;
+    uint64_t irq    : 1;
+    uint64_t addr   : 31;
+    uint64_t spr    : 1;
+    uint64_t extra  : 64;
 } TwinStudio_DmaTag;
 
 #endif // TS_DMA_TAG_H

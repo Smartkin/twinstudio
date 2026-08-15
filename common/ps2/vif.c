@@ -35,10 +35,10 @@ static inline uint32_t SEXT8(uint32_t val, bool usn)
 
 
 typedef TS_COMPACT_STRUCT CompactColor {
-    uint8_t r : 5;
-    uint8_t g : 5;
-    uint8_t b : 5;
-    uint8_t a : 1;
+    uint16_t r : 5;
+    uint16_t g : 5;
+    uint16_t b : 5;
+    uint16_t a : 1;
 } CompactColor;
 
 

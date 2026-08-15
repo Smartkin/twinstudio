@@ -34,38 +34,38 @@ typedef TS_COMPACT_ENUM {
 } TwinStudio_GIFModeEnum;
 
 typedef TS_COMPACT_STRUCT TwinStudio_PackedGsRegs {
-    TwinStudio_GsRegsEnum reg0  : 4;
-    TwinStudio_GsRegsEnum reg1  : 4;
+    uint8_t reg0  : 4; //TwinStudio_GsRegsEnum
+    uint8_t reg1  : 4; //TwinStudio_GsRegsEnum
 } TwinStudio_PackedGsRegs;
 
 typedef TS_COMPACT_STRUCT TwinStudio_GifTag {
-    uint16_t nloop  : 15;
-    uint8_t eop     : 1;
-    uint32_t __pad  : 30;
-    uint8_t pre     : 1;
-    uint16_t prim   : 11;
-    TwinStudio_GIFModeEnum flg : 2;
-    uint8_t nreg    : 4;
+    uint64_t nloop  : 15;
+    uint64_t eop     : 1;
+    uint64_t __pad  : 30;
+    uint64_t pre     : 1;
+    uint64_t prim   : 11;
+    uint64_t flg     : 2; //TwinStudio_GIFModeEnum
+    uint64_t nreg    : 4;
     union {
         uint64_t regs;
         TwinStudio_PackedGsRegs packedRegs[8];
         struct {
-            TwinStudio_GsRegsEnum reg0  : 4;
-            TwinStudio_GsRegsEnum reg1  : 4;
-            TwinStudio_GsRegsEnum reg2  : 4;
-            TwinStudio_GsRegsEnum reg3  : 4;
-            TwinStudio_GsRegsEnum reg4  : 4;
-            TwinStudio_GsRegsEnum reg5  : 4;
-            TwinStudio_GsRegsEnum reg6  : 4;
-            TwinStudio_GsRegsEnum reg7  : 4;
-            TwinStudio_GsRegsEnum reg8  : 4;
-            TwinStudio_GsRegsEnum reg9  : 4;
-            TwinStudio_GsRegsEnum reg10 : 4;
-            TwinStudio_GsRegsEnum reg11 : 4;
-            TwinStudio_GsRegsEnum reg12 : 4;
-            TwinStudio_GsRegsEnum reg13 : 4;
-            TwinStudio_GsRegsEnum reg14 : 4;
-            TwinStudio_GsRegsEnum reg15 : 4;
+            uint8_t reg0  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg1  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg2  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg3  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg4  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg5  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg6  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg7  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg8  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg9  : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg10 : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg11 : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg12 : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg13 : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg14 : 4; //TwinStudio_GsRegsEnum
+            uint8_t reg15 : 4; //TwinStudio_GsRegsEnum
         };
     };
 } TwinStudio_GifTag;
@@ -75,13 +75,13 @@ typedef TS_COMPACT_UNION TwinStudio_GsRegInput {
         uint16_t prim : 11;
     } prim;
     struct {
-        uint8_t r;
+        uint32_t r     : 8;
         uint32_t _pad1 : 24;
-        uint8_t g;
+        uint32_t g     : 8;
         uint32_t _pad2 : 24;
-        uint8_t b;
+        uint32_t b     : 8;
         uint32_t _pad3 : 24;
-        uint8_t a;
+        uint32_t a     : 8;
         uint32_t _pad4 : 24;
     } rgbaq;
     struct {
@@ -96,15 +96,15 @@ typedef TS_COMPACT_UNION TwinStudio_GsRegInput {
         uint16_t v    : 14;
     } uv;
     TS_COMPACT_STRUCT {
-        int16_t x      : 16;
-        uint16_t _pad1 : 16;
-        int16_t y      : 16;
-        uint16_t _pad2;
-        uint8_t  _pad3 : 4;
-        uint32_t z     : 24;
-        uint8_t _pad4  : 7;
-        uint8_t _pad5  : 1;
-        uint8_t f      : 8;
+        int32_t x       : 16;
+        uint32_t _pad1  : 16;
+        int32_t y       : 16;
+        uint32_t _pad2  : 16;
+        uint32_t  _pad3 : 4;
+        uint32_t z      : 24;
+        uint32_t _pad4  : 7;
+        uint32_t _pad5  : 1;
+        uint32_t f      : 8;
     } xyzf2;
     struct {
         int16_t x;
@@ -151,24 +151,24 @@ typedef union TwinStudio_GsRegOutput {
         float t;
     } st;
     struct {
-        uint16_t u : 14;
-        uint8_t  _pad : 2;
-        uint16_t v : 14;
+        uint16_t u      : 14;
+        uint16_t  _pad  : 2;
+        uint16_t v      : 14;
     } uv;
     struct {
-        int16_t x;
-        int16_t y;
-        uint32_t z : 24;
-        uint8_t  f;
+        int32_t x   : 16;
+        int32_t y   : 16;
+        uint32_t z  : 24;
+        uint32_t  f : 8;
     } xyzf2;
     struct {
-        int16_t x;
-        int16_t y;
-        uint32_t z;
+        int32_t x   : 16;
+        int32_t y   : 16;
+        uint32_t z  : 32;
     } xyz2;
     struct {
-        uint64_t _pad : 56;
-        uint8_t  f;
+        uint64_t _pad   : 56;
+        uint64_t  f     : 8;
     } fog;
     struct {
         union {

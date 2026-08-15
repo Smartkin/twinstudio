@@ -7,9 +7,9 @@
 typedef union TwinStudio_ChunkResourceKey {
     uint64_t key;
     struct {
-        uint32_t twinId;
-        uint32_t resType : 29;
-        uint8_t  soundType : 3;
+        uint32_t twinId     : 32;
+        uint32_t resType    : 29;
+        uint32_t  soundType : 3;
     };
 } TwinStudio_ChunkResourceKey;
 
