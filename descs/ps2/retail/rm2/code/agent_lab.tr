@@ -10,11 +10,11 @@ asset TwinRes_BehaviorAssigner {
     union assignerUnion {
         uint32_t assigner;
         struct assignerData {
-            uint8_t assignType : 4;
-            uint8_t assignLocality : 4;
-            uint8_t assignStatus : 4;
-            uint8_t assignPreference : 4;
-            uint16_t globalObjectId : 16;
+            uint32_t assignType : 4;
+            uint32_t assignLocality : 4;
+            uint32_t assignStatus : 4;
+            uint32_t assignPreference : 4;
+            uint32_t globalObjectId : 16;
         };
     };
 }
@@ -3300,10 +3300,10 @@ asset TwinRes_BehaviorCommand {
     union bitfieldUnion {
         uint32_t bitfield;
         struct bitfieldData {
-            uint16_t commandIndex;
-            uint8_t  unknown1;
-            bool     hasNext : 1;
-            uint8_t  unknown2 : 7;
+            uint32_t commandIndex : 16;
+            uint32_t  unknown1 : 8;
+            uint32_t     hasNext : 1;
+            uint32_t  unknown2 : 7;
         };
     };
 
@@ -3814,14 +3814,14 @@ asset TwinRes_BehaviorState {
     union bitfieldUnion {
         uint16_t bitfield;
         struct bitfieldData {
-            uint8_t bodiesAmount : 5;
-            uint8_t unknown1  : 5;
-            bool    unkFlag1  : 1;
-            bool    isNonBlocking : 1;
-            bool    callsObjectSlot : 1;
-            bool    unkFlag2 : 1;
-            bool    hasControlPacket : 1;
-            bool    hasNext : 1;
+            uint16_t bodiesAmount : 5;
+            uint16_t unknown1  : 5;
+            uint16_t    unkFlag1  : 1;
+            uint16_t    isNonBlocking : 1;
+            uint16_t    callsObjectSlot : 1;
+            uint16_t    unkFlag2 : 1;
+            uint16_t    hasControlPacket : 1;
+            uint16_t    hasNext : 1;
         };
     };
 
