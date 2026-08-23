@@ -103,16 +103,16 @@ int32_t TwinStudio_MeshAddVertex(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v)
 }
 
 
-void TwinStudio_MeshAddFace(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v1, TwinStudio_MeshVertex v2, TwinStudio_MeshVertex v3, TwinStudio_Material material)
+void TwinStudio_MeshAddFace(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v1, TwinStudio_MeshVertex v2, TwinStudio_MeshVertex v3, uint32_t materialIndex)
 {
     int32_t v1Idx = FindExistingVertex(mesh, v1);
     int32_t v2Idx = FindExistingVertex(mesh, v2);
     int32_t v3Idx = FindExistingVertex(mesh, v3);
-    TwinStudio_MeshAddFaceI(mesh, v1Idx, v2Idx, v3Idx, material);
+    TwinStudio_MeshAddFaceI(mesh, v1Idx, v2Idx, v3Idx, materialIndex);
 }
 
 
-void TwinStudio_MeshAddFaceI(TwinStudio_Mesh* mesh, int32_t v1Idx, int32_t v2Idx, int32_t v3Idx, TwinStudio_Material material)
+void TwinStudio_MeshAddFaceI(TwinStudio_Mesh* mesh, int32_t v1Idx, int32_t v2Idx, int32_t v3Idx, uint32_t materialIndex)
 {
     TwinStudio_MeshFace newFace = { 0 };
     assert(v1Idx != -1);
@@ -127,6 +127,6 @@ void TwinStudio_MeshAddFaceI(TwinStudio_Mesh* mesh, int32_t v1Idx, int32_t v2Idx
     newFace.idx[0] = v1Idx;
     newFace.idx[1] = v2Idx;
     newFace.idx[2] = v3Idx;
-    newFace.material = material;
+    newFace.materialIdx = materialIndex;
     arrput(mesh->faces, newFace);
 }

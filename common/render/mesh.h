@@ -4,6 +4,7 @@
 
 #include <raylib.h>
 #include <stdint.h>
+#include <string_view/string_view.h>
 
 
 typedef enum {
@@ -14,7 +15,8 @@ typedef enum {
 
 
 typedef struct TwinStudio_Material {
-    Image* texture;
+    Image* textures;
+    TwinStudio_StringView name;
 } TwinStudio_Material;
 
 
@@ -41,12 +43,13 @@ typedef struct TwinStudio_MeshVertex {
 
 typedef struct TwinStudio_MeshFace {
     uint32_t idx[3];
-    TwinStudio_Material material;
+    uint32_t materialIdx;
 } TwinStudio_MeshFace;
 
 typedef struct TwinStudio_Mesh {
     TwinStudio_MeshFace* faces;
     TwinStudio_MeshVertex* vertexes;
+    TwinStudio_Material* materials;
 } TwinStudio_Mesh;
 
 typedef struct TwinStudio_Animation {
@@ -84,7 +87,7 @@ typedef struct TwinStudio_RenderBody {
 
 
 int32_t TwinStudio_MeshAddVertex(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v);
-void TwinStudio_MeshAddFace(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v1, TwinStudio_MeshVertex v2, TwinStudio_MeshVertex v3, TwinStudio_Material material);
-void TwinStudio_MeshAddFaceI(TwinStudio_Mesh* mesh, int32_t idx1, int32_t idx2, int32_t idx3, TwinStudio_Material material);
+void TwinStudio_MeshAddFace(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v1, TwinStudio_MeshVertex v2, TwinStudio_MeshVertex v3, uint32_t materialIndex);
+void TwinStudio_MeshAddFaceI(TwinStudio_Mesh* mesh, int32_t idx1, int32_t idx2, int32_t idx3, uint32_t materialIndex);
 
 #endif // TS_MESH_H

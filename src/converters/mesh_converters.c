@@ -38,6 +38,17 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
         {
             TwinRes_BlendSkinModelPart* blendModelPart = blendModel->modelParts + j;
             TwinStudio_VIFOutput output = TwinStudio_VIFInterpretData(blendModelPart->vifData, blendModelPart->vifDataLength, arena);
+
+            TwinStudio_Material studioMaterial = { 0 };
+            studioMaterial.name = TwinStudio_CopyFromCString(material->name.string);
+            for (size_t k = 0; k < arrlen(material->shaders); ++k)
+            {
+                TwinRes_MaterialShader* shader = material->shaders + k;
+                TwinRes_Texture* texture = TwinStudio_GetChunkResource(chunkRes, shader->textureLinkType, TS_SRT_None, shader->texture).data;
+                arrput(studioMaterial.textures, texture->textureData);
+            }
+            arrput(mesh.materials, studioMaterial);
+
             for (size_t k = 0; k < arrlen(output.vertexes); ++k)
             {
                 TwinStudio_MeshVertex vertex = { 0 };
@@ -143,14 +154,7 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
                     indices[2] = startingOffset + k;
                 }
 
-                for (size_t l = 0; l < arrlen(material->shaders); ++l)
-                {
-                    TwinStudio_Material studioMaterial = { 0 };
-                    TwinRes_MaterialShader* shader = material->shaders + l;
-                    TwinRes_Texture* texture = TwinStudio_GetChunkResource(chunkRes, shader->textureLinkType, TS_SRT_None, shader->texture).data;
-                    studioMaterial.texture = &texture->textureData;
-                    TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], studioMaterial);
-                }
+                TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], i);
                 winding = !winding;
             }
         }
@@ -169,6 +173,17 @@ static void BuildSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_
         TwinRes_Material* material = TwinStudio_GetChunkResource(chunkRes, skinPart->materialLinkType, TS_SRT_None, skinPart->material).data;
         TwinStudio_VIFOutput output = TwinStudio_VIFInterpretData(skinPart->vifData, skinPart->vifDataLength, arena);
         int32_t indexMap[8192];
+
+        TwinStudio_Material studioMaterial = { 0 };
+        studioMaterial.name = TwinStudio_CopyFromCString(material->name.string);
+        for (size_t k = 0; k < arrlen(material->shaders); ++k)
+        {
+            TwinRes_MaterialShader* shader = material->shaders + k;
+            TwinRes_Texture* texture = TwinStudio_GetChunkResource(chunkRes, shader->textureLinkType, TS_SRT_None, shader->texture).data;
+            arrput(studioMaterial.textures, texture->textureData);
+        }
+        arrput(mesh.materials, studioMaterial);
+
         for (size_t j = 0; j < arrlen(output.vertexes); ++j)
         {
             TwinStudio_MeshVertex vertex = { 0 };
@@ -247,14 +262,7 @@ static void BuildSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_
                 indices[2] = j;
             }
 
-            for (size_t k = 0; k < arrlen(material->shaders); ++k)
-            {
-                TwinStudio_Material studioMaterial = { 0 };
-                TwinRes_MaterialShader* shader = material->shaders + k;
-                TwinRes_Texture* texture = TwinStudio_GetChunkResource(chunkRes, shader->textureLinkType, TS_SRT_None, shader->texture).data;
-                studioMaterial.texture = &texture->textureData;
-                TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], studioMaterial);
-            }
+            TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], i);
             winding = !winding;
         }
     }
@@ -273,6 +281,17 @@ static void BuildRigidModelMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinS
         TwinRes_Material* material = TwinStudio_GetChunkResource(chunkRes, rigid->materialsLinkType, TS_SRT_None, rigid->materials[i]).data;
         TwinStudio_VIFOutput output = TwinStudio_VIFInterpretData(modelPart->vifData, modelPart->vifDataLength, arena);
         int32_t indexMap[8192];
+
+        TwinStudio_Material studioMaterial = { 0 };
+        studioMaterial.name = TwinStudio_CopyFromCString(material->name.string);
+        for (size_t k = 0; k < arrlen(material->shaders); ++k)
+        {
+            TwinRes_MaterialShader* shader = material->shaders + k;
+            TwinRes_Texture* texture = TwinStudio_GetChunkResource(chunkRes, shader->textureLinkType, TS_SRT_None, shader->texture).data;
+            arrput(studioMaterial.textures, texture->textureData);
+        }
+        arrput(mesh.materials, studioMaterial);
+
         for (size_t j = 0; j < arrlen(output.vertexes); ++j)
         {
             TwinStudio_MeshVertex vertex = { 0 };
@@ -331,16 +350,9 @@ static void BuildRigidModelMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinS
                 indices[1] = j - 2;
                 indices[2] = j;
             }
-
-            for (size_t k = 0; k < arrlen(material->shaders); ++k)
-            {
-                TwinStudio_Material studioMaterial = { 0 };
-                TwinRes_MaterialShader* shader = material->shaders + k;
-                TwinRes_Texture* texture = TwinStudio_GetChunkResource(chunkRes, shader->textureLinkType, TS_SRT_None, shader->texture).data;
-                studioMaterial.texture = &texture->textureData;
-                TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], studioMaterial);
-            }
             winding = !winding;
+
+            TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], i);
         }
     }
 
