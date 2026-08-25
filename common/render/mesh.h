@@ -89,5 +89,6 @@ typedef struct TwinStudio_RenderBody {
 int32_t TwinStudio_MeshAddVertex(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v);
 void TwinStudio_MeshAddFace(TwinStudio_Mesh* mesh, TwinStudio_MeshVertex v1, TwinStudio_MeshVertex v2, TwinStudio_MeshVertex v3, uint32_t materialIndex);
 void TwinStudio_MeshAddFaceI(TwinStudio_Mesh* mesh, int32_t idx1, int32_t idx2, int32_t idx3, uint32_t materialIndex);
+void TwinStudio_RenderBodyFree(TwinStudio_RenderBody renderBody);
 
 #endif // TS_MESH_H

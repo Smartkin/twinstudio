@@ -901,3 +901,15 @@ TwinStudio_VIFCompilerOutput TwinStudio_VIFCompile(TwinStudio_VIFOutput* input)
 
     return result;
 }
+
+void TwinStudio_VIFOutputFree(TwinStudio_VIFOutput* output)
+{
+    arrfree(output->groupSizes);
+    arrfree(output->vertexes);
+    arrfree(output->blendFaceOffsets);
+    arrfree(output->uvColors);
+    arrfree(output->normals);
+    arrfree(output->emits);
+    arrfree(output->jointWeights);
+    arrfree(output->gifTags);
+}

@@ -133,6 +133,8 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
                         resVec.z = (int32_t)morphOutput.blendFaceOffsets[h].integer.z * blendModelPart->blendShape.z;
                         arrput(vertex.morphOffsets, resVec);
                     }
+
+                    TwinStudio_VIFOutputFree(&morphOutput);
                 }
 
                 indexMap[indexMapIdx++] = TwinStudio_MeshAddVertex(&mesh, vertex);
@@ -168,6 +170,8 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
                 TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], i);
                 winding = !winding;
             }
+
+            TwinStudio_VIFOutputFree(&output);
         }
     }
 
@@ -285,6 +289,8 @@ static void BuildSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_
             TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], i);
             winding = !winding;
         }
+
+        TwinStudio_VIFOutputFree(&output);
     }
 
     renderBody->skin = mesh;
@@ -383,6 +389,8 @@ static void BuildRigidModelMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinS
 
             TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], i);
         }
+
+        TwinStudio_VIFOutputFree(&output);
     }
 
     arrput(renderBody->rigidBodies, mesh);

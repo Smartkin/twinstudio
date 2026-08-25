@@ -130,3 +130,29 @@ void TwinStudio_MeshAddFaceI(TwinStudio_Mesh* mesh, int32_t v1Idx, int32_t v2Idx
     newFace.materialIdx = materialIndex;
     arrput(mesh->faces, newFace);
 }
+
+
+static void FreeMesh(TwinStudio_Mesh mesh)
+{
+    arrfree(mesh.faces);
+    for (uint32_t i = 0; i < arrlen(mesh.materials); ++i)
+    {
+        arrfree(mesh.materials[i].textures);
+    }
+    arrfree(mesh.materials);
+    arrfree(mesh.vertexes);
+}
+
+
+void TwinStudio_RenderBodyFree(TwinStudio_RenderBody renderBody)
+{
+    FreeMesh(renderBody.blendSkin);
+    FreeMesh(renderBody.skin);
+    for (uint32_t i = 0; i < arrlenu(renderBody.rigidBodies); ++i)
+    {
+        FreeMesh(renderBody.rigidBodies[i]);
+    }
+
+    arrfree(renderBody.exitPoints);
+    arrfree(renderBody.joints);
+}

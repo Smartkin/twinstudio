@@ -190,8 +190,12 @@ void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, voi
         TwinRes_Body* body = (bodiesRes + i)->data;
         TwinStudio_RenderBody renderBody = TwinStudio_ConvertPs2Body(&chunkResources, body, &convertArena);
         // TODO: Test GLTF conversion here
+
+        TwinStudio_RenderBodyFree(renderBody);
     }
 
+    arrfree(bodiesRes);
+    TwinStudio_ChunkResourcesFree(&chunkResources);
     TwinStudio_ArenaFree(&convertArena);
 
     TwinStudio_Arena chunkWriteArena = TwinStudio_CreateArena(1024UL * 1024UL * 30UL);
@@ -207,6 +211,8 @@ void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, voi
     fprintf(stderr, "Read chunk");
     TwinStudio_BinSerializerFree(resourceDeserializer);
     TwinStudio_BinSerializerFree(resourceSerializer);
+    TwinStudio_BinSerializerFree(sceneryDeserializer);
+    TwinStudio_BinSerializerFree(scenerySerializer);
     TwinStudio_ArenaFree(&chunkArena);
     TwinStudio_ArenaFree(&chunkWriteArena);
 }

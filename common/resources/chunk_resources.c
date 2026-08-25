@@ -108,3 +108,9 @@ void TwinStudio_DumpChunkResources(TwinStudio_ChunkResourceManager* chunkRes)
         fprintf(stderr, "%zu. Type %s Id %u\n", i + 1, ResTypeToString(resource.key.resType), resource.key.twinId);
     }
 }
+
+
+void TwinStudio_ChunkResourcesFree(TwinStudio_ChunkResourceManager* chunkRes)
+{
+    hmfree(chunkRes->chunkResources);
+}

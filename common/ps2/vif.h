@@ -208,7 +208,7 @@ typedef struct TwinStudio_VIFCompilerOutput {
 TwinStudio_VIFOutput          TwinStudio_VIFInterpretData(void* data, size_t dataSize, TwinStudio_Arena* arena);
 TwinStudio_VIFOutput          TwinStudio_VIFInterpret(TwinStudio_BinarySerializer* reader, TwinStudio_Arena* arena);
 TwinStudio_VIFCompilerOutput  TwinStudio_VIFCompile(TwinStudio_VIFOutput* input);
-
+void TwinStudio_VIFOutputFree(TwinStudio_VIFOutput* output); // TODO: Use arenas for all the allocating
 
 
 #endif // TS_VIF_H
