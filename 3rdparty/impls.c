@@ -10,3 +10,7 @@
 #define STBDS_FREE(c,p)      rpfree(p)
 #include <stb_ds.h>
 #undef STB_DS_IMPLEMENTATION
+
+#define CGLTF_WRITE_IMPLEMENTATION
+#include <cgltf_write.h>
+#undef CGLTF_WRITE_IMPLEMENTATION

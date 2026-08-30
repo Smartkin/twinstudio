@@ -21,7 +21,8 @@ add_library(common STATIC ui/ui.c
     ps2/vif.c
     resources/resources.c
     resources/chunk_resources.c
-    render/mesh.c)
+    render/mesh.c
+    gltf/gltf_io.c)
 target_include_directories(common PUBLIC .)
 target_link_libraries(common PUBLIC dependencies flecs::flecs_static raylib)
 target_compile_features(common PRIVATE c_std_11)
