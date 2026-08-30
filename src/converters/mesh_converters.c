@@ -14,6 +14,7 @@
 #include "memory/memory.h"
 #include "render/mesh.h"
 #include "serialization/binary_serializer.h"
+#include "string_view/string_view.h"
 #include <assert.h>
 #include <stb_ds.h>
 #include <stdbool.h>
@@ -26,6 +27,8 @@
 
 static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_RenderBody* renderBody, TwinRes_BlendSkin* blendSkin, TwinStudio_Arena* arena)
 {
+    static const uint8_t stubImageData[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+    static const Image stubImage = { .data = (void*)stubImageData, .width = 1, .height = 1, .mipmaps = 0, .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
     TwinStudio_Mesh mesh = { 0 };
 
     for (size_t i = 0; i < arrlen(blendSkin->models); ++i)
@@ -40,12 +43,20 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
             TwinStudio_VIFOutput output = TwinStudio_VIFInterpretData(blendModelPart->vifData, blendModelPart->vifDataLength, arena);
 
             TwinStudio_Material studioMaterial = { 0 };
-            studioMaterial.name = TwinStudio_CopyFromCString(material->name.string);
+            studioMaterial.name = TwinStudio_CopyFromCStringArena(arena, material->name.string);
             for (size_t k = 0; k < arrlen(material->shaders); ++k)
             {
                 TwinRes_MaterialShader* shader = material->shaders + k;
                 TwinRes_Texture* texture = TwinStudio_GetChunkResource(chunkRes, shader->textureLinkType, TS_SRT_None, shader->texture).data;
-                arrput(studioMaterial.textures, texture->textureData);
+                if (texture)
+                {
+                    arrput(studioMaterial.textures, texture->textureData);
+                }
+                else
+                {
+                    arrput(studioMaterial.textures, stubImage);
+                }
+                
             }
             arrput(mesh.materials, studioMaterial);
 
@@ -122,6 +133,8 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
                         resVec.z = (int32_t)morphOutput.blendFaceOffsets[h].integer.z * blendModelPart->blendShape.z;
                         arrput(vertex.morphOffsets, resVec);
                     }
+
+                    TwinStudio_VIFOutputFree(&morphOutput);
                 }
 
                 indexMap[indexMapIdx++] = TwinStudio_MeshAddVertex(&mesh, vertex);
@@ -157,6 +170,8 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
                 TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], i);
                 winding = !winding;
             }
+
+            TwinStudio_VIFOutputFree(&output);
         }
     }
 
@@ -166,6 +181,8 @@ static void BuildBlendSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinSt
 
 static void BuildSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_RenderBody* renderBody, TwinRes_Skin* skin, TwinStudio_Arena* arena)
 {
+    static const uint8_t stubImageData[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+    static const Image stubImage = { .data = (void*)stubImageData, .width = 1, .height = 1, .mipmaps = 0, .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
     TwinStudio_Mesh mesh = { 0 };
     for (size_t i = 0; i < arrlen(skin->skinParts); ++i)
     {
@@ -175,12 +192,19 @@ static void BuildSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_
         int32_t indexMap[8192];
 
         TwinStudio_Material studioMaterial = { 0 };
-        studioMaterial.name = TwinStudio_CopyFromCString(material->name.string);
+        studioMaterial.name = TwinStudio_CopyFromCStringArena(arena, material->name.string);
         for (size_t k = 0; k < arrlen(material->shaders); ++k)
         {
             TwinRes_MaterialShader* shader = material->shaders + k;
             TwinRes_Texture* texture = TwinStudio_GetChunkResource(chunkRes, shader->textureLinkType, TS_SRT_None, shader->texture).data;
-            arrput(studioMaterial.textures, texture->textureData);
+            if (texture)
+            {
+                arrput(studioMaterial.textures, texture->textureData);
+            }
+            else
+            {
+                arrput(studioMaterial.textures, stubImage);
+            }
         }
         arrput(mesh.materials, studioMaterial);
 
@@ -265,6 +289,8 @@ static void BuildSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_
             TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], i);
             winding = !winding;
         }
+
+        TwinStudio_VIFOutputFree(&output);
     }
 
     renderBody->skin = mesh;
@@ -273,6 +299,8 @@ static void BuildSkinMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_
 
 static void BuildRigidModelMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_RenderBody* renderBody, uint8_t jointIndex, TwinRes_RigidModel* rigid, TwinStudio_Arena* arena)
 {
+    static const uint8_t stubImageData[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+    static const Image stubImage = { .data = (void*)stubImageData, .width = 1, .height = 1, .mipmaps = 0, .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
     TwinStudio_Mesh mesh = { 0 };
     TwinRes_Model* model = TwinStudio_GetChunkResource(chunkRes, rigid->modelLinkType, TS_SRT_None, rigid->model).data;
     for (size_t i = 0; i < arrlen(model->modelParts); ++i)
@@ -283,12 +311,19 @@ static void BuildRigidModelMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinS
         int32_t indexMap[8192];
 
         TwinStudio_Material studioMaterial = { 0 };
-        studioMaterial.name = TwinStudio_CopyFromCString(material->name.string);
+        studioMaterial.name = TwinStudio_CopyFromCStringArena(arena, material->name.string);
         for (size_t k = 0; k < arrlen(material->shaders); ++k)
         {
             TwinRes_MaterialShader* shader = material->shaders + k;
             TwinRes_Texture* texture = TwinStudio_GetChunkResource(chunkRes, shader->textureLinkType, TS_SRT_None, shader->texture).data;
-            arrput(studioMaterial.textures, texture->textureData);
+            if (texture)
+            {
+                arrput(studioMaterial.textures, texture->textureData);
+            }
+            else
+            {
+                arrput(studioMaterial.textures, stubImage);
+            }
         }
         arrput(mesh.materials, studioMaterial);
 
@@ -354,6 +389,8 @@ static void BuildRigidModelMesh(TwinStudio_ChunkResourceManager* chunkRes, TwinS
 
             TwinStudio_MeshAddFaceI(&mesh, indexMap[indices[0]], indexMap[indices[1]], indexMap[indices[2]], i);
         }
+
+        TwinStudio_VIFOutputFree(&output);
     }
 
     arrput(renderBody->rigidBodies, mesh);

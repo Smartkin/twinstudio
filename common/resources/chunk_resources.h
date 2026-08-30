@@ -35,5 +35,6 @@ void TwinStudio_AddChunkResource(TwinStudio_ChunkResourceManager* chunkRes, Twin
 TwinStudio_ChunkResource TwinStudio_GetChunkResource(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_ResourceType type, TwinStudio_SoundResourceType soundType, uint32_t twinId);
 TwinStudio_ChunkResource* TwinStudio_GetChunkResourcesByType(TwinStudio_ChunkResourceManager* chunkRes, TwinStudio_ResourceType type, size_t* amount);
 void TwinStudio_DumpChunkResources(TwinStudio_ChunkResourceManager* chunkRes);
+void TwinStudio_ChunkResourcesFree(TwinStudio_ChunkResourceManager* chunkRes);
 
 #endif // TS_CHUNK_RESOURCES_H

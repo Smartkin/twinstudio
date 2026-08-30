@@ -35,7 +35,7 @@
 #include "ps2/retail/auto_struct_mh_archive.h"
 #include "ps2/retail/auto_struct_bh_archive.h"
 #include "converters/mesh_converters.h"
-#include "gltf/gltf_io.h"
+
 
 void HandleClayErrors(Clay_ErrorData errorData)
 {
@@ -189,11 +189,13 @@ void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, voi
     {
         TwinRes_Body* body = (bodiesRes + i)->data;
         TwinStudio_RenderBody renderBody = TwinStudio_ConvertPs2Body(&chunkResources, body, &convertArena);
-        test(&renderBody);
         // TODO: Test GLTF conversion here
-        break;
+
+        TwinStudio_RenderBodyFree(renderBody);
     }
 
+    arrfree(bodiesRes);
+    TwinStudio_ChunkResourcesFree(&chunkResources);
     TwinStudio_ArenaFree(&convertArena);
 
     TwinStudio_Arena chunkWriteArena = TwinStudio_CreateArena(1024UL * 1024UL * 30UL);
@@ -209,6 +211,8 @@ void HandleButtonClick(Clay_ElementId element, Clay_PointerData pointerData, voi
     fprintf(stderr, "Read chunk");
     TwinStudio_BinSerializerFree(resourceDeserializer);
     TwinStudio_BinSerializerFree(resourceSerializer);
+    TwinStudio_BinSerializerFree(sceneryDeserializer);
+    TwinStudio_BinSerializerFree(scenerySerializer);
     TwinStudio_ArenaFree(&chunkArena);
     TwinStudio_ArenaFree(&chunkWriteArena);
 }
