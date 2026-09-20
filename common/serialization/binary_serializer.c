@@ -22,6 +22,7 @@ struct TwinStudio_BinarySerializer
     uint8_t allocatedIdx;
     bool    deallocDataOnFree;
     bool    isStream;
+    bool    isVoidWriting;
 };
 
 typedef struct SerializerPool {
@@ -34,7 +35,7 @@ static SerializerPool serializerPool;
 
 static inline void AdvanceSerializer(TwinStudio_BinarySerializer* serializer, size_t amount)
 {
-    assert(serializer->dataIndex + amount <= serializer->size);
+    assert(serializer->isVoidWriting || serializer->dataIndex + amount <= serializer->size);
     serializer->dataIndex += amount;
 }
 
@@ -93,6 +94,10 @@ TwinStudio_BinarySerializer* TwinStudio_BinSerializerAllocate(void* data, TwinSt
 {
     uint8_t allocatedIdx = GetFirstFreeSerializer();
     serializerPool.serializers[allocatedIdx] = (TwinStudio_BinarySerializer) { .dataIndex = 0, .mode = mode, .size = size, .data = data, .allocatedIdx = allocatedIdx, .isStream = isFileStream };
+    if (data == NULL)
+    {
+        serializerPool.serializers[allocatedIdx].isVoidWriting = true;
+    }
     serializerPool.allocatedFlags |= (1 << allocatedIdx);
     return serializerPool.serializers + allocatedIdx;
 }
@@ -101,6 +106,13 @@ TwinStudio_BinarySerializer* TwinStudio_BinSerializerAllocate(void* data, TwinSt
 void TwinStudio_BinSerializerFree(TwinStudio_BinarySerializer* serializer)
 {
     serializerPool.allocatedFlags &= ~(1 << serializer->allocatedIdx);
+
+    if (serializer->isVoidWriting)
+    {
+        serializer->isVoidWriting = false;
+        return;
+    }
+    
     if (serializer->deallocDataOnFree)
     {
         TWIN_FREE(serializer->data);
@@ -121,6 +133,12 @@ void TwinStudio_BinWriteUInt8(TwinStudio_BinarySerializer* serializer, uint8_t d
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
 
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(uint8_t));
+        return;
+    }
+
     if (serializer->isStream)
     {
         fwrite(&data, sizeof(uint8_t), 1, serializer->fileStream);
@@ -136,6 +154,12 @@ void TwinStudio_BinWriteUInt16(TwinStudio_BinarySerializer* serializer, uint16_t
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
 
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(uint16_t));
+        return;
+    }
+
     if (serializer->isStream)
     {
         fwrite(&data, sizeof(uint16_t), 1, serializer->fileStream);
@@ -150,6 +174,12 @@ void TwinStudio_BinWriteUInt16(TwinStudio_BinarySerializer* serializer, uint16_t
 void TwinStudio_BinWriteUInt32(TwinStudio_BinarySerializer* serializer, uint32_t data)
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
+    
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(uint32_t));
+        return;
+    }
 
     if (serializer->isStream)
     {
@@ -166,6 +196,12 @@ void TwinStudio_BinWriteUInt64(TwinStudio_BinarySerializer* serializer, uint64_t
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
 
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(uint64_t));
+        return;
+    }
+
     if (serializer->isStream)
     {
         fwrite(&data, sizeof(uint64_t), 1, serializer->fileStream);
@@ -180,6 +216,12 @@ void TwinStudio_BinWriteUInt64(TwinStudio_BinarySerializer* serializer, uint64_t
 void TwinStudio_BinWriteInt8(TwinStudio_BinarySerializer* serializer, int8_t data)
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
+
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(int8_t));
+        return;
+    }
 
     if (serializer->isStream)
     {
@@ -196,6 +238,12 @@ void TwinStudio_BinWriteInt16(TwinStudio_BinarySerializer* serializer, int16_t d
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
 
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(int16_t));
+        return;
+    }
+
     if (serializer->isStream)
     {
         fwrite(&data, sizeof(int16_t), 1, serializer->fileStream);
@@ -210,6 +258,12 @@ void TwinStudio_BinWriteInt16(TwinStudio_BinarySerializer* serializer, int16_t d
 void TwinStudio_BinWriteInt32(TwinStudio_BinarySerializer* serializer, int32_t data)
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
+
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(int32_t));
+        return;
+    }
 
     if (serializer->isStream)
     {
@@ -226,6 +280,12 @@ void TwinStudio_BinWriteInt64(TwinStudio_BinarySerializer* serializer, int64_t d
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
 
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(int64_t));
+        return;
+    }
+
     if (serializer->isStream)
     {
         fwrite(&data, sizeof(int64_t), 1, serializer->fileStream);
@@ -240,6 +300,12 @@ void TwinStudio_BinWriteInt64(TwinStudio_BinarySerializer* serializer, int64_t d
 void TwinStudio_BinWriteFloat(TwinStudio_BinarySerializer* serializer, float data)
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
+
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(float));
+        return;
+    }
 
     if (serializer->isStream)
     {
@@ -256,6 +322,12 @@ void TwinStudio_BinWriteChar(TwinStudio_BinarySerializer* serializer, char data)
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
 
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, sizeof(char));
+        return;
+    }
+
     if (serializer->isStream)
     {
         fwrite(&data, sizeof(char), 1, serializer->fileStream);
@@ -270,6 +342,12 @@ void TwinStudio_BinWriteChar(TwinStudio_BinarySerializer* serializer, char data)
 void TwinStudio_BinWriteChars(TwinStudio_BinarySerializer* serializer, const char* data, size_t size)
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
+
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, size);
+        return;
+    }
 
     if (serializer->isStream)
     {
@@ -299,6 +377,12 @@ void TwinStudio_BinWriteBlob(TwinStudio_BinarySerializer* serializer, const uint
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
 
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, size);
+        return;
+    }
+
     if (serializer->isStream)
     {
         fwrite(data, size, 1, serializer->fileStream);
@@ -313,6 +397,12 @@ void TwinStudio_BinWriteBlob(TwinStudio_BinarySerializer* serializer, const uint
 void TwinStudio_BinWriteAny(TwinStudio_BinarySerializer* serializer, const void* data, size_t size)
 {
     assert(serializer->mode == TwinStudio_BinarySerializerModeWrite);
+
+    if (serializer->isVoidWriting)
+    {
+        AdvanceSerializer(serializer, size);
+        return;
+    }
 
     if (serializer->isStream)
     {

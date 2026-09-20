@@ -69,11 +69,15 @@ add_dependencies(twindescs twindescgenerator)
 
 add_executable(twinstudio src/main.c
  src/converters/mesh_converters.c)
+target_compile_definitions(twinstudio PUBLIC
+    $<$<CONFIG:Debug>:_DEBUG>)
 target_link_libraries(twinstudio PUBLIC common twindescgenerator twindescs dependencies raylib PS2ImageMakerStatic flecs::flecs_static)
 target_include_directories(twinstudio PUBLIC common)
 target_include_directories(twinstudio PUBLIC src)
 
 target_compile_features(twinstudio PRIVATE c_std_11)
+
+add_subdirectory(src/music_manager)
 
 if (MSVC)
     set(MSVC_COMPILE_OPTIONS /experimental:c11atomics)

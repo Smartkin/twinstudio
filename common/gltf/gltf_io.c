@@ -2,6 +2,7 @@
 #include <cgltf_write.h>
 #include "memory/memory.h"
 #include <stb_ds.h>
+#include <stdio.h>
 
 #define NODES_INITIAL_CAP 16
 
@@ -28,7 +29,7 @@ int test(TwinStudio_RenderBody* body) {
 	int joint_cnt = arrlen(body->joints);
 	for (int i = 0; i < joint_cnt; ++i) {
 		char joint_name[256];
-		sprintf_s(joint_name, sizeof(joint_name), "joint_%d", i);
+		snprintf(joint_name, sizeof(joint_name), "joint_%d", i);
 		joint_map[i] = node_add(&ctx, joint_name);
 	}
 	for (int i = 0; i < joint_cnt; ++i) {

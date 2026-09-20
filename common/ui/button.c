@@ -4,7 +4,8 @@
 static void HandleButtonHoverAndClick(Clay_ElementId element, Clay_PointerData pointerData, void* data)
 {
     TwinStudio_UiButtonDesc* buttonDesc = data;
-    if (buttonDesc->hoverCallback != NULL) {
+    if (buttonDesc->hoverCallback != NULL)
+    {
         buttonDesc->hoverCallback(element, pointerData, buttonDesc->data);
     }
     

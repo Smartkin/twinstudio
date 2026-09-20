@@ -28,15 +28,14 @@ static int32_t GetPcm(void *priv, double *out, int32_t len)
 static int32_t PutAdpcm(void *priv, void *data, int32_t len)
 {
     TwinStudio_BinarySerializer* serializer = priv;
-    size_t curPostion = TwinStudio_BinGetStreamPosition(serializer);
+    size_t curPosition = TwinStudio_BinGetStreamPosition(serializer);
     TwinStudio_BinWriteAny(serializer, data, len);
-    return TwinStudio_BinGetStreamPosition(serializer) - curPostion;
+    return TwinStudio_BinGetStreamPosition(serializer) - curPosition;
 }
 
 
 void TwinStudio_WaveBinSerialize(TwinStudio_Wave* source, TwinStudio_BinarySerializer* serializer, TwinStudio_Arena* arena, size_t size, void* userData)
 {
-    
     TwinRes_MbRecord* record = userData;
     if (record->header.type == TwinRes_MRT_Null)
     {
@@ -53,13 +52,13 @@ void TwinStudio_WaveBinSerialize(TwinStudio_Wave* source, TwinStudio_BinarySeria
         setups[i] = TwinStudio_AdpcmCreate(arena, GetPcm, &pcmBuffer, PutAdpcm, serializer, source->loopPosition);
     }
 
-    if (pcmBuffer.channelCount > 2)
+    if (pcmBuffer.channelCount > 1)
     {
         setups[0]->pad = 1;
-        setups[0]->pad = 1;
+        setups[1]->pad = 1;
     }
 
-    int32_t bpc = record->header.interleave;
+    int32_t bpc = record->interleave;
     uint32_t dataOffset = 0;
     pcmBuffer.sample = source->data;
     do

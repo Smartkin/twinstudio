@@ -251,8 +251,6 @@ int main(int argc, char** argv)
         .textColor = { 0, 0, 0, 255 }
     };
 
-    TwinStudio_BinarySerializer* bdSerializer = TwinStudio_BinReadFromFile(TS_STRING_VIEW("/mnt/speed/Twinsanity Discs/Twins Full Extract PAL/Crash6/Crash.BD"), true);
-
     TwinStudio_TextBoxDesc textTextBox = {
         .id = TS_STRING_VIEW("TEST_TEXT_BOX"),
         .config = textConfig,
@@ -289,10 +287,12 @@ int main(int argc, char** argv)
         .data = &testNumStr
     };
 
-    TwinStudio_TextboxInit(&textTextBox);
-    TwinStudio_TextboxInit(&textTextBox2);
-    TwinStudio_TextboxInit(&textTextBox3);
-    TwinStudio_TextboxInit(&textTextBox4);
+    TwinStudio_Arena mainArena = TwinStudio_CreateArena(20 * 1024 * 1024);
+
+    TwinStudio_TextboxInit(&textTextBox, &mainArena);
+    TwinStudio_TextboxInit(&textTextBox2, &mainArena);
+    TwinStudio_TextboxInit(&textTextBox3, &mainArena);
+    TwinStudio_TextboxInit(&textTextBox4, &mainArena);
 
     while(!WindowShouldClose())
     {
@@ -322,14 +322,21 @@ int main(int argc, char** argv)
                 .childGap = 16,
             }
         }) {
-            float fps = 1.0f / dt;
-            int charsSize = snprintf(fpsBuffer, sizeof(fpsBuffer), "FPS: %d", (int)fps);
-            Clay_String fpsStr = { .isStaticallyAllocated = false, .length = charsSize, .chars = fpsBuffer };
-            CLAY_TEXT(fpsStr, {
-                .textColor = { 255, 255, 255, 255 },
-                .fontSize = 24,
-                .fontId = TwinStudio_FontTwin,
-            });
+
+            CLAY(CLAY_ID("FpsRender"), {
+                .floating = {
+                    .attachTo = CLAY_ATTACH_TO_ROOT
+                }
+            }) {
+                int fps = GetFPS();
+                int charsSize = snprintf(fpsBuffer, sizeof(fpsBuffer), "FPS: %d", fps);
+                Clay_String fpsStr = { .isStaticallyAllocated = false, .length = charsSize, .chars = fpsBuffer };
+                CLAY_TEXT(fpsStr, {
+                    .textColor = { 255, 255, 255, 255 },
+                    .fontSize = 16,
+                    .fontId = TwinStudio_FontTwin,
+                });
+            }
 
             TwinStudio_RenderButton(&testBtn);
             TwinStudio_TextboxRender(&textTextBox);

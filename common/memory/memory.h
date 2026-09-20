@@ -21,6 +21,7 @@ typedef struct TwinStudio_Arena {
 
 
 TwinStudio_Arena TwinStudio_CreateArena(size_t size);
+TwinStudio_Arena TwinStudio_CreateArenaFromMem(void* mem, size_t size);
 void* TwinStudio_ArenaAlloc(TwinStudio_Arena* arena, size_t size);
 void  TwinStudio_ArenaFree(TwinStudio_Arena* arena);
 

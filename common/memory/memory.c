@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stb_ds.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 TwinStudio_Arena TwinStudio_CreateArena(size_t size)
 {
@@ -21,17 +22,34 @@ TwinStudio_Arena TwinStudio_CreateArena(size_t size)
 }
 
 
+TwinStudio_Arena TwinStudio_CreateArenaFromMem(void* mem, size_t size)
+{
+    memset(mem, 0, size);
+    return (TwinStudio_Arena) {
+        .startMemory = mem,
+        .currentMemory = mem,
+        .allocedMemorySize = 0,
+        .size = size,
+        .currentExtraArena = -1
+    };
+}
+
+
 void* TwinStudio_ArenaAlloc(TwinStudio_Arena* arena, size_t size)
 {
     if (arena->allocedMemorySize + size > arena->size)
     {
+#ifdef _DEBUG
+        assert(false && "Arena memory overflow! Consider memory usage optimizations or preallocating more memory!");
+#else
         if (arena->currentExtraArena < 0 || arena->extraArenas[arena->currentExtraArena].allocedMemorySize + size > arena->size)
         {
-            fprintf(stderr, "WARNING: Arena allocated memory was exceeded! Extra space was allocated! This could result in performance penalty!\n");
+            fprintf(stderr, "CRITICAL: Arena allocated memory was exceeded! Extra space was allocated because this is release and we don't wanna crash the user! This could result in performance penalty!\n");
             arrput(arena->extraArenas, TwinStudio_CreateArena(arena->size));
             arena->currentExtraArena = arrlen(arena->extraArenas) - 1;
         }
         arena = arena->extraArenas + arena->currentExtraArena;
+#endif // _DEBUG
     }
 
     void* alloc = arena->currentMemory;

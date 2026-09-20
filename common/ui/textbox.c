@@ -87,11 +87,19 @@ static void HandleClickTextbox(Clay_ElementId element, Clay_PointerData pointerD
 }
 
 
-void TwinStudio_TextboxInit(TwinStudio_TextBoxDesc* desc)
+void TwinStudio_TextboxInit(TwinStudio_TextBoxDesc* desc, TwinStudio_Arena* arena)
 {
     assert(desc->id.string);
     assert(desc->textConverter);
     assert(desc->data);
+
+    if (desc->maxChars == 0)
+    {
+        desc->maxChars = 1024;
+    }
+
+    TwinStudio_Arena textArena = TwinStudio_CreateArenaFromMem(TwinStudio_ArenaAlloc(arena, desc->maxChars), desc->maxChars);
+    desc->arena = textArena;
 
     CacheTextboxString(desc);
     if (desc->config.fontSize == 0)
@@ -276,13 +284,6 @@ void TwinStudio_TextboxDeleteSelection(TwinStudio_TextBoxDesc* desc)
 }
 
 
-void TwinStudio_TextboxFreeOwnedData(TwinStudio_TextBoxDesc* desc)
-{
-    TwinStudio_FreeString(desc->stringCache);
-    desc->stringCache = NULL;
-}
-
-
 void TwinStudio_TextboxInvalidateData(TwinStudio_TextBoxDesc* desc)
 {
     if (desc->stringCache == NULL)
@@ -290,7 +291,6 @@ void TwinStudio_TextboxInvalidateData(TwinStudio_TextBoxDesc* desc)
         return;
     }
 
-    TwinStudio_TextboxFreeOwnedData(desc);
     CacheTextboxString(desc);
 }
 
@@ -299,12 +299,6 @@ void TwinStudio_TextboxCommitData(TwinStudio_TextBoxDesc* desc)
 {
     if (desc->backTextConverter == NULL || desc->stringCache->length <= 0 || desc->stringCache == NULL)
     {
-        if (desc->stringCache != NULL)
-        {
-            TwinStudio_TextboxFreeOwnedData(desc);
-        }
-
-        TwinStudio_TextboxInit(desc);
         return;
     }
 

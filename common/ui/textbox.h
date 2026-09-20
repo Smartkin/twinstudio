@@ -1,6 +1,7 @@
 #ifndef TS_TEXTBOX_H
 #define TS_TEXTBOX_H
 
+#include "memory/memory.h"
 #include "string_view/string_view.h"
 
 #include <clay.h>
@@ -19,6 +20,7 @@ typedef struct TwinStudio_TextBoxSelection {
 typedef struct TwinStudio_TextBoxDesc {
     TwinStudio_StringView id;
     void* data;
+    TwinStudio_Arena arena;
     TwinStudio_TextConverter textConverter;
     TwinStudio_TextBackConverter backTextConverter;
     TwinStudio_StringView* stringCache;
@@ -31,7 +33,7 @@ typedef struct TwinStudio_TextBoxDesc {
 } TwinStudio_TextBoxDesc;
 
 
-void TwinStudio_TextboxInit(TwinStudio_TextBoxDesc* desc);
+void TwinStudio_TextboxInit(TwinStudio_TextBoxDesc* desc, TwinStudio_Arena* arena);
 void TwinStudio_TextboxInvalidateData(TwinStudio_TextBoxDesc* desc);
 void TwinStudio_TextboxCommitData(TwinStudio_TextBoxDesc* desc);
 void TwinStudio_TextboxInsertString(TwinStudio_TextBoxDesc* desc, uint32_t index, TwinStudio_StringView string);
@@ -46,7 +48,6 @@ void TwinStudio_TextboxExpandSelectionRight(TwinStudio_TextBoxDesc* desc, uint32
 void TwinStudio_TextboxResetSelection(TwinStudio_TextBoxDesc* desc);
 void TwinStudio_TextboxDeleteSelection(TwinStudio_TextBoxDesc* desc);
 void TwinStudio_TextboxRender(TwinStudio_TextBoxDesc* desc);
-void TwinStudio_TextboxFreeOwnedData(TwinStudio_TextBoxDesc* desc);
 
 
 #endif // TS_TEXTBOX_H
