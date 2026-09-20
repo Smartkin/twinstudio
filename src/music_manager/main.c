@@ -1,3 +1,4 @@
+#include "audio/adpcm.h"
 #include "audio/wave.h"
 #include "memory/memory.h"
 #include "ps2/retail/archive_serializers.h"
@@ -120,6 +121,40 @@
 #define MAX_ITEMS        1024
 #define WAVEFORM_BUCKETS 1024   // peak buckets kept for the *loaded* track only
 
+// --- archive memory budgets -------------------------------------------------
+//
+// A record arrives as 4-bit ADPCM and comes out as 16-bit PCM: 16 bytes carry
+// 28 samples, so 56 bytes come back, a 3.5x expansion. While a record is being
+// read its arena holds both the raw blob and the decoded samples, so budget
+// 1 + 3.5 and round up to 6 for the interleave padding and bookkeeping.
+#define ADPCM_ARENA_FACTOR   6u
+#define ARENA_PER_RECORD_FAT (8u * 1024u)        // name block, alignment, slack
+
+// How much decoded audio may sit in the archive arena at once. Records are
+// read in batches that fit inside this, and the arena is released between
+// batches, so the arena no longer scales with the size of the archive.
+// Raising it trades memory for fewer arena allocations.
+#define LOAD_ARENA_BUDGET    (32u * 1024u * 1024u)
+
+// Floors and ceilings for the arenas whose size is now derived from the data.
+// The ceilings are the constants that used to be hard-coded, so nothing can
+// end up asking for more than the version before this did.
+// Decoded tracks kept around beyond the one being played. Raising this trades
+// memory for fewer decodes when stepping back and forth through the list; one
+// stereo track is a few MB, so this holds a good handful.
+#define PCM_CACHE_BUDGET     (64u * 1024u * 1024u)
+
+#define HEADER_ARENA_MIN     (1u * 1024u * 1024u)
+#define HEADER_ARENA_MAX     (32u * 1024u * 1024u)
+#define WRITE_ARENA_MIN      (64u * 1024u * 1024u)
+#define WRITE_ARENA_MAX      (300u * 1024u * 1024u)
+#define TRACK_ARENA_MIN      (1u * 1024u * 1024u)
+#define TRACK_ARENA_MAX      (20u * 1024u * 1024u)
+
+static size_t ClampSize(size_t v, size_t lo, size_t hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
+}
+
 // A playlist slot is either real audio or a null/padding record. Null slots
 // are not filler in the UI sense: the game engine addresses tracks by their
 // index in the archive, so every one of them has to survive a round trip and
@@ -142,13 +177,25 @@ typedef struct {
     bool     selected;
     TrackKind kind;         // TRACK_KIND_NULL => padding slot, holds no audio
 
-    // Audio held in memory (archive tracks). `wav` is a malloc'd RIFF buffer
-    // that this item owns; raylib's memory loaders keep a pointer into it
-    // rather than copying, and the player streams straight out of it, so it
-    // has to outlive anything playing from it.
-    // Freed only when a new playlist is opened, or the row is deleted.
+    // Source bytes: the record's ADPCM exactly as it sits in the .MB, minus the
+    // 0x30 name block that a mono record carries in front of it. This is what
+    // the row actually holds - 4-bit ADPCM, roughly 3.5x smaller than the
+    // 16-bit PCM it decodes to - and it is shared between rows that address
+    // the same blob. NULL for a padding slot and for an imported MP3/WAV,
+    // which arrives as PCM and has no ADPCM form until the archive is written.
+    uint8_t *adpcm;
+    uint32_t adpcmSize;
+    uint32_t interleave;    // bytes per channel chunk, 0 => mono (decoder's rule)
+    uint32_t pcmSize;       // what the decode is expected to produce, for checking
+
+    // Decoded PCM, as a RIFF buffer. This is a *cache*: NULL until something
+    // needs samples, and dropped again once the cache is over budget. An
+    // imported track has no ADPCM to rebuild it from, so its buffer is the
+    // only copy and is never evicted. Whatever is playing streams straight out
+    // of this, so it must outlive the stream reading it.
     uint8_t *wav;
     uint32_t wavSize;
+    uint64_t pcmStamp;      // last use, for eviction order
     uint32_t sampleRate;
     uint8_t  channels;
     int32_t  loopPosition;  // < 0 when the track has no loop point
@@ -302,6 +349,14 @@ static int16_t g_pushBuffer[STREAM_CHUNK_FRAMES * STREAM_MAX_CHANNELS];
 // UI / interaction state
 // ---------------------------------------------------------------------------
 
+// What the confirmation dialog is standing in front of. The playlist only
+// ever gets thrown away by these two, so they are the only things gated.
+typedef enum {
+    PENDING_NONE = 0,
+    PENDING_OPEN,     // open another archive, which drops the one in memory
+    PENDING_EXIT      // close the window
+} PendingAction;
+
 typedef struct {
     // list dragging
     bool  pressedInList;
@@ -327,12 +382,26 @@ typedef struct {
     bool  volumeDrag;
     // About dialog. Modal: while it is up nothing behind it takes input.
     bool  aboutOpen;
+    // Unsaved-changes dialog. Also modal, and it outranks the About dialog.
+    bool  confirmOpen;
+    PendingAction pendingAction;   // what the dialog is asking about
+    PendingAction afterSaveAction; // what to do once a save started from it lands
     // row to bring into view once it has been through a layout pass
     int   pendingScrollIndex;
 } UIState;
 
 static UIState g_ui = { .dropIndex = -1, .anchorIndex = -1, .hoverIndex = -1,
                         .lastClickIndex = -1, .pendingScrollIndex = -1 };
+
+// The playlist has changes that are not on disk. Set by every mutation,
+// cleared by a successful save and by dropping the playlist on open.
+static bool g_dirty = false;
+
+// Set instead of leaving the loop directly, so the close request can go
+// through the confirmation dialog first.
+static bool g_quit = false;
+
+static void MarkDirty(void) { g_dirty = true; }
 
 static Font *g_fonts = NULL;   // [FONT_BODY], [FONT_TITLE]
 
@@ -576,6 +645,42 @@ static void PutU16LE(uint8_t *p, uint16_t v) {
     p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8);
 }
 
+// Both kinds of track buffer - the source ADPCM and the decoded PCM - are
+// refcounted, because several header records can address the same blob in the
+// .MB. Every repeated "undefined" entry points at one, which is why
+// SaveArchives writes it once and reuses the record, and holding a copy per
+// record stored the same audio over and over.
+//
+// The count sits in a 16 byte prefix, so the payload stays 16 byte aligned and
+// the pointer handed out is an ordinary uint8_t* that the player, the exporter
+// and the serializer can use without knowing any of this. Not atomic: the
+// loader thread owns every buffer until the playlist is published, and only
+// one thread touches them afterwards (the UI is frozen while a job runs).
+typedef struct { uint32_t refs; uint32_t size; } Blob;
+#define BLOB_PREFIX 16
+
+static uint8_t *BlobAlloc(uint32_t size) {
+    uint8_t *base = (uint8_t *)malloc((size_t)BLOB_PREFIX + size);
+    if (!base) return NULL;
+    Blob *b = (Blob *)base;
+    b->refs = 1;
+    b->size = size;
+    return base + BLOB_PREFIX;
+}
+
+static Blob *BlobHeaderOf(uint8_t *wav) { return (Blob *)(wav - BLOB_PREFIX); }
+
+static uint8_t *BlobRetain(uint8_t *wav) {
+    if (wav) BlobHeaderOf(wav)->refs++;
+    return wav;
+}
+
+static void BlobRelease(uint8_t *wav) {
+    if (!wav) return;
+    Blob *b = BlobHeaderOf(wav);
+    if (--b->refs == 0) free(b);
+}
+
 // Wrap raw PCM in a 44 byte RIFF/WAVE header so raylib can stream it from
 // memory. The samples are copied, so the source (an arena that gets freed as
 // soon as the archive is closed) does not need to stay alive. The returned
@@ -589,7 +694,7 @@ static uint8_t *WrapPcmAsWav(const void *pcm, uint32_t pcmSize, uint32_t sampleR
     const uint16_t blockAlign = (uint16_t)(channels * (bits / 8));
     const uint32_t total      = 44u + pcmSize;
 
-    uint8_t *buf = (uint8_t *)malloc(total);
+    uint8_t *buf = BlobAlloc(total);
     if (!buf) return NULL;
 
     memcpy(buf +  0, "RIFF", 4);
@@ -612,6 +717,129 @@ static uint8_t *WrapPcmAsWav(const void *pcm, uint32_t pcmSize, uint32_t sampleR
 }
 
 // ---------------------------------------------------------------------------
+// Decode cache
+//
+// A row holds its ADPCM and decodes on demand. Holding every track decoded
+// cost 3.5x this and most of it was never listened to in a given session.
+// ---------------------------------------------------------------------------
+
+static uint64_t g_pcmClock = 1;      // bumped on every use, for eviction order
+static uint64_t g_pcmHeld  = 0;      // bytes of decoded PCM currently cached
+static bool     g_pcmPinAll = false; // set while saving, which needs them all at once
+
+// Deliberately reads nothing the save worker writes: it runs on another thread
+// and fills item->wav in as it goes, while the main thread is still drawing.
+static bool ItemHasAudio(const Item *item) {
+    return item && item->kind != TRACK_KIND_NULL && (item->adpcm || item->pcmSize);
+}
+
+// An imported MP3/WAV has no ADPCM behind it, so its buffer is the only copy
+// and dropping it would lose the track. Only decodes are reclaimable.
+static bool ItemPcmIsReclaimable(const Item *item) {
+    return item && item->wav && item->adpcm;
+}
+
+static void DropItemPcm(Item *item) {
+    if (!item || !item->wav) return;
+    g_pcmHeld -= (g_pcmHeld >= item->wavSize) ? item->wavSize : g_pcmHeld;
+    BlobRelease(item->wav);
+    item->wav = NULL;
+    item->wavSize = 0;
+}
+
+// Bring the cache back under budget, oldest first. `keep` is the row being
+// decoded right now and `playing` is whatever the audio thread is streaming
+// out of - freeing either would pull memory out from under a live reader.
+static void TrimPcmCache(const Item *keep) {
+    if (g_pcmPinAll) return;
+
+    int playing = IndexOfUid(g_player.uid);
+
+    while (g_pcmHeld > PCM_CACHE_BUDGET) {
+        int      oldest = -1;
+        uint64_t oldestStamp = UINT64_MAX;
+
+        for (int i = 0; i < g_itemCount; i++) {
+            Item *it = g_items + i;
+            if (it == keep || i == playing) continue;
+            if (!ItemPcmIsReclaimable(it)) continue;
+            if (it->pcmStamp < oldestStamp) { oldestStamp = it->pcmStamp; oldest = i; }
+        }
+
+        if (oldest < 0) break;          // nothing left that may be dropped
+        DropItemPcm(g_items + oldest);
+    }
+}
+
+// End of a save: eviction comes back on and the decodes it had to keep are
+// released down to the budget again.
+static void UnpinPcmCache(void) {
+    g_pcmPinAll = false;
+    TrimPcmCache(NULL);
+}
+
+// The one place that talks to the decoder. `interleave` goes across as the
+// header's byte count, which is the units the decoder works in - it divides by
+// 16 itself - and 0 means mono, per its contract.
+static uint8_t *DecodeItemPcm(const Item *item, uint32_t *outSize) {
+    if (!item->adpcm || item->adpcmSize == 0) return NULL;
+
+    // The decode lands in an arena, so it is copied into the item's own buffer
+    // and the arena goes away immediately. 4-bit in, 16-bit out is 3.5x; 6x
+    // leaves room for the interleave padding and the decoder's bookkeeping.
+    size_t arenaBytes = (size_t)item->adpcmSize * ADPCM_ARENA_FACTOR + ARENA_PER_RECORD_FAT;
+    TwinStudio_Arena arena = TwinStudio_CreateArena(arenaBytes);
+
+    TwinStudio_AdpcmDecodeResult res =
+        TwinStudio_AdpcmDecode(&arena, item->adpcm, item->adpcmSize, item->interleave);
+
+    uint8_t *wav = NULL;
+    if (res.pcmData && res.pcmDataSize > 0) {
+        // The size this produced was recorded when the archive was opened. A
+        // mismatch means the decode ran with different parameters than the
+        // load did - almost always a wrong interleave - and that is worth
+        // saying out loud rather than playing something that sounds wrong.
+        if (item->pcmSize && (uint32_t)res.pcmDataSize != item->pcmSize) {
+            fprintf(stderr, "Decode of \"%s\" produced %llu bytes, expected %u\n",
+                    item->title, (unsigned long long)res.pcmDataSize, item->pcmSize);
+        }
+        wav = WrapPcmAsWav(res.pcmData, (uint32_t)res.pcmDataSize,
+                           item->sampleRate ? item->sampleRate : 44100,
+                           item->channels ? item->channels : 1, outSize);
+    }
+
+    TwinStudio_ArenaFree(&arena);
+    return wav;
+}
+
+// Make sure this row has samples, decoding them if it does not. Every consumer
+// of item->wav goes through here first.
+static bool EnsureItemPcm(Item *item) {
+    if (!item || item->kind == TRACK_KIND_NULL) return false;
+
+    if (item->wav && item->wavSize > 44) {
+        item->pcmStamp = g_pcmClock++;
+        return true;
+    }
+    if (!item->adpcm) return false;
+
+    uint32_t wavSize = 0;
+    uint8_t *wav = DecodeItemPcm(item, &wavSize);
+    if (!wav) {
+        fprintf(stderr, "Could not decode \"%s\"\n", item->title);
+        return false;
+    }
+
+    item->wav      = wav;
+    item->wavSize  = wavSize;
+    item->pcmStamp = g_pcmClock++;
+    g_pcmHeld     += wavSize;
+
+    TrimPcmCache(item);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
 // Playback
 // ---------------------------------------------------------------------------
 
@@ -625,8 +853,10 @@ static uint32_t LoopFrameOf(const Item *item, uint32_t frameCount) {
 }
 
 static bool TrackHasLoop(const Item *item) {
-    if (!item || item->kind == TRACK_KIND_NULL || !item->wav || item->wavSize <= 44) return false;
-    return true;
+    // Metadata only: asking this must never force a decode, and it must not
+    // read the cache either - it runs in the render path while a save worker
+    // may be filling item->wav in on the other thread.
+    return ItemHasAudio(item);
 }
 
 // Map "frames pushed since the anchor" onto a position inside the track,
@@ -685,7 +915,9 @@ static void LoadTrack(int index, bool autoplay) {
 
     bool gotWave = false;
 
-    if (item->wav && item->wavSize > 44) {
+    // The samples may not exist yet. This is the point they get decoded, and
+    // the buffer stays pinned for as long as the stream is reading out of it.
+    if (EnsureItemPcm(item) && item->wav && item->wavSize > 44) {
         uint8_t  channels   = item->channels ? item->channels : 1;
         uint32_t sampleRate = item->sampleRate ? item->sampleRate : 44100;
         if (channels > STREAM_MAX_CHANNELS) channels = STREAM_MAX_CHANNELS;
@@ -964,8 +1196,17 @@ static void MoveSelectionTo(int dropIndex) {
         if (i == g_itemCount) break;
         if (!g_items[i].selected) { g_scratch[k++] = g_items[i]; unsel++; }
     }
+
+    // Dropping a block back where it started is a no-op, and marking that
+    // dirty would make the confirmation dialog appear after an idle drag.
+    bool moved = false;
+    for (int i = 0; i < k; i++) {
+        if (g_scratch[i].uid != g_items[i].uid) { moved = true; break; }
+    }
+
     memcpy(g_items, g_scratch, (size_t)k * sizeof(Item));
     g_itemCount = k;
+    if (moved) MarkDirty();
 }
 
 static void DeleteSelected(void) {
@@ -982,12 +1223,15 @@ static void DeleteSelected(void) {
     int k = 0;
     for (int i = 0; i < g_itemCount; i++) {
         if (g_items[i].selected) {
-            free(g_items[i].wav);
-            g_items[i].wav = NULL;
+            DropItemPcm(g_items + i);
+            BlobRelease(g_items[i].adpcm);
+            g_items[i].adpcm = NULL;
+            g_items[i].adpcmSize = 0;
         } else {
             g_items[k++] = g_items[i];
         }
     }
+    if (k != g_itemCount) MarkDirty();
     g_itemCount = k;
     g_ui.anchorIndex = -1;
     g_ui.lastClickIndex = -1;
@@ -1000,9 +1244,10 @@ static void UnloadPlaylistAudio(void) {
     g_player.position = 0.0f;
     g_player.duration = 0;
     for (int i = 0; i < g_itemCount; i++) {
-        free(g_items[i].wav);
-        g_items[i].wav = NULL;
-        g_items[i].wavSize = 0;
+        DropItemPcm(g_items + i);
+        BlobRelease(g_items[i].adpcm);
+        g_items[i].adpcm = NULL;
+        g_items[i].adpcmSize = 0;
     }
 }
 
@@ -1043,7 +1288,13 @@ static Item *AddNullTrackTo(Item *arr, int *count) {
     return item;
 }
 
-static Item *AddNullTrack(void) { return AddNullTrackTo(g_items, &g_itemCount); }
+// Only the live-playlist variant marks the file dirty. The loader appends to
+// g_loadStaging through AddNullTrackTo, and that is a load, not an edit.
+static Item *AddNullTrack(void) {
+    Item *item = AddNullTrackTo(g_items, &g_itemCount);
+    if (item) MarkDirty();
+    return item;
+}
 
 // Decode any format raylib understands and keep it as 16-bit PCM, matching
 // what archive tracks hold, so an imported file is ready to be written back
@@ -1102,7 +1353,12 @@ static bool ReplaceTrackAudio(int index, const char *path) {
         g_player.duration = 0;
     }
 
-    free(item->wav);
+    DropItemPcm(item);
+    BlobRelease(item->adpcm);            // the archive's version is gone now
+    item->adpcm        = NULL;
+    item->adpcmSize    = 0;
+    item->interleave   = 0;
+    item->pcmSize      = wavSize - 44;
     item->wav          = wav;
     item->wavSize      = wavSize;
     item->sampleRate   = rate;
@@ -1115,7 +1371,11 @@ static bool ReplaceTrackAudio(int index, const char *path) {
     snprintf(item->format, sizeof(item->format), "%s", "PCM");
     snprintf(item->path,   sizeof(item->path),   "%s", path);   // kept for reference only
 
+    g_pcmHeld += item->wavSize;          // an import is PCM from the start
+    item->pcmStamp = g_pcmClock++;
+
     if (wasLoaded) LoadTrack(index, wasPlaying);
+    MarkDirty();
     return true;
 }
 
@@ -1128,9 +1388,11 @@ static void LoadFromDirectory(const char *dir) {
         const char *path = files.paths[i];
         char name[96];
         snprintf(name, sizeof(name), "%s", GetFileNameWithoutExt(path));
+        bool wasDirty = g_dirty;
         if (!AddNullTrack()) break;
         if (!ReplaceTrackAudio(g_itemCount - 1, path)) {
             g_itemCount--;                       // could not decode it, drop the slot
+            g_dirty = wasDirty;                  // ...and with it the edit it implied
             continue;
         }
         snprintf(g_items[g_itemCount - 1].title, sizeof(g_items[0].title), "%s", name);
@@ -1142,16 +1404,16 @@ static void LoadFromDirectory(const char *dir) {
 // Copy one archive record's samples into a playlist entry. The PCM is copied
 // into a RIFF buffer here, so the caller is free to tear the archive arena
 // down immediately afterwards.
+// Takes a reference on `adpcm` - the caller keeps its own and releases it - so
+// several rows addressing the same blob in the .MB end up sharing one buffer.
+// `wave` is here for its metadata only; its samples are not kept.
 static bool AddArchiveTrackTo(Item *arr, int *count, TwinStudio_Wave wave, const char *album,
-                              TwinStudio_StringView* name, uint32_t trackNumber) {
-    if (!wave.data || wave.dataSize == 0) return false;
+                              TwinStudio_StringView* name, uint32_t trackNumber,
+                              uint8_t *adpcm, uint32_t adpcmSize, uint32_t interleave) {
+    if (!adpcm || adpcmSize == 0) return false;
 
-    uint8_t channels   = wave.channels ? wave.channels : 1;
+    uint8_t  channels   = wave.channels ? wave.channels : 1;
     uint32_t sampleRate = wave.samplerate ? wave.samplerate : 44100;
-
-    uint32_t wavSize = 0;
-    uint8_t *wav = WrapPcmAsWav(wave.data, wave.dataSize, sampleRate, channels, &wavSize);
-    if (!wav) return false;
 
     char title[256];
     if (name == NULL)
@@ -1164,13 +1426,17 @@ static bool AddArchiveTrackTo(Item *arr, int *count, TwinStudio_Wave wave, const
     }
 
     // No path: nothing about this entry lives on disk.
-    Item *item = AddItemTo(arr, count, title, album, album, 0, 0.0f, NULL, "PCM");
-    if (!item) { free(wav); return false; }
+    Item *item = AddItemTo(arr, count, title, album, album, 0, 0.0f, NULL, "PS2 ADPCM");
+    if (!item) return false;
 
     unsigned long long frames = wave.dataSize / (unsigned long long)(channels * (TRACK_BITS_PER_SAMPLE / 8));
 
-    item->wav          = wav;
-    item->wavSize      = wavSize;
+    item->adpcm        = BlobRetain(adpcm);
+    item->adpcmSize    = adpcmSize;
+    item->interleave   = interleave;
+    item->pcmSize      = wave.dataSize;
+    item->wav          = NULL;              // decoded when something asks for it
+    item->wavSize      = 0;
     item->sampleRate   = sampleRate;
     item->channels     = channels;
     item->loopPosition = wave.loopPosition;
@@ -1202,12 +1468,19 @@ static TsThreadRet TS_THREAD_CALL ArchiveLoadWorker(void *arg)
     LoaderSetStatus("Reading header", 0, 0);
 
     TwinRes_MhArchive headerArchive = TwinRes_MhArchiveCreate();
-    TwinStudio_Arena archiveArena = TwinStudio_CreateArena(1024UL * 1024UL * 200UL);
+
+    // The header arena only ever holds the MH's own contents plus two path
+    // strings - the records come back through arrput, on the heap. Sizing it
+    // from the file instead of a flat 200 MB costs nothing and is one less
+    // large block to keep committed for the whole load.
+    size_t headerBytes = ClampSize((size_t)GetFileLength(openedFile) * 8u + sizeof(openedFile) * 4u,
+                                   HEADER_ARENA_MIN, HEADER_ARENA_MAX);
+    TwinStudio_Arena archiveArena = TwinStudio_CreateArena(headerBytes);
     TwinStudio_StringView filePath = TwinStudio_CopyFromCStringArena(&archiveArena, openedFile);
     TwinStudio_BinarySerializer* deserializer = TwinStudio_BinReadFromFile(filePath, false);
     TwinRes_MhArchiveBinDeserialize(NULL, &headerArchive, deserializer, &archiveArena, TwinStudio_BinGetStreamLength(deserializer), NULL);
 
-    LoaderSetStatus("Reading track data", 0, (int)headerArchive.recordsAmount);
+    LoaderSetStatus("Loading tracks", 0, (int)headerArchive.recordsAmount);
 
     TwinRes_MbArchive dataArchive = TwinRes_MbArchiveCreate();
     dataArchive.header = headerArchive;
@@ -1219,53 +1492,170 @@ static TsThreadRet TS_THREAD_CALL ArchiveLoadWorker(void *arg)
     }
     TwinStudio_BinarySerializer* mainArchiveDeserializer = TwinStudio_BinReadFromFile(mainArchivePath, true);
     arrsetcap(dataArchive.items, headerArchive.recordsAmount);
-    for (uint32_t i = 0; i < headerArchive.recordsAmount; ++i)
-    {
-        TwinRes_MbRecord record = TwinRes_MbArchiveIterateItem(&dataArchive, mainArchiveDeserializer, &archiveArena, 0, NULL);
-        arrput(dataArchive.items, record);
-        LoaderSetProgress((int32_t)i + 1, -1);
-    }
 
-    LoaderSetStatus("Decoding tracks", 0, (int)headerArchive.recordsAmount);
+    // A record's ADPCM is lifted straight out of the .MB with stdio: a mono
+    // record's bytes start with the 0x30 name block, a stereo record's do not.
+    // Nothing decodes at this point, so what a row ends up holding is the
+    // archive's own 4-bit data rather than its 16-bit expansion.
+    FILE* rawFile = fopen(mainArchivePath.string, "rb");
+    if (!rawFile) fprintf(stderr, "Could not reopen %s for record bytes\n", mainArchivePath.string);
 
     char album[64];
     snprintf(album, sizeof(album), "%s", GetFileNameWithoutExt(openedFile));
 
     g_loadStagingCount = 0;
 
-    for (uint32_t i = 0; i < headerArchive.recordsAmount; ++i)
-    {
-        TwinRes_MbRecord* record = dataArchive.items + i;
+    // Reading every record into one arena and only then copying the samples
+    // out meant the whole archive existed twice at the peak: once decoded in
+    // the arena, once in the per-track RIFF buffers. Reading and copying are
+    // interleaved here, and the arena is released every LOAD_ARENA_BUDGET, so
+    // what the arena holds no longer scales with the size of the archive.
+    size_t peakArena = 0;
+    uint64_t adpcmBytes = 0;
+    uint64_t sharedBytes = 0;
+    uint64_t pcmAvoided = 0;
 
-        // Null records become padding slots rather than being dropped. The
-        // engine plays tracks by index, so losing one here would renumber
-        // everything after it when the archive is written back.
-        if (record->header.type == TwinRes_MRT_Null)
-        {
-            AddNullTrackTo(g_loadStaging, &g_loadStagingCount);
-            LoaderSetProgress((int)i + 1, -1);
-            continue;
-        }
-
-        fprintf(stderr, "Track %d offset %d size %d\n", i + 1, record->header.offset, record->header.size);
-
-        if (record->trackData.loopPosition > 0)
-        {
-            fprintf(stderr, "Track %d has a loop point at sample %d\n", i + 1, record->trackData.loopPosition);
-        }
-
-        TwinStudio_StringView* trackName = record->header.type == TwinRes_MRT_Mono ? &record->name : NULL;
-        if (!AddArchiveTrackTo(g_loadStaging, &g_loadStagingCount, record->trackData, album, trackName, i + 1))
-        {
-            // Keep the slot so the numbering downstream of it still lines up.
-            fprintf(stderr, "Track %d could not be loaded, keeping its slot as padding\n", i + 1);
-            AddNullTrackTo(g_loadStaging, &g_loadStagingCount);
-        }
-
-        LoaderSetProgress((int)i + 1, -1);
+    // Blobs already decoded, keyed by where they sit in the .MB. A record that
+    // addresses one of these takes a reference rather than a second copy.
+    typedef struct { uint32_t offset, size; uint8_t *adpcm; uint32_t adpcmSize; } SeenBlob;
+    SeenBlob *seen = NULL;
+    uint32_t  seenCount = 0;
+    if (headerArchive.recordsAmount > 0) {
+        seen = (SeenBlob *)calloc(headerArchive.recordsAmount, sizeof *seen);
     }
 
+    uint32_t i = 0;
+    while (i < headerArchive.recordsAmount)
+    {
+        // Take as many records as fit the budget, but never fewer than one:
+        // a single record larger than the budget still has to be read.
+        size_t   need     = 0;
+        uint32_t batchEnd = i;
+        while (batchEnd < headerArchive.recordsAmount)
+        {
+            size_t cost = (size_t)headerArchive.records[batchEnd].size * ADPCM_ARENA_FACTOR
+                        + ARENA_PER_RECORD_FAT;
+            if (batchEnd > i && need + cost > LOAD_ARENA_BUDGET) break;
+            need += cost;
+            batchEnd++;
+        }
+
+        TwinStudio_Arena batchArena = TwinStudio_CreateArena(need);
+        if (need > peakArena) peakArena = need;
+
+        for (; i < batchEnd; ++i)
+        {
+            TwinRes_MbRecord record = TwinRes_MbArchiveIterateItem(&dataArchive, mainArchiveDeserializer, &batchArena, 0, NULL);
+
+            // Null records become padding slots rather than being dropped. The
+            // engine plays tracks by index, so losing one here would renumber
+            // everything after it when the archive is written back.
+            if (record.header.type == TwinRes_MRT_Null)
+            {
+                AddNullTrackTo(g_loadStaging, &g_loadStagingCount);
+            }
+            else
+            {
+                fprintf(stderr, "Track %d offset %d size %d\n", i + 1, record.header.offset, record.header.size);
+
+                if (record.trackData.loopPosition > 0)
+                {
+                    fprintf(stderr, "Track %d has a loop point at sample %d\n", i + 1, record.trackData.loopPosition);
+                }
+
+                // Same bytes of the .MB as something already loaded? Then it
+                // is the same audio, and one buffer serves both rows.
+                SeenBlob *hit = NULL;
+                for (uint32_t k = 0; k < seenCount && seen; ++k)
+                {
+                    if (seen[k].offset == record.header.offset && seen[k].size == record.header.size)
+                    {
+                        hit = seen + k;
+                        break;
+                    }
+                }
+
+                // A mono record carries a 0x30 name block in front of its
+                // samples; a stereo one starts at the record's first byte.
+                bool     isMono   = (record.header.type == TwinRes_MRT_Mono);
+                uint32_t skip     = isMono ? 0x30u : 0u;
+                uint32_t rawSize  = (record.header.size > skip) ? record.header.size - skip : 0u;
+                uint32_t rawStart = record.header.offset + skip;
+
+                // One reference is held here and released below, so the item
+                // taking its own is the same operation whether the blob is
+                // fresh or shared.
+                uint8_t *adpcm = NULL;
+                if (hit)
+                {
+                    adpcm   = BlobRetain(hit->adpcm);
+                    rawSize = hit->adpcmSize;
+                }
+                else if (rawFile && rawSize > 0)
+                {
+                    adpcm = BlobAlloc(rawSize);
+                    if (adpcm &&
+                        (fseek(rawFile, (long)rawStart, SEEK_SET) != 0 ||
+                         fread(adpcm, 1, rawSize, rawFile) != rawSize))
+                    {
+                        fprintf(stderr, "Short read of track %d at 0x%X\n", i + 1, rawStart);
+                        BlobRelease(adpcm);
+                        adpcm = NULL;
+                    }
+                }
+
+                TwinStudio_StringView* trackName = isMono ? &record.name : NULL;
+                if (AddArchiveTrackTo(g_loadStaging, &g_loadStagingCount, record.trackData, album, trackName, i + 1,
+                                      adpcm, rawSize, isMono ? 0u : record.header.interleave))
+                {
+                    if (hit)
+                    {
+                        sharedBytes += rawSize;
+                    }
+                    else
+                    {
+                        adpcmBytes += rawSize;
+                        if (seen)
+                        {
+                            seen[seenCount++] = (SeenBlob){ record.header.offset, record.header.size,
+                                                            adpcm, rawSize };
+                        }
+                    }
+                    pcmAvoided += record.trackData.dataSize;
+                }
+                else
+                {
+                    // Keep the slot so the numbering downstream of it lines up.
+                    fprintf(stderr, "Track %d could not be loaded, keeping its slot as padding\n", i + 1);
+                    AddNullTrackTo(g_loadStaging, &g_loadStagingCount);
+                }
+                BlobRelease(adpcm);
+            }
+
+            // The samples and the name have been copied into the staging item,
+            // so the two fields that point into this arena are cleared before
+            // it goes away - the record stays in items[] and must not outlive
+            // it holding danglers. Everything that is a plain value is left
+            // alone, header and dataSize included, in case IterateItem walks
+            // back over what it has already read to place the next record.
+            record.trackData.data = NULL;
+            record.name = (TwinStudio_StringView){ 0 };
+            arrput(dataArchive.items, record);
+
+            LoaderSetProgress((int)i + 1, -1);
+        }
+
+        TwinStudio_ArenaFree(&batchArena);
+    }
+
+    free(seen);
+    if (rawFile) fclose(rawFile);
+
     fprintf(stderr, "Loaded %d slots into the staging playlist\n", g_loadStagingCount);
+    fprintf(stderr, "Audio held: %.1f MB of ADPCM (%.1f MB more saved by sharing repeated blobs); "
+                    "%.1f MB of PCM not kept; arena high water %.1f MB\n",
+            (double)adpcmBytes / 1048576.0, (double)sharedBytes / 1048576.0,
+            (double)pcmAvoided / 1048576.0, (double)peakArena / 1048576.0);
 
     // Safe to drop the archive now - every track's samples have been copied.
     arrfree(headerArchive.records);
@@ -1282,12 +1672,16 @@ static TsThreadRet TS_THREAD_CALL ArchiveLoadWorker(void *arg)
     return TS_THREAD_RETURN;
 }
 
+static void RunPendingAction(PendingAction action);
+
 // Release anything the worker built but that never made it into g_items.
 static void FreeStaging(void)
 {
     for (int i = 0; i < g_loadStagingCount; i++) {
-        free(g_loadStaging[i].wav);
+        BlobRelease(g_loadStaging[i].wav);
         g_loadStaging[i].wav = NULL;
+        BlobRelease(g_loadStaging[i].adpcm);
+        g_loadStaging[i].adpcm = NULL;
     }
     g_loadStagingCount = 0;
 }
@@ -1320,6 +1714,10 @@ void OpenMusicArchive(void)
     g_ui.pendingScrollIndex = -1;
     FreeStaging();
 
+    // The old playlist is gone from here on, so there is nothing left to
+    // warn about; whatever the worker publishes starts clean.
+    g_dirty = false;
+
     TsMutexLock(&g_loader.mutex);
     snprintf(g_loader.path, sizeof(g_loader.path), "%s", openedFile);
     snprintf(g_loader.status, sizeof(g_loader.status), "%s", "Opening archive");
@@ -1338,6 +1736,18 @@ void OpenMusicArchive(void)
     g_loader.threadValid = true;
 }
 
+// What the confirmation dialog was standing in front of, carried out now that
+// the answer is in. Called either straight from the dialog (Discard) or from
+// PumpArchiveLoader once a save started from the dialog has landed (Save).
+static void RunPendingAction(PendingAction action)
+{
+    switch (action) {
+        case PENDING_OPEN: OpenMusicArchive(); break;
+        case PENDING_EXIT: g_quit = true;      break;
+        case PENDING_NONE: break;
+    }
+}
+
 // Called once a frame. Moves a finished load into the live playlist.
 static void PumpArchiveLoader(void)
 {
@@ -1353,10 +1763,17 @@ static void PumpArchiveLoader(void)
 
     if (state == LOAD_DONE && job == JOB_SAVE) {
         fprintf(stderr, "Save finished\n");
+        g_dirty = false;                  // what is in memory is now on disk
         TsMutexLock(&g_loader.mutex);
         g_loader.job = JOB_NONE;
         TsMutexUnlock(&g_loader.mutex);
         LoaderFinish(LOAD_IDLE, NULL);
+
+        // "Save" in the confirmation dialog: the thing it was blocking runs
+        // here, once the bytes are actually written and not a moment before.
+        PendingAction queued = g_ui.afterSaveAction;
+        g_ui.afterSaveAction = PENDING_NONE;
+        RunPendingAction(queued);
         return;
     }
 
@@ -1374,6 +1791,9 @@ static void PumpArchiveLoader(void)
         if (sd.found) sd.scrollPosition->y = 0.0f;
     } else {
         if (job == JOB_OPEN) FreeStaging();
+        // A save that failed saved nothing, so whatever was queued behind it
+        // stays cancelled rather than quietly discarding the playlist.
+        g_ui.afterSaveAction = PENDING_NONE;
         TsMutexLock(&g_loader.mutex);
         fprintf(stderr, "Archive job failed: %s\n", g_loader.error);
         TsMutexUnlock(&g_loader.mutex);
@@ -1524,8 +1944,19 @@ static void HandleVolumeSlider(Vector2 mouse) {
 // to 0 and call AddItem() per entry; a writer would walk g_items[0..count).
 // ---------------------------------------------------------------------------
 
+// Put the confirmation dialog in front of an action, or let it straight
+// through when there is nothing at stake.
+static void RequestAction(PendingAction action) {
+    if (IsBusy()) return;                 // a worker owns the playlist
+    if (!g_dirty || g_itemCount == 0) { RunPendingAction(action); return; }
+
+    g_ui.confirmOpen    = true;
+    g_ui.pendingAction  = action;
+    g_ui.aboutOpen      = false;          // one modal at a time
+}
+
 static void OnOpenClicked(void) {
-    OpenMusicArchive();
+    RequestAction(PENDING_OPEN);
 }
 
 // Runs on the worker thread. Reads g_items but never changes it; the UI is
@@ -1555,7 +1986,29 @@ static TsThreadRet TS_THREAD_CALL ArchiveSaveWorker(void *arg)
     TwinRes_MbArchive mainArchive = TwinRes_MbArchiveCreate();
     arrsetcap(mainArchive.items, g_itemCount);
 
-    TwinStudio_Arena writeArena = TwinStudio_CreateArena(1024UL * 1024UL * 300UL);
+    // Sized from what is actually going to be written rather than a flat
+    // 300 MB. Encoding shrinks the data (16-bit PCM in, 4-bit ADPCM out), so
+    // half the PCM total plus a fixed margin is comfortably above anything the
+    // serializer needs, and the ceiling is the old constant - this can only
+    // ask for less than the previous version did, never more.
+    uint64_t totalPcm = 0;
+    for (int i = 0; i < g_itemCount; i++)
+    {
+        if (g_items[i].kind != TRACK_KIND_NULL)
+        {
+            totalPcm += g_items[i].pcmSize;
+        }
+    }
+    size_t writeBytes = ClampSize((size_t)(totalPcm / 2) + 32UL * 1024UL * 1024UL,
+                                  WRITE_ARENA_MIN, WRITE_ARENA_MAX);
+    fprintf(stderr, "Write arena %.1f MB for %.1f MB of PCM\n",
+            (double)writeBytes / 1048576.0, (double)totalPcm / 1048576.0);
+    TwinStudio_Arena writeArena = TwinStudio_CreateArena(writeBytes);
+
+    // The serializer is handed the whole items[] array at the end, with every
+    // trackData pointer live, so the decodes cannot be released as they go:
+    // eviction is off for the duration and the cache is trimmed afterwards.
+    g_pcmPinAll = true;
 
     bool isUndefinedAdded = false;
     TwinRes_MhRecord undefinedRecord = TwinRes_MhRecordCreate();
@@ -1588,6 +2041,19 @@ static TsThreadRet TS_THREAD_CALL ArchiveSaveWorker(void *arg)
             writeRecord = &undefinedRecord;
         }
 
+        // Rows hold ADPCM and decode on demand, so the samples may not exist
+        // yet. A row that cannot produce any is written as padding rather than
+        // silently shortening the archive and renumbering everything after it.
+        if (!EnsureItemPcm(item))
+        {
+            fprintf(stderr, "Track %d has no samples to write, saving it as padding\n", i + 1);
+            headerRecord.type = TwinRes_MRT_Null;
+            headerRecord.size = 0;
+            headerRecord.offset = 0;
+            arrput(headerArchive.records, headerRecord);
+            continue;
+        }
+
         writeRecord->sampleRate = item->sampleRate;
         writeRecord->unkInt = 0;
         writeRecord->type = (item->channels == 2) ? TwinRes_MRT_Stereo : TwinRes_MRT_Mono;
@@ -1607,7 +2073,11 @@ static TsThreadRet TS_THREAD_CALL ArchiveSaveWorker(void *arg)
 
         trackRecord.header = *writeRecord;
         TwinStudio_BinarySerializer* tempSerializer = TwinStudio_BinSerializerAllocate(NULL, TwinStudio_BinarySerializerModeWrite, 0, false);
-        TwinStudio_Arena tempArena = TwinStudio_CreateArena(1024UL * 1024UL * 20UL);
+        // This one only has to survive measuring a single track, so it is
+        // sized from that track instead of a flat 20 MB per iteration.
+        TwinStudio_Arena tempArena = TwinStudio_CreateArena(
+            ClampSize((size_t)(item->wavSize / 2) + 1024UL * 1024UL,
+                      TRACK_ARENA_MIN, TRACK_ARENA_MAX));
         TwinStudio_WaveBinSerialize(&trackRecord.trackData, tempSerializer, &tempArena, 0, &trackRecord);
         writeRecord->size = TwinStudio_BinGetStreamPosition(tempSerializer);
         if (writeRecord->type == TwinRes_MRT_Mono)
@@ -1670,6 +2140,7 @@ static TsThreadRet TS_THREAD_CALL ArchiveSaveWorker(void *arg)
         arrfree(mainArchive.items);
         arrfree(headerArchive.records);
         TwinStudio_ArenaFree(&writeArena);
+        UnpinPcmCache();
         LoaderFinish(LOAD_FAILED, "Could not open the .MH file for writing");
         return TS_THREAD_RETURN;
     }
@@ -1686,6 +2157,7 @@ static TsThreadRet TS_THREAD_CALL ArchiveSaveWorker(void *arg)
         arrfree(mainArchive.items);
         arrfree(headerArchive.records);
         TwinStudio_ArenaFree(&writeArena);
+        UnpinPcmCache();
         LoaderFinish(LOAD_FAILED, "Could not open the .MB file for writing");
         return TS_THREAD_RETURN;
     }
@@ -1697,6 +2169,7 @@ static TsThreadRet TS_THREAD_CALL ArchiveSaveWorker(void *arg)
     arrfree(mainArchive.items);
     arrfree(headerArchive.records);
     TwinStudio_ArenaFree(&writeArena);
+    UnpinPcmCache();
 
     LoaderFinish(LOAD_DONE, NULL);
 
@@ -1708,9 +2181,13 @@ static TsThreadRet TS_THREAD_CALL ArchiveSaveWorker(void *arg)
 
 // Main thread. The file dialog belongs here; everything after it is handed to
 // the worker so the window keeps drawing.
-static void SaveArchives(void)
+//
+// Returns true once the worker is running. The confirmation dialog needs that
+// answer: if the file picker was dismissed, nothing was saved, so it has to
+// stay up rather than let the action behind it go ahead.
+static bool SaveArchives(void)
 {
-    if (IsBusy()) return;
+    if (IsBusy()) return false;
 
     const char* filterPatterns[1];
     filterPatterns[0] = "*.MH";
@@ -1719,7 +2196,7 @@ static void SaveArchives(void)
     if (!savePath)
     {
         fprintf(stderr, "Saving cancelled!\n");
-        return;
+        return false;
     }
 
     char headerPath[1024];
@@ -1748,9 +2225,10 @@ static void SaveArchives(void)
     if (!TsThreadStart(&g_loader.thread, ArchiveSaveWorker, NULL)) {
         g_loader.threadValid = false;
         LoaderFinish(LOAD_FAILED, "Could not start the save thread");
-        return;
+        return false;
     }
     g_loader.threadValid = true;
+    return true;
 }
 
 static void OnSaveClicked(void) {
@@ -1774,10 +2252,12 @@ static void OnAddTrackClicked(void) {
     char *path = PickAudioFile("Add a track");
     if (!path) return;
 
+    bool wasDirty = g_dirty;
     Item *item = AddNullTrack();                 // take the slot, then fill it
     if (!item) return;
     if (!ReplaceTrackAudio(g_itemCount - 1, path)) {
         g_itemCount--;                           // decode failed, drop the empty slot again
+        g_dirty = wasDirty;                      // nothing changed, so nothing to save
         return;
     }
     FocusNewRow();
@@ -1799,7 +2279,7 @@ static void OnExportClicked(void) {
     if (idx < 0 || SelectedCount() != 1) return;
 
     Item *item = &g_items[idx];
-    if (item->kind == TRACK_KIND_NULL || !item->wav || item->wavSize == 0) return;
+    if (!ItemHasAudio(item) || !EnsureItemPcm(item)) return;
 
     char suggested[160];
     snprintf(suggested, sizeof(suggested), "%s.wav",
@@ -1853,6 +2333,52 @@ static void HandleAboutDialog(Vector2 mouse) {
     // Clay_PointerOver so a click on the scrim cannot be mistaken for a hit.
     Clay_ElementData card = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("AboutDialog")));
     if (card.found && !PointInBox(card.boundingBox, mouse)) g_ui.aboutOpen = false;
+}
+
+// Also modal, and it outranks the About dialog: nothing else runs while it is
+// up. Cancel is the safe answer, so Esc and a click off the card both pick it.
+static void HandleConfirmDialog(Vector2 mouse) {
+    if (!g_ui.confirmOpen) return;
+
+    PendingAction action = g_ui.pendingAction;
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        g_ui.confirmOpen = false;
+        g_ui.pendingAction = PENDING_NONE;
+        return;
+    }
+    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
+
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ConfirmSaveButton")))) {
+        // The dialog stays up if the file picker was dismissed - nothing was
+        // written, so the action behind it must not go ahead.
+        if (!SaveArchives()) return;
+        g_ui.confirmOpen     = false;
+        g_ui.pendingAction   = PENDING_NONE;
+        g_ui.afterSaveAction = action;    // resumed by PumpArchiveLoader
+        return;
+    }
+
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ConfirmDiscardButton")))) {
+        g_ui.confirmOpen   = false;
+        g_ui.pendingAction = PENDING_NONE;
+        RunPendingAction(action);
+        return;
+    }
+
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ConfirmCancelButton")))) {
+        g_ui.confirmOpen   = false;
+        g_ui.pendingAction = PENDING_NONE;
+        return;
+    }
+
+    // Off the card cancels. Uses the box rather than Clay_PointerOver so a
+    // click on the scrim cannot be mistaken for a hit on the card.
+    Clay_ElementData card = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("ConfirmDialog")));
+    if (card.found && !PointInBox(card.boundingBox, mouse)) {
+        g_ui.confirmOpen   = false;
+        g_ui.pendingAction = PENDING_NONE;
+    }
 }
 
 static void HandleMenuBar(void) {
@@ -2537,7 +3063,7 @@ static void RenderSingleItemDetails(Item *item, int index, bool busy) {
                         }
 
                         // Nothing to write out for a padding slot.
-                        if (!isNull && item->wav && item->wavSize > 0) {
+                        if (!isNull && ItemHasAudio(item)) {
                             CLAY(CLAY_ID("ExportButton"), {
                                 .layout = {
                                     .sizing = { .height = CLAY_SIZING_FIXED(34) },
@@ -2567,19 +3093,20 @@ static void RenderSingleItemDetails(Item *item, int index, bool busy) {
         }) {
             RenderMetaRow(CLAY_STRING("Duration"), TimeStr(item->duration));
             RenderMetaRow(CLAY_STRING("Format"),   Str(item->format));
-            if (item->wav) {
+            if (ItemHasAudio(item)) {
                 RenderMetaRow(CLAY_STRING("Audio"),
-                              Fmt("%u Hz  -  %s  -  %d bit",
+                              Fmt("%u Hz  -  %s  -  %d Bit",
                                   item->sampleRate,
-                                  item->channels == 2 ? "stereo" : "mono",
+                                  item->channels == 2 ? "Stereo" : "Mono",
                                   TRACK_BITS_PER_SAMPLE));
-                RenderMetaRow(CLAY_STRING("Loop"),
-                              item->loopPosition > 0 && item->sampleRate
-                                  ? Fmt("sample %d  (%.2f s)", item->loopPosition,
-                                        (double)item->loopPosition / (double)item->sampleRate)
-                                  : CLAY_STRING("none"));
+                // The source bytes, which is what the row actually holds. The
+                // decoded size is what it expands to when something plays it.
                 RenderMetaRow(CLAY_STRING("Size"),
-                              Fmt("%.1f MB", (double)item->wavSize / (1024.0 * 1024.0)));
+                              item->adpcm
+                                  ? Fmt("%.2f MB  (%.1f MB decoded)",
+                                        (double)item->adpcmSize / (1024.0 * 1024.0),
+                                        (double)item->pcmSize / (1024.0 * 1024.0))
+                                  : Fmt("%.1f MB", (double)item->pcmSize / (1024.0 * 1024.0)));
             }
             // Imported tracks keep the path they came from purely as a label;
             // their samples live in memory like every other slot.
@@ -2625,7 +3152,7 @@ static void RenderDetailsPanel(void) {
                     Clay_String totalStr = TimeStr(total);
                     CLAY_TEXT(Fmt("%d tracks selected", selCount),
                               CLAY_TEXT_CONFIG(TextCfg(26, C_TEXT, FONT_TITLE)));
-                    CLAY_TEXT(Fmt("total running time %.*s", (int)totalStr.length, totalStr.chars),
+                    CLAY_TEXT(Fmt("Total running time %.*s", (int)totalStr.length, totalStr.chars),
                               CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
                     CLAY_TEXT(CLAY_STRING("Drag them anywhere in the list to reorder, or press delete to remove."),
                               CLAY_TEXT_CONFIG(TextCfg(13, C_TEXT_FAINT, FONT_BODY)));
@@ -3014,6 +3541,25 @@ static void RenderMenuBar(void) {
                                     .height = CLAY_SIZING_FIXED(1) } }
         }) {}
 
+        // Standing reminder that closing or opening something else would
+        // cost work, so the confirmation dialog is never a surprise.
+        if (g_dirty) {
+            CLAY(CLAY_ID("DirtyBadge"), {
+                .layout = { .padding = { .left = 4, .right = 10 },
+                            .childGap = 7,
+                            .childAlignment = { .y = CLAY_ALIGN_Y_CENTER } }
+            }) {
+                CLAY(CLAY_ID("DirtyDot"), {
+                    .layout = { .sizing = { .width = CLAY_SIZING_FIXED(7),
+                                            .height = CLAY_SIZING_FIXED(7) } },
+                    .backgroundColor = (Clay_Color){235, 170, 70, 255},
+                    .cornerRadius = CLAY_CORNER_RADIUS(4)
+                }) {}
+                CLAY_TEXT(CLAY_STRING("Unsaved changes"),
+                          CLAY_TEXT_CONFIG(TextCfgNoWrap(14, C_TEXT_DIM, FONT_BODY)));
+            }
+        }
+
         RenderMenuButton(CLAY_ID("AboutButton"), CLAY_STRING("About"), MENU_ICON_INFO, !busy);
     }
 }
@@ -3073,7 +3619,7 @@ static void RenderAboutDialog(void) {
             CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0),
                                                    .height = CLAY_SIZING_FIXED(14) } } }) {}
 
-            CLAY_TEXT(CLAY_STRING("Crash Twinsanity music and VA archives manager. Supports creating brand new archives, editing existing ones, track reordering, track replacement, track deletion."),
+            CLAY_TEXT(CLAY_STRING("Crash Twinsanity music and VA archives manager. Supports creating brand new archives, editing existing ones, track reordering, track replacement and track deletion."),
                       CLAY_TEXT_CONFIG(TextCfg(16, C_TEXT_DIM, FONT_BODY)));
 
             CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0),
@@ -3123,6 +3669,130 @@ static void RenderAboutDialog(void) {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Unsaved-changes dialog
+// ---------------------------------------------------------------------------
+
+// Three answers, so three buttons rather than the usual yes/no: discarding
+// work and saving it are both one click away, and neither is the default.
+typedef enum { CONFIRM_BTN_PRIMARY, CONFIRM_BTN_DANGER, CONFIRM_BTN_QUIET } ConfirmButtonStyle;
+
+static void RenderConfirmButton(Clay_ElementId id, Clay_String label, ConfirmButtonStyle style) {
+    // Not Clay_Hovered(): out here that reports the row, so all three would
+    // light up together.
+    bool hovered = Clay_PointerOver(id);
+
+    Clay_Color bg, fg;
+    switch (style) {
+        case CONFIRM_BTN_PRIMARY:
+            bg = hovered ? (Clay_Color){120, 190, 255, 255} : C_ACCENT;
+            fg = (Clay_Color){12, 18, 28, 255};
+            break;
+        case CONFIRM_BTN_DANGER:
+            bg = hovered ? (Clay_Color){168, 62, 62, 255} : (Clay_Color){122, 46, 46, 255};
+            fg = (Clay_Color){250, 228, 228, 255};
+            break;
+        default:
+            bg = hovered ? C_HOVER : C_PANEL_2;
+            fg = hovered ? C_TEXT : C_TEXT_DIM;
+            break;
+    }
+
+    CLAY(id, {
+        .layout = {
+            .sizing = { .width = CLAY_SIZING_FIXED(110), .height = CLAY_SIZING_FIXED(34) },
+            .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }
+        },
+        .backgroundColor = bg,
+        .cornerRadius = CLAY_CORNER_RADIUS(6),
+        .border = { .width = CLAY_BORDER_OUTSIDE(1),
+                    .color = style == CONFIRM_BTN_QUIET ? C_LINE : bg }
+    }) {
+        CLAY_TEXT(label, CLAY_TEXT_CONFIG(TextCfgNoWrap(16, fg, FONT_BODY)));
+    }
+}
+
+static void RenderConfirmDialog(void) {
+    if (!g_ui.confirmOpen) return;
+
+    bool exiting = (g_ui.pendingAction == PENDING_EXIT);
+    int  edited  = g_itemCount;
+
+    // zIndex above the About scrim: if both were somehow up, this is the one
+    // that has to be answered.
+    CLAY(CLAY_ID("ConfirmScrim"), {
+        .layout = {
+            .sizing = { .width = CLAY_SIZING_FIXED((float)GetScreenWidth()),
+                        .height = CLAY_SIZING_FIXED((float)GetScreenHeight()) },
+            .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }
+        },
+        .floating = {
+            .zIndex = 110,
+            .attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_TOP,
+                              .parent  = CLAY_ATTACH_POINT_LEFT_TOP },
+            .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE,
+            .attachTo = CLAY_ATTACH_TO_ROOT
+        },
+        .backgroundColor = (Clay_Color){0, 0, 0, 180}
+    }) {
+        CLAY(CLAY_ID("ConfirmDialog"), {
+            .layout = {
+                .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                .sizing = { .width = CLAY_SIZING_FIXED(480) },
+                .padding = { .left = 28, .right = 28, .top = 24, .bottom = 22 },
+                .childGap = 6
+            },
+            .backgroundColor = C_PANEL,
+            .cornerRadius = CLAY_CORNER_RADIUS(12),
+            .border = { .width = CLAY_BORDER_OUTSIDE(1), .color = C_LINE }
+        }) {
+            CLAY_TEXT(exiting ? CLAY_STRING("Quit without saving?")
+                              : CLAY_STRING("Open another archive?"),
+                      CLAY_TEXT_CONFIG(TextCfg(20, C_TEXT, FONT_TITLE)));
+
+            CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0),
+                                                   .height = CLAY_SIZING_FIXED(10) } } }) {}
+
+            CLAY_TEXT(Fmt("The playlist has %d slot%s with changes that have not been written "
+                          "to an MH/MB pair yet.",
+                          edited, edited == 1 ? "" : "s"),
+                      CLAY_TEXT_CONFIG(TextCfg(16, C_TEXT_DIM, FONT_BODY)));
+
+            CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0),
+                                                   .height = CLAY_SIZING_FIXED(6) } } }) {}
+
+            CLAY_TEXT(exiting ? CLAY_STRING("Closing the window loses them.")
+                              : CLAY_STRING("Opening another archive replaces the whole playlist "
+                                            "and loses them."),
+                      CLAY_TEXT_CONFIG(TextCfg(16, C_TEXT_DIM, FONT_BODY)));
+
+            CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0),
+                                                   .height = CLAY_SIZING_FIXED(18) } },
+                           .border = { .width = { .bottom = 1 }, .color = C_LINE } }) {}
+
+            CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) },
+                                       .padding = { .top = 16 },
+                                       .childGap = 8,
+                                       .childAlignment = { .y = CLAY_ALIGN_Y_CENTER } } }) {
+                RenderConfirmButton(CLAY_ID("ConfirmCancelButton"),
+                                    CLAY_STRING("Cancel"), CONFIRM_BTN_QUIET);
+
+                // Pushes the two committing answers away from Cancel, so the
+                // destructive one is nowhere near the pointer's resting place.
+                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0),
+                                                       .height = CLAY_SIZING_FIXED(1) } } }) {}
+
+                RenderConfirmButton(CLAY_ID("ConfirmDiscardButton"),
+                                    exiting ? CLAY_STRING("Quit anyway") : CLAY_STRING("Discard"),
+                                    CONFIRM_BTN_DANGER);
+                RenderConfirmButton(CLAY_ID("ConfirmSaveButton"),
+                                    CLAY_STRING("Save first"), CONFIRM_BTN_PRIMARY);
+            }
+        }
+    }
+}
+
 
 static void RenderDragGhost(Vector2 mouse) {
     if (!g_ui.dragging) return;
@@ -3189,6 +3859,7 @@ static Clay_RenderCommandArray BuildLayout(Vector2 mouse, float dt) {
         // Attached to the root, so it stays above the menu bar too.
         RenderDragGhost(mouse);
         RenderAboutDialog();
+        RenderConfirmDialog();
     }
 
     return Clay_EndLayout(dt);
@@ -3211,9 +3882,20 @@ static void HandleClayErrors(Clay_ErrorData errorData) {
     }
 }
 
+// Clay's arena is ~11 MB at 16384 elements and doubles on a capacity error.
+// The block is kept here so the re-init can release the old one: each growth
+// used to strand the previous arena, and they are not small.
+static void *g_clayMemory = NULL;
+
 static void InitClay(void) {
     uint64_t size = Clay_MinMemorySize();
-    Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(size, malloc(size));
+    void *block = malloc(size);
+    if (!block) { fprintf(stderr, "Out of memory for Clay's arena\n"); return; }
+
+    free(g_clayMemory);          // no-op on the first call
+    g_clayMemory = block;
+
+    Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(size, block);
     Clay_Initialize(arena,
                     (Clay_Dimensions){ (float)GetScreenWidth(), (float)GetScreenHeight() },
                     (Clay_ErrorHandler){ HandleClayErrors, 0 });
@@ -3241,7 +3923,25 @@ int main(int argc, char **argv) {
 
     if (g_itemCount > 0) { SelectOnly(0); g_ui.anchorIndex = 0; }
 
-    while (!WindowShouldClose()) {
+    bool titleDirty = false;
+
+    while (!g_quit) {
+        // Consumed here rather than in the loop condition: a close request
+        // with unsaved work has to raise the dialog instead of leaving.
+        if (WindowShouldClose()) {
+            if (IsBusy()) {
+                // A worker is walking g_items; tearing down now would pull
+                // the playlist out from under it. Ignore the request.
+                fprintf(stderr, "Close ignored: an archive job is running\n");
+            } else if (g_ui.confirmOpen) {
+                // Already asking about something else - closing the window is
+                // the stronger intent, so the same dialog now asks about that.
+                g_ui.pendingAction = PENDING_EXIT;
+            } else {
+                RequestAction(PENDING_EXIT);
+            }
+        }
+
         if (g_reinitClay) {
             InitClay();
             Clay_SetMeasureTextFunction(Raylib_MeasureText, fonts);
@@ -3269,7 +3969,14 @@ int main(int argc, char **argv) {
         // Opening and saving both walk g_items on another thread, so no
         // handler that could reorder, delete or replace a row may run. Drags
         // in progress are dropped rather than left half-finished.
-        if (g_ui.aboutOpen) {
+        if (g_ui.confirmOpen) {
+            // Outranks everything, About included: it has to be answered.
+            g_ui.dragging = g_ui.dragCandidate = g_ui.pressedInList = false;
+            g_ui.scrollbarDrag = g_ui.scrubbing = g_ui.volumeDrag = false;
+            g_ui.dropIndex = -1;
+            g_ui.hoverIndex = -1;
+            HandleConfirmDialog(mouse);
+        } else if (g_ui.aboutOpen) {
             // Modal: only the dialog responds, and any drag in flight is dropped.
             g_ui.dragging = g_ui.dragCandidate = g_ui.pressedInList = false;
             g_ui.scrollbarDrag = g_ui.scrubbing = g_ui.volumeDrag = false;
@@ -3293,6 +4000,16 @@ int main(int argc, char **argv) {
             HandleKeyboard();
         }
         UpdatePlayback(dt);
+
+        // Answered "quit": leave before drawing another frame.
+        if (g_quit) break;
+
+        // The window title carries the flag too, for when the app is not the
+        // window being looked at.
+        if (g_dirty != titleDirty) {
+            titleDirty = g_dirty;
+            SetWindowTitle(g_dirty ? APP_NAME " *" : APP_NAME);
+        }
 
         Vector2 wheel = GetMouseWheelMoveV();
         // Drag scrolling is off: the left button is already used for reordering.
