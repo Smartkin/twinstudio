@@ -78,6 +78,7 @@ target_include_directories(twinstudio PUBLIC src)
 target_compile_features(twinstudio PRIVATE c_std_11)
 
 add_subdirectory(src/music_manager)
+add_subdirectory(src/pss_editor)
 
 if (MSVC)
     set(MSVC_COMPILE_OPTIONS /experimental:c11atomics)

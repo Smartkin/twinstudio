@@ -3525,7 +3525,7 @@ static void RenderMenuBar(void) {
         .border = { .width = { .bottom = 1 }, .color = C_LINE }
     }) {
         RenderMenuButton(CLAY_ID("OpenButton"), CLAY_STRING("Open MH/MD"), MENU_ICON_FOLDER, !busy);
-        RenderMenuButton(CLAY_ID("SaveButton"), CLAY_STRING("Save MH/BD"), MENU_ICON_DISK, !busy && g_itemCount > 0);
+        RenderMenuButton(CLAY_ID("SaveButton"), CLAY_STRING("Save MH/MD"), MENU_ICON_DISK, !busy && g_itemCount > 0);
 
         RenderMenuSeparator();
 

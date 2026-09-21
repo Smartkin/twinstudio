@@ -12,7 +12,8 @@
 
 typedef enum
 {
-    CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL
+    CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL,
+    CUSTOM_LAYOUT_ELEMENT_TYPE_TRIANGLE
 } CustomLayoutElementType;
 
 typedef struct
@@ -23,11 +24,29 @@ typedef struct
     Matrix rotation;
 } CustomLayoutElement_3DModel;
 
+// A solid triangle filling its element's bounding box, pointing in one of
+// four directions. Clay has no native polygon primitive, so simple play/step
+// icons are built from this plus plain rectangles.
+typedef enum
+{
+    TRIANGLE_DIR_RIGHT,
+    TRIANGLE_DIR_LEFT,
+    TRIANGLE_DIR_UP,
+    TRIANGLE_DIR_DOWN
+} TriangleDirection;
+
+typedef struct
+{
+    Color color;
+    TriangleDirection direction;
+} CustomLayoutElement_Triangle;
+
 typedef struct
 {
     CustomLayoutElementType type;
     union {
         CustomLayoutElement_3DModel model;
+        CustomLayoutElement_Triangle triangle;
     } customData;
 } CustomLayoutElement;
 
@@ -329,6 +348,24 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
                         BeginMode3D(Raylib_camera);
                             DrawModel(customElement->customData.model.model, positionRay.position, customElement->customData.model.scale * scaleValue, WHITE);        // Draw 3d model with texture
                         EndMode3D();
+                        break;
+                    }
+                    case CUSTOM_LAYOUT_ELEMENT_TYPE_TRIANGLE: {
+                        CustomLayoutElement_Triangle *tri = &customElement->customData.triangle;
+                        float x = boundingBox.x, y = boundingBox.y, w = boundingBox.width, h = boundingBox.height;
+                        // Vertices are wound so DrawTriangle (which culls
+                        // clockwise faces) actually renders each direction -
+                        // derived by rotating the known-good RIGHT case
+                        // (top-left, bottom-left, right-tip) in 90 degree
+                        // steps rather than guessed per direction.
+                        Vector2 p1, p2, p3;
+                        switch (tri->direction) {
+                            case TRIANGLE_DIR_RIGHT: p1 = (Vector2){x, y};         p2 = (Vector2){x, y + h};     p3 = (Vector2){x + w, y + h / 2}; break;
+                            case TRIANGLE_DIR_LEFT:  p1 = (Vector2){x + w, y + h}; p2 = (Vector2){x + w, y};     p3 = (Vector2){x, y + h / 2};     break;
+                            case TRIANGLE_DIR_DOWN:  p1 = (Vector2){x + w, y};     p2 = (Vector2){x, y};         p3 = (Vector2){x + w / 2, y + h}; break;
+                            case TRIANGLE_DIR_UP:    p1 = (Vector2){x, y + h};     p2 = (Vector2){x + w, y + h}; p3 = (Vector2){x + w / 2, y};     break;
+                        }
+                        DrawTriangle(p1, p2, p3, tri->color);
                         break;
                     }
                     default: break;

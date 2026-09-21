@@ -5,3 +5,5 @@
 auto_*
 /.vs
 /out
+*.pss
+*.mp4
