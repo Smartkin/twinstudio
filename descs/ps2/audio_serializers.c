@@ -3,6 +3,8 @@
 #include "retail/auto_struct_mh_archive.h"
 #include "serialization/binary_serializer.h"
 #include "audio/adpcm.h"
+#include <stdio.h>
+#include <string.h>
 
 
 static int32_t GetPcm(void *priv, double *out, int32_t len)
@@ -59,40 +61,85 @@ void TwinStudio_WaveBinSerialize(TwinStudio_Wave* source, TwinStudio_BinarySeria
     }
 
     int32_t bpc = record->interleave;
+
+    // When a chunk runs out of real samples partway through, AdpcmEncode
+    // pads it out with blocks flagged LOOP_START|LOOP|LOOP_END - a
+    // deliberate "loop to this silent block forever" terminator, correct for
+    // a one-shot sound with no loop point. Retail music never needed that:
+    // its source PCM already divides evenly into whole chunks, so it never
+    // emits that filler, and the hardware/game just restarts the track from
+    // byte 0 once playback runs off the end of the DMA'd size - same as it
+    // does with no loop marker embedded anywhere at all. An imported
+    // track's PCM almost never divides evenly, so without this its last
+    // chunk gets that self-loop-into-silence filler baked in and the track
+    // never restarts - it plays once and goes quiet. Padding just that
+    // trailing chunk with silence up to a full chunk keeps it "full" so the
+    // filler path never triggers, matching retail's own layout.
+    //
+    // Mono's `bpc` isn't a fixed interleave granularity like stereo's - it's
+    // sized to swallow the whole track in a single AdpcmEncode call, so
+    // treating it like a chunk to pad up to would balloon a mono track with
+    // silence instead of trimming a few blocks off it. Mono has no channel
+    // to desync against and no interleave to stay aligned to, so it doesn't
+    // need this in the first place.
+    uint32_t chunkBytes = 2u * pcmBuffer.channelCount * (uint32_t)bpc * 28u;
+    bool padTailChunk = pcmBuffer.channelCount > 1 && chunkBytes > 0;
+
     uint32_t dataOffset = 0;
     pcmBuffer.sample = source->data;
     do
     {
-        uint32_t r = 2 * pcmBuffer.channelCount * bpc * 28;
-        if (dataOffset + r >= source->dataSize)
+        uint32_t remaining = source->dataSize - dataOffset;
+        uint32_t r = chunkBytes;
+        if (r >= remaining)
         {
-            r = (source->dataSize - dataOffset);
+            r = remaining;
         }
         if (r == 0)
         {
             break;
         }
 
-        dataOffset += r;
-        pcmBuffer.sampleCount = r / (2 * pcmBuffer.channelCount);
+        void *chunkSample = (uint8_t *)source->data + dataOffset;
+        uint32_t sampleBytes = r;
+        if (padTailChunk && r < chunkBytes)
+        {
+            // Only the trailing partial chunk needs a copy, and only up to
+            // one chunk's worth of silence - not the whole track.
+            uint8_t *padded = TwinStudio_ArenaAlloc(arena, chunkBytes);
+            memcpy(padded, chunkSample, r);
+            memset(padded + r, 0, chunkBytes - r);
+            chunkSample = padded;
+            sampleBytes = chunkBytes;
+        }
 
-        uint32_t i;
-        for (i = 0; i < pcmBuffer.channelCount; ++i)
+        dataOffset += r;
+        pcmBuffer.sample = chunkSample;
+        pcmBuffer.sampleCount = sampleBytes / (2 * pcmBuffer.channelCount);
+
+        // Every channel gets its own AdpcmEncode call for this chunk, even
+        // once one of them runs short - each pads and terminates itself
+        // independently. Bailing out of this loop early on a short return
+        // used to skip the remaining channels' final macro-block entirely,
+        // leaving the archive's block-interleave addressing pointing past
+        // where that data should be for the rest of the stream.
+        bool anyShort = false;
+        for (uint32_t i = 0; i < pcmBuffer.channelCount; ++i)
         {
             pcmBuffer.position = 0;
             pcmBuffer.channel = i;
-            if (TwinStudio_AdpcmEncode(setups[i], bpc) != bpc)
+            int returned = TwinStudio_AdpcmEncode(setups[i], bpc);
+            if (returned != bpc)
             {
-                break;
+                anyShort = true;
             }
         }
 
-        if (i != pcmBuffer.channelCount)
+        if (anyShort)
         {
             break;
         }
 
-        pcmBuffer.sample = (void*)(((uint8_t*)source->data) + dataOffset);
     } while (true);
 }
 

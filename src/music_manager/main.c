@@ -199,6 +199,16 @@ typedef struct {
     uint32_t sampleRate;
     uint8_t  channels;
     int32_t  loopPosition;  // < 0 when the track has no loop point
+
+    // Retail's per-record header field that never correlates with anything
+    // else in the record - not size, offset, sample rate, or the ADPCM bytes
+    // themselves (checked: duplicate values across tracks don't share audio
+    // content either). Only non-zero on stereo BGM, so it reads as mixing/
+    // mastering metadata set by hand rather than anything this tool derives.
+    // Carried through untouched so a round-tripped track keeps its original
+    // value instead of always coming back as 0; a genuinely new/imported
+    // track has no original to preserve and gets 0, same as before.
+    int32_t  unkInt;
 } Item;
 
 static Item g_items[MAX_ITEMS];
@@ -1409,7 +1419,8 @@ static void LoadFromDirectory(const char *dir) {
 // `wave` is here for its metadata only; its samples are not kept.
 static bool AddArchiveTrackTo(Item *arr, int *count, TwinStudio_Wave wave, const char *album,
                               TwinStudio_StringView* name, uint32_t trackNumber,
-                              uint8_t *adpcm, uint32_t adpcmSize, uint32_t interleave) {
+                              uint8_t *adpcm, uint32_t adpcmSize, uint32_t interleave,
+                              int32_t unkInt) {
     if (!adpcm || adpcmSize == 0) return false;
 
     uint8_t  channels   = wave.channels ? wave.channels : 1;
@@ -1441,6 +1452,7 @@ static bool AddArchiveTrackTo(Item *arr, int *count, TwinStudio_Wave wave, const
     item->channels     = channels;
     item->loopPosition = wave.loopPosition;
     item->duration     = (float)((double)frames / (double)sampleRate);
+    item->unkInt        = unkInt;
     return true;
 }
 
@@ -1556,7 +1568,7 @@ static TsThreadRet TS_THREAD_CALL ArchiveLoadWorker(void *arg)
             }
             else
             {
-                fprintf(stderr, "Track %d offset %d size %d\n", i + 1, record.header.offset, record.header.size);
+                fprintf(stderr, "Track %d offset %d size %d unkInt %d\n", i + 1, record.header.offset, record.header.size, record.header.unkInt);
 
                 if (record.trackData.loopPosition > 0)
                 {
@@ -1606,7 +1618,8 @@ static TsThreadRet TS_THREAD_CALL ArchiveLoadWorker(void *arg)
 
                 TwinStudio_StringView* trackName = isMono ? &record.name : NULL;
                 if (AddArchiveTrackTo(g_loadStaging, &g_loadStagingCount, record.trackData, album, trackName, i + 1,
-                                      adpcm, rawSize, isMono ? 0u : record.header.interleave))
+                                      adpcm, rawSize, isMono ? 0u : record.header.interleave,
+                                      record.header.unkInt))
                 {
                     if (hit)
                     {
@@ -2055,7 +2068,7 @@ static TsThreadRet TS_THREAD_CALL ArchiveSaveWorker(void *arg)
         }
 
         writeRecord->sampleRate = item->sampleRate;
-        writeRecord->unkInt = 0;
+        writeRecord->unkInt = item->unkInt;
         writeRecord->type = (item->channels == 2) ? TwinRes_MRT_Stereo : TwinRes_MRT_Mono;
         writeRecord->interleave = (writeRecord->type == TwinRes_MRT_Mono)
                                 ? 0 : headerArchive.interleave;

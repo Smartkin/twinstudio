@@ -37,6 +37,8 @@ fetchcontent_makeavailable(flecs)
 fetchcontent_makeavailable(raylib)
 fetchcontent_makeavailable(ps2imagemaker)
 
+target_compile_definitions(raylib PUBLIC SUPPORT_FILEFORMAT_FLAC=1)
+
 if (TWINSTUDIO_ASAN)
     add_compile_definitions(ENABLE_OVERRIDE=0)
     add_compile_definitions(TWIN_ASAN)
