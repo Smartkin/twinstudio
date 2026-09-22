@@ -27,7 +27,12 @@ typedef struct {
     uint32_t channels;
 } Mp4ImportResult;
 
-typedef void (*PssProgressFn)(void *user, float fraction /* 0..1, -1 for indeterminate */);
+// Returns true to keep going, false to stop as soon as convenient - checked
+// periodically during a long Mp4Import/Mp4Export (not necessarily every
+// frame; see each function's own progress call site for how often), so a
+// caller can support cancelling a slow operation instead of only ever
+// blocking until it finishes on its own.
+typedef bool (*PssProgressFn)(void *user, float fraction /* 0..1, -1 for indeterminate */);
 
 // Which standard ratio Mp4ComputeImportTarget's canvas quantization targets
 // (see its comment) - PSS_ASPECT_AUTO picks whichever the source is closer
@@ -68,13 +73,24 @@ typedef struct {
 
     PssTargetAspect aspect;   // PSS_ASPECT_AUTO unless the caller wants to override it
     PssFitMode      fit;      // PSS_FIT_STRETCH unless the caller wants letterboxing instead
+
+    // Target constant bit rate for the re-encoded video, bits/sec. 0 (the
+    // Mp4ImportLimits{0} default) means "use PssMpeg2Encoder_Create's own
+    // default", currently 9,000,000 - matching every retail PSS sample seen.
+    // PSS_BITRATE_USE_SOURCE means "match whatever bit rate the source video
+    // itself declares" instead of a fixed target - see Mp4Import's comment.
+    int64_t bitRate;
 } Mp4ImportLimits;
 
-// Opens `path` just far enough to read its video stream's dimensions and
-// frame rate (no decoding), so a caller can decide whether Mp4Import will
-// need to scale it down before committing to a full import.
-bool Mp4ProbeVideo(const char *path, int *outWidth, int *outHeight, double *outFps,
-                   char *outError, size_t errorCap);
+#define PSS_BITRATE_USE_SOURCE ((int64_t)-1)
+
+// Opens `path` just far enough to read its video stream's dimensions, frame
+// rate, duration and bit rate (no decoding), so a caller can decide whether
+// Mp4Import will need to scale it down before committing to a full import,
+// and can estimate how much space the re-encode will need. `outDuration` is
+// seconds, `outBitRate` bits/sec; both 0 if the source doesn't declare one.
+bool Mp4ProbeVideo(const char *path, int *outWidth, int *outHeight, double *outFps, double *outDuration,
+                   int64_t *outBitRate, char *outError, size_t errorCap);
 
 // The exact canvas width/height/fps Mp4Import would encode at for a source
 // of `srcWidth`x`srcHeight` at `srcFps`, given `limits` (NULL/all-zero = no
@@ -113,7 +129,10 @@ void Mp4ComputeSampleAspectRatio(int srcWidth, int srcHeight, int outWidth, int 
 // are dropped to bring the frame rate down to maxFps if it's higher - both
 // to fit within the target platform's decoder limits. `out->width/height/
 // fps` reflect whatever was actually encoded, which may differ from the
-// source.
+// source. `limits->bitRate == PSS_BITRATE_USE_SOURCE` re-encodes at
+// whatever bit rate the source's own video stream declares (falling back to
+// PssMpeg2Encoder_Create's own default if the source doesn't declare one)
+// instead of a fixed target.
 bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits *limits, Mp4ImportResult *out,
               PssProgressFn progress, void *progressUser, char *outError, size_t errorCap);
 

@@ -41,6 +41,11 @@ void TwinStudio_UiChangeActiveTextbox(TwinStudio_TextBoxDesc* textbox)
     }
 
     context.selectedTextBox = textbox;
+    // See TwinStudio_UiContext::textboxJustFocused's comment - only
+    // meaningful when switching TO a real textbox (the only caller that
+    // does is HandleClickTextbox, in response to the click that's about to
+    // be processed by UpdateCurrentTextBox later this same frame).
+    context.textboxJustFocused = (textbox != NULL);
 }
 
 
@@ -68,7 +73,18 @@ static void UpdateCurrentTextBox()
 
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
-        TwinStudio_TextboxResetSelection(context.selectedTextBox);
+        if (context.textboxJustFocused)
+        {
+            // HandleClickTextbox already set up the right selection for
+            // this exact click earlier in the frame (see
+            // TwinStudio_UiContext::textboxJustFocused) - don't immediately
+            // wipe it.
+            context.textboxJustFocused = false;
+        }
+        else
+        {
+            TwinStudio_TextboxResetSelection(context.selectedTextBox);
+        }
     }
 
     if (!isShiftPressed && !isCtrlPressed)

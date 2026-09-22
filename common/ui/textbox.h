@@ -30,6 +30,14 @@ typedef struct TwinStudio_TextBoxDesc {
     Clay_TextElementConfig config;
     Clay_Padding padding;
     bool selectTextOnReceivingFocus;
+
+    // The field's own background, independent of desc->config.textColor.
+    // Left at {0} (fully transparent, alpha 0 - never a sensible field
+    // background on its own), TwinStudio_TextboxRender falls back to its
+    // historical hardcoded gray, so existing callers that never set this
+    // keep their current appearance; a caller matching a specific theme
+    // (e.g. a dark UI) sets it explicitly instead.
+    Clay_Color backgroundColor;
 } TwinStudio_TextBoxDesc;
 
 

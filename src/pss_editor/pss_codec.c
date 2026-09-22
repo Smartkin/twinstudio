@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <stb_ds.h>
-
 #include "audio/adpcm.h"
 
 #include <libavcodec/avcodec.h>
@@ -173,12 +171,23 @@ double PssVideoDecoder_FrameRate(const PssVideoDecoder *dec) { return dec ? dec-
 // Video encode (RGBA source -> MPEG2 elementary stream)
 // ---------------------------------------------------------------------------
 
+// The encoded elementary stream is spooled straight to a temp file as
+// packets are drained from the encoder (see DrainEncoder) rather than held
+// in a growing in-memory buffer - for a long (e.g. 90-minute) import at a
+// few MB/s the accumulated stream is several GB, and the previous stb_ds
+// array (its own ~2x growth-doubling overhead) plus the final arena copy
+// plus the separate sequence_display_extension patch pass each held a full
+// copy simultaneously, peaking at up to ~4x the actual stream size. Writing
+// straight to disk (with the display-extension patch applied inline, per
+// packet, as it's written - see DrainEncoder) means only the final read
+// into `arena` at Finish() ever needs the full size in memory.
 struct PssMpeg2Encoder {
     AVCodecContext    *ctx;
     struct SwsContext *sws;
     AVFrame           *frame;
     AVPacket          *pkt;
-    uint8_t           *es;     // stb_ds dynamic array
+    FILE              *tmp;    // spooled elementary stream, deleted on close
+    size_t             esSize; // total bytes written to `tmp` so far
     int64_t            pts;
     int                width, height;
     bool               failed;
@@ -186,7 +195,7 @@ struct PssMpeg2Encoder {
 
 static void FreeEncoder(PssMpeg2Encoder *enc) {
     if (!enc) return;
-    arrfree(enc->es);
+    if (enc->tmp) fclose(enc->tmp);
     if (enc->pkt) av_packet_free(&enc->pkt);
     if (enc->frame) av_frame_free(&enc->frame);
     if (enc->sws) sws_freeContext(enc->sws);
@@ -195,13 +204,15 @@ static void FreeEncoder(PssMpeg2Encoder *enc) {
 }
 
 PssMpeg2Encoder *PssMpeg2Encoder_Create(int width, int height, double fps, int sarNum, int sarDen,
-                                        char *outError, size_t errorCap) {
+                                        int64_t bitRate, char *outError, size_t errorCap) {
     const AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_MPEG2VIDEO);
     if (!codec) { SetErr(outError, errorCap, "No MPEG2 video encoder available in this ffmpeg build"); return NULL; }
 
     PssMpeg2Encoder *enc = (PssMpeg2Encoder *)calloc(1, sizeof(*enc));
     enc->width = width;
     enc->height = height;
+    enc->tmp = tmpfile();
+    if (!enc->tmp) { SetErr(outError, errorCap, "Could not create a temp file for the video encode"); FreeEncoder(enc); return NULL; }
     enc->ctx = avcodec_alloc_context3(codec);
     if (!enc->ctx) { SetErr(outError, errorCap, "Out of memory allocating the MPEG2 encoder"); FreeEncoder(enc); return NULL; }
 
@@ -213,7 +224,7 @@ PssMpeg2Encoder *PssMpeg2Encoder_Create(int width, int height, double fps, int s
     enc->ctx->framerate  = fr;
     enc->ctx->gop_size   = 15;
     enc->ctx->max_b_frames = 0;   // keep decode order == display order for our simple player
-    enc->ctx->bit_rate   = 9000000; 
+    enc->ctx->bit_rate   = bitRate > 0 ? bitRate : 9000000;
     enc->ctx->sample_aspect_ratio = (AVRational){ sarNum > 0 ? sarNum : 1, sarDen > 0 ? sarDen : 1 };
 
     // Without these, libavcodec's mpeg2video encoder writes a stream that
@@ -267,15 +278,65 @@ PssMpeg2Encoder *PssMpeg2Encoder_Create(int width, int height, double fps, int s
     return enc;
 }
 
+// Every retail sample declares a sequence_display_extension of exactly
+// these bytes (video_format=2, color_description with primaries/transfer/
+// matrix = 4/4/5, display_horizontal_size=720, display_vertical_size=480)
+// right after every sequence_extension in the stream - and always these
+// same values, even though vivendi.pss's own coded picture is 640x480 and
+// B01_A.pss's is 512x288. So this isn't derived from the video's own coded
+// size; it looks like a fixed convention this game's authoring tools
+// always used (720x480 is standard NTSC broadcast/D1 resolution). Custom
+// imports have no equivalent extension at all: libavcodec's own auto mode
+// only computes it from the coded size (which is wrong here) and exposes
+// no way to override the values directly, so this is inserted as a
+// byte-for-byte copy of the retail convention after the fact instead. If
+// the game reads this field to decide how to scale/position the decoded
+// picture on screen, its absence is a strong candidate for the picture not
+// filling the screen in-game despite decoding and playing correctly.
+static const uint8_t kSeqDisplayExt[11] = { 0x00, 0x00, 0x01, 0xB5, 0x25, 0x04, 0x04, 0x05, 0x0B, 0x42, 0x0F };
+
+// Writes `data` to the temp file, inserting kSeqDisplayExt right after every
+// sequence_extension found in it (start code + ext_id top nibble == 1,
+// always exactly 10 bytes total - see kSeqDisplayExt's comment). Packets
+// from avcodec_receive_packet are complete access units - libavcodec never
+// splits a start-code-delimited unit across two packets - so a
+// sequence_extension is always fully contained within a single `data`
+// buffer here, never straddling two calls; a per-packet scan is therefore
+// equivalent to scanning the whole concatenated stream at once, without
+// needing to carry any state between calls.
+static bool WriteEsChunk(PssMpeg2Encoder *enc, const uint8_t *data, size_t len) {
+    size_t i = 0, spanStart = 0;
+    while (i + 5 <= len) {
+        if (data[i] == 0 && data[i+1] == 0 && data[i+2] == 1 && data[i+3] == 0xB5 && (data[i+4] >> 4) == 0x1) {
+            size_t segEnd = (i + 10 <= len) ? i + 10 : len;
+            size_t segLen = segEnd - spanStart;
+            if (segLen && fwrite(data + spanStart, 1, segLen, enc->tmp) != segLen) return false;
+            enc->esSize += segLen;
+            if (segEnd - i == 10) {
+                if (fwrite(kSeqDisplayExt, 1, sizeof(kSeqDisplayExt), enc->tmp) != sizeof(kSeqDisplayExt)) return false;
+                enc->esSize += sizeof(kSeqDisplayExt);
+            }
+            i = spanStart = segEnd;
+        } else {
+            i++;
+        }
+    }
+    size_t tailLen = len - spanStart;
+    if (tailLen) {
+        if (fwrite(data + spanStart, 1, tailLen, enc->tmp) != tailLen) return false;
+        enc->esSize += tailLen;
+    }
+    return true;
+}
+
 static bool DrainEncoder(PssMpeg2Encoder *enc) {
     for (;;) {
         int ret = avcodec_receive_packet(enc->ctx, enc->pkt);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) return true;
         if (ret < 0) return false;
-        size_t old = arrlenu(enc->es);
-        arrsetlen(enc->es, old + (size_t)enc->pkt->size);
-        memcpy(enc->es + old, enc->pkt->data, (size_t)enc->pkt->size);
+        bool wrote = WriteEsChunk(enc, enc->pkt->data, (size_t)enc->pkt->size);
         av_packet_unref(enc->pkt);
+        if (!wrote) return false;
     }
 }
 
@@ -293,63 +354,12 @@ bool PssMpeg2Encoder_PushRgba(PssMpeg2Encoder *enc, const uint8_t *rgba) {
     return true;
 }
 
-// Every retail sample declares a sequence_display_extension of exactly
-// these bytes (video_format=2, color_description with primaries/transfer/
-// matrix = 4/4/5, display_horizontal_size=720, display_vertical_size=480)
-// right after every sequence_extension in the stream - and always these
-// same values, even though vivendi.pss's own coded picture is 640x480 and
-// B01_A.pss's is 512x288. So this isn't derived from the video's own coded
-// size; it looks like a fixed convention this game's authoring tools
-// always used (720x480 is standard NTSC broadcast/D1 resolution). Custom
-// imports have no equivalent extension at all: libavcodec's own auto mode
-// only computes it from the coded size (which is wrong here) and exposes
-// no way to override the values directly, so this is inserted as a
-// byte-for-byte copy of the retail convention after the fact instead. If
-// the game reads this field to decide how to scale/position the decoded
-// picture on screen, its absence is a strong candidate for the picture not
-// filling the screen in-game despite decoding and playing correctly.
-static uint8_t *InsertSequenceDisplayExtensions(const uint8_t *es, size_t esLen, size_t *outLen) {
-    static const uint8_t kExt[11] = { 0x00, 0x00, 0x01, 0xB5, 0x25, 0x04, 0x04, 0x05, 0x0B, 0x42, 0x0F };
-    uint8_t *out = NULL;   // stb_ds array
-    size_t i = 0, spanStart = 0;
-    while (i + 5 <= esLen) {
-        // sequence_extension: start code + ext_id (top nibble) == 1, always
-        // exactly 10 bytes total (6-byte body, no variable-length content).
-        if (es[i] == 0 && es[i+1] == 0 && es[i+2] == 1 && es[i+3] == 0xB5 && (es[i+4] >> 4) == 0x1) {
-            size_t segEnd = (i + 10 <= esLen) ? i + 10 : esLen;
-            size_t segLen = segEnd - spanStart;
-            size_t old = arrlenu(out);
-            arrsetlen(out, old + segLen);
-            memcpy(out + old, es + spanStart, segLen);
-            if (segEnd - i == 10) {
-                size_t old2 = arrlenu(out);
-                arrsetlen(out, old2 + sizeof(kExt));
-                memcpy(out + old2, kExt, sizeof(kExt));
-            }
-            i = spanStart = segEnd;
-        } else {
-            i++;
-        }
-    }
-    size_t old = arrlenu(out);
-    arrsetlen(out, old + (esLen - spanStart));
-    memcpy(out + old, es + spanStart, esLen - spanStart);
-    *outLen = arrlenu(out);
-    return out;
-}
-
 bool PssMpeg2Encoder_Finish(PssMpeg2Encoder *enc, TwinStudio_Arena *arena, uint8_t **outEs, uint32_t *outEsSize) {
     if (!enc) return false;
     bool ok = !enc->failed;
     if (ok) {
         avcodec_send_frame(enc->ctx, NULL);   // flush
-        ok = DrainEncoder(enc) && arrlenu(enc->es) > 0;
-    }
-    if (ok) {
-        size_t patchedLen;
-        uint8_t *patched = InsertSequenceDisplayExtensions(enc->es, arrlenu(enc->es), &patchedLen);
-        arrfree(enc->es);
-        enc->es = patched;
+        ok = DrainEncoder(enc) && enc->esSize > 0;
     }
     if (ok) {
         // libavcodec's mpeg2video encoder never emits sequence_end_code on
@@ -360,14 +370,14 @@ bool PssMpeg2Encoder_Finish(PssMpeg2Encoder *enc, TwinStudio_Arena *arena, uint8
         // reached a clean end-of-playback state in-game even after the
         // video itself decoded and displayed correctly.
         static const uint8_t kSequenceEndCode[4] = { 0x00, 0x00, 0x01, 0xB7 };
-        size_t old = arrlenu(enc->es);
-        arrsetlen(enc->es, old + sizeof(kSequenceEndCode));
-        memcpy(enc->es + old, kSequenceEndCode, sizeof(kSequenceEndCode));
+        ok = fwrite(kSequenceEndCode, 1, sizeof(kSequenceEndCode), enc->tmp) == sizeof(kSequenceEndCode);
+        if (ok) enc->esSize += sizeof(kSequenceEndCode);
     }
     if (ok) {
-        *outEsSize = (uint32_t)arrlenu(enc->es);
+        *outEsSize = (uint32_t)enc->esSize;
         *outEs     = (uint8_t *)TwinStudio_ArenaAlloc(arena, *outEsSize);
-        memcpy(*outEs, enc->es, *outEsSize);
+        rewind(enc->tmp);
+        ok = fread(*outEs, 1, *outEsSize, enc->tmp) == *outEsSize;
     }
     FreeEncoder(enc);
     return ok;

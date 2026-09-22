@@ -10,6 +10,11 @@
 #include <raylib.h>
 #include <assert.h>
 
+// Clay sorts every floating element as an independent tree root by zIndex,
+// globally (see RenderTextboxTick's comment) - the caret/selection overlay
+// needs to comfortably outrank any modal or dropdown a textbox might be
+// rendered inside, not just its own immediate siblings.
+#define TWIN_TEXTBOX_OVERLAY_ZINDEX 1000
 
 static void CacheTextboxString(TwinStudio_TextBoxDesc* desc)
 {
@@ -62,7 +67,15 @@ static int32_t GetCharacterClicked(TwinStudio_TextBoxDesc* desc, Clay_Vector2 cl
 static void HandleClickTextbox(Clay_ElementId element, Clay_PointerData pointerData, void* data)
 {
     TwinStudio_TextBoxDesc* textBox = data;
-    if (pointerData.state != CLAY_POINTER_DATA_PRESSED_THIS_FRAME)
+    // Not pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME: Clay's
+    // hover dispatch (the pass that calls this) runs BEFORE Clay_SetPointerState
+    // updates pointerInfo.state for the CURRENT call, so that field only
+    // reads PRESSED_THIS_FRAME starting on the NEXT call - for a caller
+    // that calls Clay_SetPointerState once per frame (the normal case),
+    // that's one frame later than the actual press, and never fires at all
+    // for a press-and-release that don't span two calls. IsMouseButtonPressed
+    // is raylib's own immediate this-frame edge and isn't affected.
+    if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         return;
     }
@@ -324,8 +337,16 @@ static void RenderTextboxTick(TwinStudio_TextBoxDesc* desc, Clay_TextElementConf
     Clay_Dimensions tickDims = Raylib_MeasureText(tickSlice, editTextConfig, &TwinStudio_GetUiContext()->fonts[editTextConfig->fontId]);
     attachOffset.x -= tickDims.width / 2.0f;
 
+    // Clay sorts EVERY floating element as its own independent tree root by
+    // zIndex, globally across the whole scene (see "Sort tree roots by
+    // z-index" in clay.h) - not relative to whatever it's nested inside.
+    // A textbox rendered inside a modal (attached with its own much higher
+    // zIndex, e.g. 110+ here) needs a caret zIndex comfortably above that,
+    // or the modal's own opaque background - itself just another root,
+    // sorted and drawn after a too-low caret - paints right over it.
     CLAY_AUTO_ID({
         .floating = {
+            .zIndex = TWIN_TEXTBOX_OVERLAY_ZINDEX,
             .attachTo = CLAY_ATTACH_TO_PARENT,
             .offset = attachOffset
         }
@@ -364,6 +385,10 @@ static void RenderSelection(TwinStudio_TextBoxDesc* desc, Clay_TextElementConfig
 
     CLAY_AUTO_ID({
         .floating = {
+            // One below the caret's own zIndex (see TWIN_TEXTBOX_OVERLAY_ZINDEX's
+            // comment) so the caret draws on top of the highlight, not the
+            // other way around, while both still clear any modal/dropdown.
+            .zIndex = TWIN_TEXTBOX_OVERLAY_ZINDEX - 1,
             .attachTo = CLAY_ATTACH_TO_PARENT,
             .offset = attachOffset
         },
@@ -377,13 +402,26 @@ static void RenderSelection(TwinStudio_TextBoxDesc* desc, Clay_TextElementConfig
 
 void TwinStudio_TextboxRender(TwinStudio_TextBoxDesc* desc)
 {
+    // Height comes from a fixed reference glyph rather than the current
+    // text's own measured height - CLAY_TEXT's intrinsic sizing collapses
+    // toward zero for a zero-length string (e.g. the field cleared for
+    // editing, or select-all-then-type), which made the whole field visibly
+    // shrink to almost nothing while empty instead of staying a stable size.
+    const char refChar[] = "M";
+    const Clay_StringSlice refSlice = { .length = 1, .chars = refChar, .baseChars = refChar };
+    Clay_Dimensions refDims = Raylib_MeasureText(refSlice, &desc->config, &TwinStudio_GetUiContext()->fonts[desc->config.fontId]);
+    float fixedHeight = refDims.height + desc->padding.top + desc->padding.bottom;
+
+    Clay_Color bg = desc->backgroundColor;
+    if (bg.a == 0) bg = (Clay_Color){ 150, 150, 150, 255 };   // historical default - see TwinStudio_TextBoxDesc::backgroundColor
+
     CLAY(CLAY_SID(TS_STRING_TO_CLAY(desc->id)), {
         .layout = {
             .padding = desc->padding,
             .layoutDirection = CLAY_LEFT_TO_RIGHT,
-            .sizing = { .width = CLAY_SIZING_GROW(0) },
+            .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(fixedHeight) },
         },
-        .backgroundColor = { 150, 150, 150, 255 }
+        .backgroundColor = bg
     })
     {
         Clay_OnHover(HandleClickTextbox, desc);

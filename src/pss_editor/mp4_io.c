@@ -7,8 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <stb_ds.h>
-
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/channel_layout.h>
@@ -69,10 +67,12 @@ static bool SetErr(char *err, size_t cap, const char *fmt, ...) {
 // MPEG2, decode audio (if any) to interleaved S16 PCM.
 // ---------------------------------------------------------------------------
 
-bool Mp4ProbeVideo(const char *path, int *outWidth, int *outHeight, double *outFps,
-                   char *outError, size_t errorCap) {
+bool Mp4ProbeVideo(const char *path, int *outWidth, int *outHeight, double *outFps, double *outDuration,
+                   int64_t *outBitRate, char *outError, size_t errorCap) {
     AVFormatContext *fmt = NULL;
     bool ok = false;
+    *outDuration = 0.0;
+    *outBitRate = 0;
 
     if (avformat_open_input(&fmt, path, NULL, NULL) < 0) { SetErr(outError, errorCap, "Could not open \"%s\"", path); goto cleanup; }
     if (avformat_find_stream_info(fmt, NULL) < 0) { SetErr(outError, errorCap, "Could not read stream info from \"%s\"", path); goto cleanup; }
@@ -85,6 +85,15 @@ bool Mp4ProbeVideo(const char *path, int *outWidth, int *outHeight, double *outF
         *outHeight = vs->codecpar->height;
         AVRational fpsRat = av_guess_frame_rate(fmt, vs, NULL);
         *outFps = (fpsRat.num > 0 && fpsRat.den > 0) ? av_q2d(fpsRat) : 30.0;
+        if (fmt->duration != (int64_t)AV_NOPTS_VALUE && fmt->duration > 0) {
+            *outDuration = (double)fmt->duration / (double)AV_TIME_BASE;
+        }
+        // Per-stream bit_rate is usually what's actually declared (e.g. in
+        // an mp4's stsd/esds box); fmt->bit_rate (the whole container,
+        // audio included) is a reasonable fallback when the stream doesn't
+        // carry its own.
+        *outBitRate = vs->codecpar->bit_rate > 0 ? vs->codecpar->bit_rate
+                    : (fmt->bit_rate > 0 ? fmt->bit_rate : 0);
     }
     ok = true;
 
@@ -211,7 +220,11 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
     PssMpeg2Encoder    *enc      = NULL;
     uint8_t            *rgba     = NULL;
     int16_t            *tmpPcm   = NULL;
-    int16_t            *pcmArr   = NULL;   // stb_ds dynamic array
+    // Spooled to a temp file as it's decoded rather than an in-memory
+    // dynamic array, for the same reason as PssMpeg2Encoder's `es` (see its
+    // comment) - a 90-minute source's PCM alone is well over a gigabyte.
+    FILE                *pcmTmp   = NULL;
+    size_t               pcmSamplesTotal = 0;   // total int16_t units written to pcmTmp
     AVChannelLayout     inLayout = { 0 };
     AVChannelLayout     outLayout = { 0 };
 
@@ -284,7 +297,20 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
             if (avcodec_open2(actx, adec, NULL) < 0) { avcodec_free_context(&actx); actx = NULL; }
         }
         if (actx) {
-            outSampleRate = actx->sample_rate > 0 ? (uint32_t)actx->sample_rate : 48000;
+            // Always resample to 48000 Hz rather than preserving whatever
+            // rate the source declares (44100 is extremely common for web/
+            // consumer video, but every retail PSS sample seen - both audio
+            // tracks in vivendi.pss and all 5 dub tracks in B01_A.pss -
+            // uses exactly 48000, no exceptions). The game engine's audio
+            // path appears tuned to that one rate (plausibly the PS2 SPU2
+            // hardware's own native rate): a source imported at its native
+            // 44100 played back in-game at roughly double speed with
+            // periodic stutter, despite decoding and sounding correct in
+            // this tool's own player, which free-runs at whatever rate the
+            // SShd header declares rather than assuming a fixed one.
+            // swr (below) actually resamples to this, not just relabels
+            // the data, so pitch/duration stay correct either way.
+            outSampleRate = 48000;
             outChannels   = (actx->ch_layout.nb_channels >= 2) ? 2u : 1u;
             av_channel_layout_default(&outLayout, (int)outChannels);
             av_channel_layout_copy(&inLayout, &actx->ch_layout);
@@ -296,9 +322,19 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
                 actx = NULL;
             }
         }
+        if (actx) {
+            pcmTmp = tmpfile();
+            if (!pcmTmp) { SetErr(outError, errorCap, "Could not create a temp file for the audio decode"); goto cleanup; }
+        }
     }
 
-    enc = PssMpeg2Encoder_Create(canvasWidth, canvasHeight, outFps, sarNum, sarDen, outError, errorCap);
+    int64_t targetBitRate = limits ? limits->bitRate : 0;
+    if (targetBitRate == PSS_BITRATE_USE_SOURCE) {
+        targetBitRate = vs->codecpar->bit_rate > 0 ? vs->codecpar->bit_rate
+                      : (fmt->bit_rate > 0 ? fmt->bit_rate : 0);
+    }
+    enc = PssMpeg2Encoder_Create(canvasWidth, canvasHeight, outFps, sarNum, sarDen,
+                                 targetBitRate, outError, errorCap);
     if (!enc) goto cleanup;
 
     // sws_scale handles the pixel format conversion and the scale (uniform
@@ -352,9 +388,9 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
                             int converted = swr_convert(swr, outPlanes, wanted,
                                                         (const uint8_t **)frame->extended_data, frame->nb_samples);
                             if (converted > 0) {
-                                size_t old = arrlenu(pcmArr);
-                                arrsetlen(pcmArr, old + (size_t)converted * outChannels);
-                                memcpy(pcmArr + old, tmpPcm, (size_t)converted * outChannels * sizeof(int16_t));
+                                size_t n = (size_t)converted * outChannels;
+                                fwrite(tmpPcm, sizeof(int16_t), n, pcmTmp);
+                                pcmSamplesTotal += n;
                             }
                         }
                         av_frame_unref(frame);
@@ -369,7 +405,10 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
                     int64_t pos = avio_tell(fmt->pb);
                     frac = (float)((double)pos / (double)fileSize);
                 }
-                progress(progressUser, frac);
+                if (!progress(progressUser, frac)) {
+                    SetErr(outError, errorCap, "Import cancelled");
+                    goto cleanup;
+                }
             }
         }
 
@@ -394,9 +433,9 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
                     uint8_t *outPlanes[1] = { (uint8_t *)tmpPcm };
                     int converted = swr_convert(swr, outPlanes, wanted, (const uint8_t **)frame->extended_data, frame->nb_samples);
                     if (converted > 0) {
-                        size_t old = arrlenu(pcmArr);
-                        arrsetlen(pcmArr, old + (size_t)converted * outChannels);
-                        memcpy(pcmArr + old, tmpPcm, (size_t)converted * outChannels * sizeof(int16_t));
+                        size_t n = (size_t)converted * outChannels;
+                        fwrite(tmpPcm, sizeof(int16_t), n, pcmTmp);
+                        pcmSamplesTotal += n;
                     }
                 }
                 av_frame_unref(frame);
@@ -414,13 +453,16 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
     out->height = canvasHeight;
     out->fps = outFps;
 
-    if (actx && arrlenu(pcmArr) > 0) {
-        size_t samples = arrlenu(pcmArr);
-        out->pcmFrames  = (uint32_t)(samples / outChannels);
+    if (actx && pcmSamplesTotal > 0) {
+        out->pcmFrames  = (uint32_t)(pcmSamplesTotal / outChannels);
         out->sampleRate = outSampleRate;
         out->channels   = outChannels;
-        out->pcm = (int16_t *)TwinStudio_ArenaAlloc(arena, samples * sizeof(int16_t));
-        memcpy(out->pcm, pcmArr, samples * sizeof(int16_t));
+        out->pcm = (int16_t *)TwinStudio_ArenaAlloc(arena, pcmSamplesTotal * sizeof(int16_t));
+        rewind(pcmTmp);
+        if (fread(out->pcm, sizeof(int16_t), pcmSamplesTotal, pcmTmp) != pcmSamplesTotal) {
+            SetErr(outError, errorCap, "Could not read back decoded audio for \"%s\"", path);
+            goto cleanup;
+        }
     }
 
     ok = true;
@@ -428,7 +470,7 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
 cleanup:
     av_channel_layout_uninit(&inLayout);
     av_channel_layout_uninit(&outLayout);
-    arrfree(pcmArr);
+    if (pcmTmp) fclose(pcmTmp);
     free(tmpPcm);
     free(rgba);
     if (pkt) av_packet_free(&pkt);
@@ -582,7 +624,10 @@ bool Mp4Export(const char *path, PssVideoDecoder *videoDec, uint32_t frameCount,
             }
 
             frameIdx++;
-            if (progress) progress(progressUser, frameCount ? (float)frameIdx / (float)frameCount : -1.0f);
+            if (progress && !progress(progressUser, frameCount ? (float)frameIdx / (float)frameCount : -1.0f)) {
+                SetErr(outError, errorCap, "Export cancelled");
+                goto cleanup;
+            }
             haveFrame = PssVideoDecoder_NextFrame(videoDec, &rgba, &w, &h);
         }
         avcodec_send_frame(vctx, NULL);
@@ -651,6 +696,10 @@ cleanup:
         if (!(ofmt->oformat->flags & AVFMT_NOFILE) && ofmt->pb) avio_closep(&ofmt->pb);
         avformat_free_context(ofmt);
     }
+    // A failure (including cancellation, per PssProgressFn's comment) after
+    // avio_open succeeded leaves a truncated, invalid mp4 at `path` instead
+    // of no file at all - remove() is a no-op if writing never got that far.
+    if (!ok) remove(path);
     PssVideoDecoder_Rewind(videoDec);
     return ok;
 }

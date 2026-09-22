@@ -14,8 +14,8 @@ Opens an `.MH`/`.MB` archive pair as a playlist and lets you audition, reorder, 
 - Plays tracks straight from the archive's own ADPCM data, including sample-accurate loop points read from the archive.
 - Waveform scrubber generated from the decoded PCM.
 - Multi-select, drag-and-drop reordering, and "null" padding slots preserved so in-game track indices never shift.
-- Import external audio into the archive; export any track to WAV.
-- Background loading/saving with progress reporting, so large archives don't freeze the UI.
+- Import external audio into the archive.
+- Export any track to WAV.
 
 ## twinpss
 
@@ -31,7 +31,7 @@ Opens a `.PSS` file (MPEG-2 video plus one or more SPU2-ADPCM/PCM dub tracks) an
 
 Requires CMake 3.27+ and a C11 compiler (MSVC, GCC or Clang).
 
-Most dependencies (raylib, flecs, PS2ImageMaker) are fetched automatically via CMake's `FetchContent`. `twinpss` additionally needs FFmpeg's `libavformat`/`libavcodec`/`libavutil`/`libswscale`/`libswresample` available through `pkg-config`; the CI workflow installs these via [vcpkg](https://github.com/microsoft/vcpkg).
+Most dependencies (raylib, flecs, PS2ImageMaker) are fetched automatically via CMake's `FetchContent`. `twinpss` additionally needs FFmpeg's `libavformat`/`libavcodec`/`libavutil`/`libswscale`/`libswresample` available through `pkg-config`. The CI workflow installs these via [vcpkg](https://github.com/microsoft/vcpkg).
 
 ### Linux
 

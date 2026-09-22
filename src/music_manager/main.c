@@ -2559,11 +2559,103 @@ static Clay_TextElementConfig TextCfgNoWrap(uint16_t size, Clay_Color color, uin
                                      .wrapMode = CLAY_TEXT_WRAP_NONE };
 }
 
-static void RenderTransportButton(Clay_ElementId id, Clay_String label, bool primary) {
+// Clay has no polygon primitive, so triangles (play/step chevrons) go
+// through the CUSTOM_LAYOUT_ELEMENT_TYPE_TRIANGLE render command added to
+// common/render/renderer.h. Like Clay's own strings, a CUSTOM element only
+// stores a pointer to its data - it has to outlive Clay_EndLayout() until
+// Clay_Raylib_Render() actually reads it, so triangle data is bump-allocated
+// from a small per-frame arena the same way frame strings are.
+#define MAX_FRAME_CUSTOM_ELEMENTS 16
+static CustomLayoutElement g_frameCustomElements[MAX_FRAME_CUSTOM_ELEMENTS];
+static int g_frameCustomElementsUsed = 0;
+
+static void ResetFrameCustomElements(void) { g_frameCustomElementsUsed = 0; }
+
+static void *PushTriangleElement(Clay_Color color, TriangleDirection dir) {
+    if (g_frameCustomElementsUsed >= MAX_FRAME_CUSTOM_ELEMENTS) return NULL;
+    CustomLayoutElement *e = &g_frameCustomElements[g_frameCustomElementsUsed++];
+    e->type = CUSTOM_LAYOUT_ELEMENT_TYPE_TRIANGLE;
+    e->customData.triangle.color = CLAY_COLOR_TO_RAYLIB_COLOR(color);
+    e->customData.triangle.direction = dir;
+    return e;
+}
+
+static void IconTriangle(int index, float w, float h, Clay_Color color, TriangleDirection dir) {
+    CLAY(CLAY_IDI_LOCAL("Tri", index), {
+        .layout = { .sizing = { .width = CLAY_SIZING_FIXED(w), .height = CLAY_SIZING_FIXED(h) } },
+        .custom = { .customData = PushTriangleElement(color, dir) }
+    }) {}
+}
+
+// A right-pointing triangle's visual centroid sits left of its bounding
+// box's center, so it gets a wider wrapper with the extra width added as
+// left padding only, to make it read as centered. See pss_editor/main.c's
+// IconPlay for the derivation.
+static void IconPlay(Clay_Color color) {
+    CLAY(CLAY_ID_LOCAL("IconPlayWrap"), {
+        .layout = { .sizing = { .width = CLAY_SIZING_FIXED(24), .height = CLAY_SIZING_FIXED(18) },
+                    .padding = { .left = 6 } }
+    }) {
+        IconTriangle(0, 18, 18, color, TRIANGLE_DIR_RIGHT);
+    }
+}
+
+static void IconPause(Clay_Color color) {
+    CLAY(CLAY_ID_LOCAL("IconPause"), {
+        .layout = { .sizing = { .width = CLAY_SIZING_FIXED(18), .height = CLAY_SIZING_FIXED(18) },
+                    .childGap = 4, .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER } }
+    }) {
+        CLAY(CLAY_ID_LOCAL("Bar1"), {
+            .layout = { .sizing = { .width = CLAY_SIZING_FIXED(5), .height = CLAY_SIZING_FIXED(18) } },
+            .backgroundColor = color, .cornerRadius = CLAY_CORNER_RADIUS(1)
+        }) {}
+        CLAY(CLAY_ID_LOCAL("Bar2"), {
+            .layout = { .sizing = { .width = CLAY_SIZING_FIXED(5), .height = CLAY_SIZING_FIXED(18) } },
+            .backgroundColor = color, .cornerRadius = CLAY_CORNER_RADIUS(1)
+        }) {}
+    }
+}
+
+// Two chevrons then a wall: skip to the next track.
+static void IconSkipForward(Clay_Color color) {
+    CLAY(CLAY_ID_LOCAL("IconSkipFwd"), {
+        .layout = { .sizing = { .width = CLAY_SIZING_FIXED(19), .height = CLAY_SIZING_FIXED(15) },
+                    .childGap = 1, .childAlignment = { .y = CLAY_ALIGN_Y_CENTER } }
+    }) {
+        IconTriangle(0, 7, 15, color, TRIANGLE_DIR_RIGHT);
+        IconTriangle(1, 7, 15, color, TRIANGLE_DIR_RIGHT);
+        CLAY(CLAY_ID_LOCAL("Wall"), {
+            .layout = { .sizing = { .width = CLAY_SIZING_FIXED(3), .height = CLAY_SIZING_FIXED(15) } },
+            .backgroundColor = color
+        }) {}
+    }
+}
+
+// A wall then two chevrons: skip to the previous track - the mirror of
+// IconSkipForward.
+static void IconSkipBack(Clay_Color color) {
+    CLAY(CLAY_ID_LOCAL("IconSkipBack"), {
+        .layout = { .sizing = { .width = CLAY_SIZING_FIXED(19), .height = CLAY_SIZING_FIXED(15) },
+                    .childGap = 1, .childAlignment = { .y = CLAY_ALIGN_Y_CENTER } }
+    }) {
+        CLAY(CLAY_ID_LOCAL("Wall"), {
+            .layout = { .sizing = { .width = CLAY_SIZING_FIXED(3), .height = CLAY_SIZING_FIXED(15) } },
+            .backgroundColor = color
+        }) {}
+        IconTriangle(0, 7, 15, color, TRIANGLE_DIR_LEFT);
+        IconTriangle(1, 7, 15, color, TRIANGLE_DIR_LEFT);
+    }
+}
+
+typedef enum { TRANSPORT_ICON_PLAY, TRANSPORT_ICON_PAUSE,
+              TRANSPORT_ICON_SKIP_BACK, TRANSPORT_ICON_SKIP_FORWARD } TransportIcon;
+
+static void RenderTransportButton(Clay_ElementId id, TransportIcon icon, bool primary) {
     // Clay_Hovered() reports the currently *open* element, so out here it would
     // answer for the parent row. The id is known, so ask about it directly.
     bool hovered = Clay_PointerOver(id);
     float size = primary ? 56.0f : 42.0f;
+    Clay_Color fg = primary ? (Clay_Color){12, 18, 28, 255} : C_TEXT;
     CLAY(id, {
         .layout = {
             .sizing = { .width = CLAY_SIZING_FIXED(size), .height = CLAY_SIZING_FIXED(size) },
@@ -2573,8 +2665,12 @@ static void RenderTransportButton(Clay_ElementId id, Clay_String label, bool pri
                                    : (hovered ? C_HOVER : C_PANEL_2),
         .cornerRadius = CLAY_CORNER_RADIUS(size / 2.0f)
     }) {
-        CLAY_TEXT(label, CLAY_TEXT_CONFIG(TextCfg(primary ? 17 : 14,
-                        primary ? (Clay_Color){12, 18, 28, 255} : C_TEXT, FONT_BODY)));
+        switch (icon) {
+            case TRANSPORT_ICON_PLAY:          IconPlay(fg);         break;
+            case TRANSPORT_ICON_PAUSE:         IconPause(fg);        break;
+            case TRANSPORT_ICON_SKIP_BACK:     IconSkipBack(fg);     break;
+            case TRANSPORT_ICON_SKIP_FORWARD:  IconSkipForward(fg);  break;
+        }
     }
 }
 
@@ -2925,10 +3021,10 @@ static void RenderPlayerBar(void) {
                 .childAlignment = { .y = CLAY_ALIGN_Y_CENTER }
             }
         }) {
-            RenderTransportButton(CLAY_ID("PrevButton"), CLAY_STRING("<<"), false);
+            RenderTransportButton(CLAY_ID("PrevButton"), TRANSPORT_ICON_SKIP_BACK, false);
             RenderTransportButton(CLAY_ID("PlayButton"),
-                                  g_player.playing ? CLAY_STRING("||") : CLAY_STRING(">"), true);
-            RenderTransportButton(CLAY_ID("NextButton"), CLAY_STRING(">>"), false);
+                                  g_player.playing ? TRANSPORT_ICON_PAUSE : TRANSPORT_ICON_PLAY, true);
+            RenderTransportButton(CLAY_ID("NextButton"), TRANSPORT_ICON_SKIP_FORWARD, false);
 
             // Loop toggle. Only meaningful for a track that carries a loop
             // point; greyed out otherwise so it is obvious which ones do.
@@ -4029,6 +4125,7 @@ int main(int argc, char **argv) {
         Clay_UpdateScrollContainers(false, (Clay_Vector2){ wheel.x * 12.0f, wheel.y * 12.0f }, dt);
 
         ResetFrameStrings();
+        ResetFrameCustomElements();
         Clay_RenderCommandArray commands = BuildLayout(mouse, dt);
 
         BeginDrawing();

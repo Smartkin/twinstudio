@@ -160,6 +160,32 @@ static const char *StandardName(PssVideoStandard std) { return std == PSS_STD_PA
 
 static PssVideoStandard g_targetStandard = PSS_STD_NTSC;
 
+// Bit rate presets offered by RenderImportBitrateToggle's dropdown, Kb/s.
+// 9000 is what every retail PSS sample seen uses.
+static const int kBitRatePresetsKbps[] = { 4000, 6000, 9000, 12000, 16000 };
+#define BIT_RATE_PRESET_COUNT (int)(sizeof(kBitRatePresetsKbps) / sizeof(kBitRatePresetsKbps[0]))
+
+// Whether to match whatever bit rate each imported source declares for
+// itself (PSS_BITRATE_USE_SOURCE) instead of a fixed target - the default,
+// since re-encoding at the source's own rate is the least surprising choice
+// for someone who hasn't thought about bit rate at all. g_targetBitRateKbps
+// is the fixed target used whenever this is false: settable by picking a
+// preset or "Source" from RenderImportBitrateToggle's dropdown, or by
+// typing directly into its text field (which also clears this flag - see
+// HandleImportOptionsDialog's focus-edge-detection comment).
+static bool g_targetBitRateIsSource = true;
+static int  g_targetBitRateKbps     = 9000;
+// The last value g_targetBitRateKbps held that was actually a usable rate
+// (i.e. positive) - restored on blur if the field committed something else.
+// TwinStudio_ConvertBackStringToInt (the field's backTextConverter) has no
+// concept of "not a number": strtoimax just returns 0 for text it can't
+// parse at all, so unfiltered keyboard input (the field accepts any
+// printable character, not just digits) could otherwise commit as a
+// literal 0, or a stray negative number, and just sit there instead of the
+// field reverting to whatever it last had - see HandleImportOptionsDialog's
+// blur handling.
+static int  g_lastValidBitRateKbps  = 9000;
+
 // ---------------------------------------------------------------------------
 // Per-frame string arena (Clay only stores pointers, so strings must outlive
 // the layout pass - this is reset once per frame before Clay_BeginLayout).
@@ -182,6 +208,17 @@ static Clay_String Fmt(const char *fmt, ...) {
     if (n >= avail) n = avail - 1;
     g_strUsed += n + 1;
     return (Clay_String){ .length = n, .chars = dst };
+}
+
+// The filename component of `path` (after the last '/' or '\'), for display
+// - e.g. in RenderMenuBar's info text, where the full path is more than
+// there's room for and less useful than just the name.
+static const char *BaseName(const char *path) {
+    if (!path || !path[0]) return "";
+    const char *slash     = strrchr(path, '/');
+    const char *backslash = strrchr(path, '\\');
+    const char *last = slash > backslash ? slash : backslash;
+    return last ? last + 1 : path;
 }
 
 static Clay_String TimeStr(double seconds) {
@@ -248,6 +285,13 @@ typedef struct {
     char path[1024];          // last opened/saved .pss path; "" if never saved
     bool dirty;                // true if the in-memory document isn't on disk at `path`
 
+    // The .pss opened or .mp4 imported to produce this document, display
+    // only (see RenderMenuBar's info text) - unlike `path`, this is set for
+    // an import too (where `path` stays empty until the first Save) and is
+    // never used as a save target, so it can't leak a ".mp4" default into
+    // the save-as dialog.
+    char sourcePath[1024];
+
     // true if this document came from Open (a real retail PSS with a
     // meaningful resolution to preserve), false if it came from Import (a
     // fresh MP4 encode with no inherent target resolution). ActiveImportLimits
@@ -289,6 +333,14 @@ typedef struct {
     char      path[1024];
     Mp4ImportLimits importLimits;   // set by StartImportJob() before the JOB_IMPORT worker starts
 
+    // Set by RequestLoaderCancel(), checked via ImportProgress/ExportProgress
+    // (the PssProgressFn passed to Mp4Import/Mp4Export - see its comment) so
+    // a long-running import or export notices within a fraction of a second
+    // rather than only ever running to completion. Reset by StartJob() at
+    // the start of every new job. JOB_OPEN/JOB_SAVE don't check this - they
+    // don't take a progress callback at all, being comparatively fast.
+    bool      cancelRequested;
+
     // --- worker-owned until state leaves LOAD_RUNNING, then main-thread-owned
     //     until PumpLoader() resets it back to LOAD_IDLE. Not mutex-guarded:
     //     the state transition above is the memory barrier between the two. ---
@@ -329,8 +381,23 @@ static void LoaderFinish(LoadState state, const char *error) {
     if (error) snprintf(g_loader.error, sizeof(g_loader.error), "%s", error);
     TsMutexUnlock(&g_loader.mutex);
 }
-static void ImportProgress(void *user, float frac) { (void)user; LoaderSetProgress(frac); }
-static void ExportProgress(void *user, float frac) { (void)user; LoaderSetProgress(frac); }
+
+static bool LoaderCancelRequested(void) {
+    TsMutexLock(&g_loader.mutex);
+    bool c = g_loader.cancelRequested;
+    TsMutexUnlock(&g_loader.mutex);
+    return c;
+}
+// Asks the running job to stop as soon as convenient - see
+// Loader::cancelRequested's comment for which jobs actually notice.
+static void RequestLoaderCancel(void) {
+    TsMutexLock(&g_loader.mutex);
+    g_loader.cancelRequested = true;
+    TsMutexUnlock(&g_loader.mutex);
+}
+
+static bool ImportProgress(void *user, float frac) { (void)user; LoaderSetProgress(frac); return !LoaderCancelRequested(); }
+static bool ExportProgress(void *user, float frac) { (void)user; LoaderSetProgress(frac); return !LoaderCancelRequested(); }
 
 // ---------------------------------------------------------------------------
 // Playback (main thread only: it owns the GL context and the audio device)
@@ -366,7 +433,7 @@ typedef struct {
     bool confirmOpen;
     PendingAction pendingAction;
 
-    // Modal, like confirmOpen/compressWarningOpen, but lowest-priority of
+    // Modal, like confirmOpen/importOptionsOpen, but lowest-priority of
     // the three - either of the others outranks it if somehow both end up
     // requested at once.
     bool aboutOpen;
@@ -377,22 +444,64 @@ typedef struct {
     bool     volumeDragging;
     float    volume;   // 0..1; applied to the current stream and any new one (see StartAudioStreamForActiveTrack)
 
-    // Import compression warning: shown when a probed source exceeds the
-    // current target standard's limits, before the (possibly slow) real
-    // import starts. `pendingImportPath` doubles as "is one queued".
-    bool     compressWarningOpen;
+    // Import options: shown for every probed import (not just when the
+    // source exceeds the current target standard's limits - region/bit rate
+    // are always worth a look before the possibly slow real import starts,
+    // rather than depending on the menu bar's persistent settings being
+    // already set correctly beforehand). `pendingImportPath` doubles as "is
+    // one queued".
+    bool     importOptionsOpen;
     char     pendingImportPath[1024];
     int      pendingImportSrcW, pendingImportSrcH;
     double   pendingImportSrcFps;
+    int64_t  pendingImportSrcBitRate;   // the source's own declared bit rate, 0 if it doesn't declare one; see BitRateOptionLabel
     int      pendingImportOutW, pendingImportOutH;
     double   pendingImportOutFps;
     bool     pendingImportExact;   // true = pendingImportOutW/H is an exact stretch-to-fill canvas, not just a cap
     PssTargetAspect pendingImportAspectChoice;   // which ratio pendingImportOutW/H reflects; meaningless if exact
     PssFitMode      pendingImportFitChoice;      // stretch vs letterbox; applies in both the exact and generic case
+
+    bool     bitrateDropdownOpen;   // see RenderImportBitrateToggle
+
+    // Shown instead of silently ignoring a close request while a job is
+    // running (see the main loop's WindowShouldClose handling) - closing
+    // used to just do nothing, with no feedback that anything was even
+    // happening, since the app can't safely tear down a job's thread/arena
+    // out from under it. "Stop & quit" requests cancellation (see
+    // RequestLoaderCancel) and sets g_quitAfterBusy so the app exits once
+    // the job actually finishes, instead of exiting immediately and
+    // blocking (invisibly) on the thread join.
+    bool     busyQuitConfirmOpen;
+
+    // True once the busy overlay's Cancel button (or "Stop & quit" above)
+    // has been clicked for the currently running job - just a rendering
+    // hint (see RenderBusyOverlay) since the actual stop is asynchronous;
+    // reset by StartJob() at the start of every new job.
+    bool     cancelling;
 } UIState;
 
 static UIState g_ui = { .volume = 0.7f };
 static bool    g_quit = false;
+static bool    g_quitAfterBusy = false;   // see UIState::busyQuitConfirmOpen
+
+// Text field backing g_targetBitRateKbps directly (see RenderImportBitrateToggle) -
+// .config and its backing arena are filled in once at startup (main(), since
+// the theme constants and TwinStudio_TextboxInit's arena requirement aren't
+// available yet at file-static-initializer time), everything else is fixed
+// up front. .data points at g_targetBitRateKbps itself, so committing an
+// edit (Enter, or losing focus - see TwinStudio_UiChangeActiveTextbox)
+// writes the typed value there directly, no separate sync step needed.
+static TwinStudio_Arena   g_bitRateTextArena;
+static TwinStudio_TextBoxDesc g_bitRateTextBox = {
+    .id = TS_STRING_VIEW("ImportBitrateTextBox"),
+    .textConverter = TwinStudio_ConvertIntToString,
+    .backTextConverter = TwinStudio_ConvertBackStringToInt,
+    .maxChars = 7,   // up to 9,999,999 Kbps - far past any sane bit rate, just a hard stop
+    .selectTextOnReceivingFocus = true,
+    .data = &g_targetBitRateKbps,
+};
+// Edge-detects "just clicked into g_bitRateTextBox" in HandleImportOptionsDialog.
+static bool g_bitRateBoxWasFocused = false;
 
 #define AUDIO_CHUNK_FRAMES 2048u
 static int16_t g_audioPushBuf[AUDIO_CHUNK_FRAMES * 8];   // up to 8ch headroom, only channels*frames used
@@ -705,7 +814,29 @@ static TsThreadRet TS_THREAD_CALL LoaderWorker(void *arg) {
         FILE *probe = fopen(path, "rb");
         if (probe) { fseek(probe, 0, SEEK_END); srcSize = ftell(probe); fclose(probe); }
 
-        size_t arenaSize = (size_t)(srcSize > 0 ? srcSize : 16 * 1024 * 1024) * 5u + 64u * 1024u * 1024u;
+        // Sized off the actual target output - bit rate * duration for
+        // video, a worst-case 48kHz stereo PCM16 estimate for audio - rather
+        // than the source file's own size. A CBR re-encode's output size
+        // has little to do with how well-compressed the source happens to
+        // be (a short, lightly-compressed source can need a bigger arena
+        // than a long, heavily-compressed one under the old srcSize-scaled
+        // guess), and TwinStudio_CreateArena commits and zeroes its whole
+        // size upfront, so a wrong estimate either fails outright on a long
+        // import or wastes memory needlessly. Falls back to the old guess
+        // if the source doesn't declare a readable duration.
+        int pw, ph; double pfps, pduration = 0.0; int64_t pBitRate = 0;
+        Mp4ProbeVideo(path, &pw, &ph, &pfps, &pduration, &pBitRate, NULL, 0);
+        int64_t bitRate = g_loader.importLimits.bitRate;
+        if (bitRate == PSS_BITRATE_USE_SOURCE) bitRate = pBitRate > 0 ? pBitRate : 9000000;
+        else if (bitRate <= 0) bitRate = 9000000;
+        size_t arenaSize;
+        if (pduration > 0.0) {
+            size_t videoEstimate = (size_t)((double)bitRate / 8.0 * pduration * 1.15);
+            size_t audioEstimate = (size_t)(pduration * 192000.0);   // worst case: 48kHz stereo PCM16
+            arenaSize = videoEstimate + audioEstimate + 16u * 1024u * 1024u;
+        } else {
+            arenaSize = (size_t)(srcSize > 0 ? srcSize : 16 * 1024 * 1024) * 5u + 64u * 1024u * 1024u;
+        }
         g_loader.stagingArena = TwinStudio_CreateArena(arenaSize);
 
         Mp4ImportResult res;
@@ -809,6 +940,7 @@ static TsThreadRet TS_THREAD_CALL LoaderWorker(void *arg) {
 
 static void StartJob(JobKind job, const char *path) {
     if (IsBusy()) return;
+    g_ui.cancelling = false;
     TsMutexLock(&g_loader.mutex);
     snprintf(g_loader.path, sizeof(g_loader.path), "%s", path ? path : "");
     g_loader.status[0] = '\0';
@@ -816,6 +948,7 @@ static void StartJob(JobKind job, const char *path) {
     g_loader.progress  = -1.0f;
     g_loader.job   = job;
     g_loader.state = LOAD_RUNNING;
+    g_loader.cancelRequested = false;
     g_loader.videoEs = NULL; g_loader.videoEsSize = 0;
     g_loader.width = g_loader.height = 0; g_loader.fps = 0; g_loader.totalFrames = 0;
     g_loader.hasInitialPts = false; g_loader.initialPtsTicks = 0;
@@ -851,6 +984,7 @@ static void PublishDocument(void) {
     g_doc.audioTrackCount = g_loader.audioTrackCount;
     g_doc.activeTrack     = 0;
     g_doc.loaded      = true;
+    snprintf(g_doc.sourcePath, sizeof(g_doc.sourcePath), "%s", g_loader.path);
 
     g_doc.fromOpen = (g_loader.job == JOB_OPEN);
     if (g_doc.fromOpen) {
@@ -929,15 +1063,19 @@ static void DoOpen(void) {
 // whatever the previous import happened to land on, so importing a second
 // MP4 on top of it should get the normal engine-limits prompt instead.
 static Mp4ImportLimits ActiveImportLimits(void) {
+    Mp4ImportLimits limits;
     if (g_doc.loaded && g_doc.fromOpen && g_doc.width > 0 && g_doc.height > 0) {
         Mp4ImportLimits standard = StandardLimits(g_targetStandard);
-        return (Mp4ImportLimits){
+        limits = (Mp4ImportLimits){
             .maxWidth = g_doc.width, .maxHeight = g_doc.height,
             .maxFps = g_doc.fps > 0.0 ? g_doc.fps : standard.maxFps,
             .exact = true,
         };
+    } else {
+        limits = StandardLimits(g_targetStandard);
     }
-    return StandardLimits(g_targetStandard);
+    limits.bitRate = g_targetBitRateIsSource ? PSS_BITRATE_USE_SOURCE : (int64_t)g_targetBitRateKbps * 1000;
+    return limits;
 }
 
 static void StartImportJob(const char *path, PssTargetAspect aspect, PssFitMode fit) {
@@ -947,42 +1085,96 @@ static void StartImportJob(const char *path, PssTargetAspect aspect, PssFitMode 
     StartJob(JOB_IMPORT, path);
 }
 
+// True if the current pendingImport* preview actually needs to
+// scale/letterbox/drop frames from the source - vs. already fitting the
+// active limits as-is. Only changes what the import options dialog shows
+// as its headline/explanation; the dialog itself (region, bit rate, aspect,
+// fit) is shown either way, per RenderImportOptionsDialog's comment.
+static bool PendingImportNeedsResize(void) {
+    return g_ui.pendingImportOutW != g_ui.pendingImportSrcW ||
+           g_ui.pendingImportOutH != g_ui.pendingImportSrcH ||
+           g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01;
+}
+
+// True only when the source genuinely exceeds the current target's max
+// width/height/fps caps - unlike PendingImportNeedsResize(), this is NOT
+// true just because the source needs quantizing down to the nearest exact
+// 4:3/16:9 canvas (see Mp4ComputeImportTarget's comment): a 320x220 source
+// is well within a 640x480 cap, but 320x220 isn't itself an exact 4:3
+// ratio, so it still gets resized to (in this case) 256x192 - that's not
+// the source "exceeding limits", so the dialog shouldn't say so. Meaningless
+// (and not called) for the exact-match case, which has its own message
+// regardless of caps.
+static bool PendingImportExceedsCaps(void) {
+    Mp4ImportLimits limits = StandardLimits(g_targetStandard);
+    return (limits.maxWidth  > 0 && g_ui.pendingImportSrcW  > limits.maxWidth) ||
+           (limits.maxHeight > 0 && g_ui.pendingImportSrcH  > limits.maxHeight) ||
+           (limits.maxFps    > 0 && g_ui.pendingImportSrcFps > limits.maxFps + 0.01);
+}
+
+// Re-derives pendingImportOutW/H/Fps from the current region (g_targetStandard)
+// and aspect choice - called whenever either changes while the import
+// options dialog is open, so its preview (and NeedsResize headline) stays
+// in sync. Bit rate never affects canvas size, so it needs no equivalent.
+static void RecomputePendingImportPreview(void) {
+    Mp4ImportLimits limits = ActiveImportLimits();
+    if (!g_ui.pendingImportExact) limits.aspect = g_ui.pendingImportAspectChoice;
+    Mp4ComputeImportTarget(g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
+                           &limits, &g_ui.pendingImportOutW, &g_ui.pendingImportOutH, &g_ui.pendingImportOutFps);
+}
+
 static void DoImport(void) {
     static const char *patterns[] = { "*.mp4", "*.MP4" };
     char *path = tinyfd_openFileDialog("Import video", NULL, 2, patterns, "MP4 video", 0);
     if (!path) return;
 
-    int srcW = 0, srcH = 0; double srcFps = 0;
+    int srcW = 0, srcH = 0; double srcFps = 0, srcDuration = 0; int64_t srcBitRate = 0;
     char probeErr[256];
-    if (Mp4ProbeVideo(path, &srcW, &srcH, &srcFps, probeErr, sizeof(probeErr))) {
-        Mp4ImportLimits limits = ActiveImportLimits();
-        int outW, outH; double outFps;
-        Mp4ComputeImportTarget(srcW, srcH, srcFps, &limits, &outW, &outH, &outFps);
-
-        if (outW != srcW || outH != srcH || outFps < srcFps - 0.01) {
-            snprintf(g_ui.pendingImportPath, sizeof(g_ui.pendingImportPath), "%s", path);
-            g_ui.pendingImportSrcW = srcW; g_ui.pendingImportSrcH = srcH; g_ui.pendingImportSrcFps = srcFps;
-            g_ui.pendingImportOutW = outW; g_ui.pendingImportOutH = outH; g_ui.pendingImportOutFps = outFps;
-            g_ui.pendingImportExact = limits.exact;
-            // Default to whichever ratio AUTO picked, so the dialog opens
-            // showing the same result as before - the user can switch to
-            // the other one before confirming. Meaningless (left at AUTO)
-            // for the exact-match case, since that canvas size is fixed.
-            if (limits.exact) {
-                g_ui.pendingImportAspectChoice = PSS_ASPECT_AUTO;
-            } else {
-                double srcAspect = (double)srcW / (double)srcH;
-                g_ui.pendingImportAspectChoice = fabs(srcAspect - 16.0 / 9.0) < fabs(srcAspect - 4.0 / 3.0)
-                                                     ? PSS_ASPECT_16_9 : PSS_ASPECT_4_3;
-            }
-            g_ui.pendingImportFitChoice = PSS_FIT_STRETCH;
-            g_ui.compressWarningOpen = true;
-            return;
-        }
+    if (!Mp4ProbeVideo(path, &srcW, &srcH, &srcFps, &srcDuration, &srcBitRate, probeErr, sizeof(probeErr))) {
+        // Probe failed - let the real import surface its own error instead
+        // of blocking here; there's nothing to show a dialog about.
+        StartImportJob(path, PSS_ASPECT_AUTO, PSS_FIT_STRETCH);
+        return;
     }
-    // Either already within limits, or the probe failed - let the real
-    // import surface its own error in that case rather than blocking here.
-    StartImportJob(path, PSS_ASPECT_AUTO, PSS_FIT_STRETCH);
+    (void)srcDuration;   // LoaderWorker re-probes this when sizing the import arena
+
+    Mp4ImportLimits limits = ActiveImportLimits();
+    int outW, outH; double outFps;
+    Mp4ComputeImportTarget(srcW, srcH, srcFps, &limits, &outW, &outH, &outFps);
+
+    snprintf(g_ui.pendingImportPath, sizeof(g_ui.pendingImportPath), "%s", path);
+    g_ui.pendingImportSrcW = srcW; g_ui.pendingImportSrcH = srcH; g_ui.pendingImportSrcFps = srcFps;
+    g_ui.pendingImportSrcBitRate = srcBitRate;
+    g_ui.pendingImportOutW = outW; g_ui.pendingImportOutH = outH; g_ui.pendingImportOutFps = outFps;
+    g_ui.pendingImportExact = limits.exact;
+    // Default to whichever ratio AUTO picked, so the dialog opens showing
+    // the same result as before - the user can switch to the other one
+    // before confirming. Meaningless (left at AUTO) for the exact-match
+    // case, since that canvas size is fixed.
+    if (limits.exact) {
+        g_ui.pendingImportAspectChoice = PSS_ASPECT_AUTO;
+    } else {
+        double srcAspect = (double)srcW / (double)srcH;
+        g_ui.pendingImportAspectChoice = fabs(srcAspect - 16.0 / 9.0) < fabs(srcAspect - 4.0 / 3.0)
+                                             ? PSS_ASPECT_16_9 : PSS_ASPECT_4_3;
+    }
+    g_ui.pendingImportFitChoice = PSS_FIT_STRETCH;
+    g_ui.bitrateDropdownOpen = false;
+    // Defaults to matching the source's own rate for every import, same as
+    // the aspect choice above defaults to whichever ratio the source is
+    // closer to - it's a property of this specific file, not something
+    // that should carry over as "whatever was picked last time" the way
+    // region does (see g_targetStandard). The text field's own number is
+    // still pre-filled with the probed rate (falling back to whatever it
+    // last showed if the source doesn't declare one) purely so it starts
+    // from a sensible value if the person clicks in to type over it.
+    g_targetBitRateIsSource = true;
+    if (srcBitRate > 0) g_targetBitRateKbps = (int)(srcBitRate / 1000);
+    g_lastValidBitRateKbps = g_targetBitRateKbps;
+    TwinStudio_TextboxInvalidateData(&g_bitRateTextBox);
+    // Always shown - region/bit rate are worth a look before every import,
+    // not just when the source happens to exceed the current limits.
+    g_ui.importOptionsOpen = true;
 }
 
 static void DoSave(void) {
@@ -1061,11 +1253,152 @@ static void HandleConfirmDialog(Vector2 mouse) {
     }
 }
 
-static void HandleCompressWarningDialog(Vector2 mouse) {
-    if (!g_ui.compressWarningOpen) return;
+// Shown instead of silently ignoring a close request while a job is
+// running - see UIState::busyQuitConfirmOpen's comment.
+static void HandleBusyQuitDialog(Vector2 mouse) {
+    if (!g_ui.busyQuitConfirmOpen) return;
 
-    if (IsKeyPressed(KEY_ESCAPE)) { g_ui.compressWarningOpen = false; return; }
+    if (IsKeyPressed(KEY_ESCAPE)) { g_ui.busyQuitConfirmOpen = false; return; }
     if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
+
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("BusyQuitStopButton")))) {
+        g_ui.busyQuitConfirmOpen = false;
+        g_ui.cancelling = true;
+        RequestLoaderCancel();
+        g_quitAfterBusy = true;
+        return;
+    }
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("BusyQuitKeepButton")))) {
+        g_ui.busyQuitConfirmOpen = false;
+        return;
+    }
+
+    Clay_ElementData card = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("BusyQuitDialog")));
+    if (card.found && !PointInBox(card.boundingBox, mouse)) {
+        g_ui.busyQuitConfirmOpen = false;
+    }
+}
+
+// Validates g_targetBitRateKbps right after the field lost focus one way or
+// another, reverting to the last known-good value if not - see
+// g_lastValidBitRateKbps's comment for why a commit can end up invalid.
+static void ValidateBitRateAfterBlur(void) {
+    if (g_targetBitRateKbps <= 0) {
+        g_targetBitRateKbps = g_lastValidBitRateKbps;
+        TwinStudio_TextboxInvalidateData(&g_bitRateTextBox);
+    } else {
+        g_lastValidBitRateKbps = g_targetBitRateKbps;
+    }
+}
+
+// Defocuses the bit rate field (a no-op if it doesn't have focus) and
+// immediately validates the result. Used for every manual blur path
+// (Escape, clicking elsewhere in the dialog, closing the dialog) instead of
+// a raw TwinStudio_UiChangeActiveTextbox(NULL) call: those all happen
+// inside HandleImportOptionsDialog itself, too late in the same call for
+// its own focus-edge-detection (which only catches blurs it didn't cause
+// itself, e.g. Enter, committed by the library before this function runs)
+// to notice before next frame - by then g_bitRateBoxWasFocused has already
+// been updated here, masking the transition.
+static void BlurBitRateField(void) {
+    if (TwinStudio_GetUiContext()->selectedTextBox != &g_bitRateTextBox) return;
+    TwinStudio_UiChangeActiveTextbox(NULL);
+    g_bitRateBoxWasFocused = false;
+    ValidateBitRateAfterBlur();
+}
+
+// Closes the dialog and its dropdown, and releases text field focus if it
+// has any - TwinStudio_UiChangeActiveTextbox(NULL) also commits whatever's
+// currently typed (matching Enter's behavior), so a value typed but not
+// yet confirmed still takes effect when e.g. Continue is clicked directly.
+// Every path in HandleImportOptionsDialog that closes the dialog goes
+// through this rather than setting importOptionsOpen directly, so the text
+// field can never keep focus (and keep swallowing keyboard input - see
+// HandleKeyboard) after the dialog it belongs to is gone.
+static void CloseImportOptionsDialog(void) {
+    g_ui.importOptionsOpen = false;
+    g_ui.bitrateDropdownOpen = false;
+    BlurBitRateField();
+}
+
+static void HandleImportOptionsDialog(Vector2 mouse) {
+    if (!g_ui.importOptionsOpen) return;
+
+    // Edge-detects the text field gaining or losing focus. Losing focus
+    // this way only ever means Enter (committed inside the library itself,
+    // before this function runs - see UpdateCurrentTextBox in ui.c); every
+    // OTHER way of losing focus is triggered from within this same
+    // function, via BlurBitRateField, which validates immediately instead
+    // of relying on this catching it (see BlurBitRateField's comment).
+    // Gaining focus is always a click on the field itself (see
+    // HandleClickTextbox in textbox.c, which this file doesn't otherwise
+    // get a hook into) - treated as "I want to specify this myself": the
+    // field is pre-filled with the source's own probed rate as a
+    // convenient starting point (see DoImport), but the moment it's
+    // clicked into, that's no longer just a preview of "Source" mode, it's
+    // an edit. Runs every call regardless of this frame's own click, since
+    // the transition already happened.
+    bool bitRateFocusedNow = (TwinStudio_GetUiContext()->selectedTextBox == &g_bitRateTextBox);
+    if (bitRateFocusedNow && !g_bitRateBoxWasFocused) {
+        g_targetBitRateIsSource = false;
+    } else if (!bitRateFocusedNow && g_bitRateBoxWasFocused) {
+        ValidateBitRateAfterBlur();
+    }
+    g_bitRateBoxWasFocused = bitRateFocusedNow;
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        if (g_ui.bitrateDropdownOpen) { g_ui.bitrateDropdownOpen = false; return; }
+        if (bitRateFocusedNow) { BlurBitRateField(); return; }
+        CloseImportOptionsDialog();
+        return;
+    }
+    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
+
+    // A click anywhere in this dialog other than the field itself blurs it
+    // - without this, clicking Region/Aspect/Fit/the dropdown toggle left
+    // the field "focused" per the library with nothing to ever resolve
+    // that edit one way or the other, so invalid text just sat there. A
+    // click on the field itself is handled by the library's own hover
+    // callback instead (see HandleClickTextbox), which this must not fight
+    // with.
+    if (bitRateFocusedNow && !Clay_PointerOver(CLAY_SID(TS_STRING_TO_CLAY(g_bitRateTextBox.id)))) {
+        BlurBitRateField();
+    }
+
+    // The dropdown, once open, owns the very next click regardless of where
+    // it lands - picking a row, or clicking anywhere else (the toggle
+    // button again, Continue/Cancel, outside the dialog) just closes it
+    // without also acting on whatever's underneath, same as any other
+    // dropdown. A second click is then needed to actually hit that other
+    // element, which is the standard/expected behavior.
+    if (g_ui.bitrateDropdownOpen) {
+        for (int idx = -1; idx < BIT_RATE_PRESET_COUNT; idx++) {
+            if (Clay_PointerOver(CLAY_IDI("ImportBitrateOption", (uint32_t)(idx + 1)))) {
+                if (idx < 0) {
+                    g_targetBitRateIsSource = true;
+                    if (g_ui.pendingImportSrcBitRate > 0) g_targetBitRateKbps = (int)(g_ui.pendingImportSrcBitRate / 1000);
+                } else {
+                    g_targetBitRateIsSource = false;
+                    g_targetBitRateKbps = kBitRatePresetsKbps[idx];
+                }
+                g_lastValidBitRateKbps = g_targetBitRateKbps;
+                TwinStudio_TextboxInvalidateData(&g_bitRateTextBox);
+                break;
+            }
+        }
+        g_ui.bitrateDropdownOpen = false;
+        return;
+    }
+
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ImportStandardToggle")))) {
+        g_targetStandard = (g_targetStandard == PSS_STD_NTSC) ? PSS_STD_PAL : PSS_STD_NTSC;
+        RecomputePendingImportPreview();
+        return;
+    }
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ImportBitrateDropdownToggle")))) {
+        g_ui.bitrateDropdownOpen = true;
+        return;
+    }
 
     // Aspect choice only applies to the generic (non-exact) case - an
     // exact-match canvas is already a fixed size, nothing to choose.
@@ -1074,10 +1407,7 @@ static void HandleCompressWarningDialog(Vector2 mouse) {
         bool pick169 = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("AspectChoice169")));
         if (pick43 || pick169) {
             g_ui.pendingImportAspectChoice = pick43 ? PSS_ASPECT_4_3 : PSS_ASPECT_16_9;
-            Mp4ImportLimits limits = StandardLimits(g_targetStandard);
-            limits.aspect = g_ui.pendingImportAspectChoice;
-            Mp4ComputeImportTarget(g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
-                                   &limits, &g_ui.pendingImportOutW, &g_ui.pendingImportOutH, &g_ui.pendingImportOutFps);
+            RecomputePendingImportPreview();
             return;
         }
     }
@@ -1093,19 +1423,19 @@ static void HandleCompressWarningDialog(Vector2 mouse) {
         }
     }
 
-    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("CompressContinueButton")))) {
-        g_ui.compressWarningOpen = false;
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ImportOptionsContinueButton")))) {
+        CloseImportOptionsDialog();
         StartImportJob(g_ui.pendingImportPath, g_ui.pendingImportAspectChoice, g_ui.pendingImportFitChoice);
         return;
     }
-    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("CompressCancelButton")))) {
-        g_ui.compressWarningOpen = false;
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ImportOptionsCancelButton")))) {
+        CloseImportOptionsDialog();
         return;
     }
 
-    Clay_ElementData card = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("CompressDialog")));
+    Clay_ElementData card = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("ImportOptionsDialog")));
     if (card.found && !PointInBox(card.boundingBox, mouse)) {
-        g_ui.compressWarningOpen = false;
+        CloseImportOptionsDialog();
     }
 }
 
@@ -1131,9 +1461,6 @@ static void HandleMenuBar(void) {
     else if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ImportButton")))) OnImportClicked();
     else if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ExportButton")))) { if (g_doc.loaded) DoExport(); }
     else if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("CloseButton")))) { if (g_doc.loaded) OnCloseClicked(); }
-    else if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("StandardToggle")))) {
-        g_targetStandard = (g_targetStandard == PSS_STD_NTSC) ? PSS_STD_PAL : PSS_STD_NTSC;
-    }
     else if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("AboutButton")))) g_ui.aboutOpen = true;
 }
 
@@ -1541,9 +1868,13 @@ static void RenderMenuButton(Clay_ElementId id, Clay_String label, MenuIcon icon
     }
 }
 
-static void RenderStandardToggle(void) {
-    bool hovered = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("StandardToggle")));
-    CLAY(CLAY_ID("StandardToggle"), {
+// Cycles g_targetStandard on click. Lives in the import options dialog (see
+// RenderImportOptionsDialog) rather than the menu bar, so it's in view right
+// before every import instead of relying on it having already been set
+// correctly beforehand.
+static void RenderImportStandardToggle(void) {
+    bool hovered = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ImportStandardToggle")));
+    CLAY(CLAY_ID("ImportStandardToggle"), {
         .layout = {
             .sizing = { .height = CLAY_SIZING_FIXED(30) },
             .padding = { .left = 12, .right = 12 },
@@ -1555,6 +1886,98 @@ static void RenderStandardToggle(void) {
     }) {
         CLAY_TEXT(Fmt("%s target", StandardName(g_targetStandard)),
                   CLAY_TEXT_CONFIG(TextCfgNoWrap(13, C_TEXT_DIM, FONT_BODY)));
+    }
+}
+
+// Label for bit rate option `idx` (-1 == "match the source", see
+// PSS_BITRATE_USE_SOURCE; 0..BIT_RATE_PRESET_COUNT-1 == kBitRatePresetsKbps),
+// as shown in the dropdown's option rows. Shows the actual probed amount
+// for "Source" rather than leaving it as a mystery value the person would
+// have to switch to it to check.
+static Clay_String BitRateOptionLabel(int idx) {
+    if (idx < 0) {
+        return g_ui.pendingImportSrcBitRate > 0
+                  ? Fmt("Source (%d Kbps)", (int)(g_ui.pendingImportSrcBitRate / 1000))
+                  : CLAY_STRING("Source");
+    }
+    return Fmt("%d Kbps", kBitRatePresetsKbps[idx]);
+}
+
+// Text field (g_bitRateTextBox, backed directly by g_targetBitRateKbps) plus
+// a dropdown for picking "Source" (PSS_BITRATE_USE_SOURCE) or a preset as a
+// shortcut - the rate a subsequent MP4 import re-encodes video at (see
+// ActiveImportLimits). Lives in the import options dialog alongside
+// RenderImportStandardToggle; the dropdown's open/close state, the text
+// field's focus, and all click handling are in HandleImportOptionsDialog.
+static void RenderImportBitrateToggle(void) {
+    CLAY(CLAY_ID("ImportBitrateRow"), {
+        .layout = {
+            .sizing = { .height = CLAY_SIZING_FIXED(30) },
+            .childGap = 6,
+            .childAlignment = { .y = CLAY_ALIGN_Y_CENTER }
+        }
+    }) {
+        CLAY(CLAY_ID("ImportBitrateTextBoxWrap"), {
+            .layout = { .sizing = { .width = CLAY_SIZING_FIXED(76), .height = CLAY_SIZING_FIXED(30) } }
+        }) {
+            TwinStudio_TextboxRender(&g_bitRateTextBox);
+        }
+        CLAY_TEXT(CLAY_STRING("Kbps"), CLAY_TEXT_CONFIG(TextCfgNoWrap(13, C_TEXT_DIM, FONT_BODY)));
+
+        bool chevronHovered = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ImportBitrateDropdownToggle")));
+        CLAY(CLAY_ID("ImportBitrateDropdownToggle"), {
+            .layout = {
+                .sizing = { .width = CLAY_SIZING_FIXED(28), .height = CLAY_SIZING_FIXED(30) },
+                .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }
+            },
+            .backgroundColor = (chevronHovered || g_ui.bitrateDropdownOpen) ? C_HOVER : C_PANEL_2,
+            .cornerRadius = CLAY_CORNER_RADIUS(6),
+            .border = { .width = CLAY_BORDER_OUTSIDE(1), .color = (chevronHovered || g_ui.bitrateDropdownOpen) ? C_ACCENT : C_LINE }
+        }) {
+            IconTriangle(0, 8, 5, C_TEXT_DIM, g_ui.bitrateDropdownOpen ? TRIANGLE_DIR_UP : TRIANGLE_DIR_DOWN);
+        }
+
+        if (g_ui.bitrateDropdownOpen) {
+            CLAY(CLAY_ID("ImportBitrateDropdownList"), {
+                .layout = {
+                    .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                    .sizing = { .width = CLAY_SIZING_FIXED(170) },
+                    .padding = CLAY_PADDING_ALL(4),
+                    .childGap = 2
+                },
+                .floating = {
+                    .zIndex = 200,
+                    .attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_TOP, .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM },
+                    .offset = { 0, 4 },
+                    .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE,
+                    .attachTo = CLAY_ATTACH_TO_PARENT
+                },
+                .backgroundColor = C_PANEL,
+                .cornerRadius = CLAY_CORNER_RADIUS(6),
+                .border = { .width = CLAY_BORDER_OUTSIDE(1), .color = C_LINE }
+            }) {
+                // idx runs -1 (Source) then 0..BIT_RATE_PRESET_COUNT-1
+                // (presets); IDs offset by +1 to stay non-negative.
+                for (int idx = -1; idx < BIT_RATE_PRESET_COUNT; idx++) {
+                    bool selected = (idx < 0) ? g_targetBitRateIsSource
+                                               : (!g_targetBitRateIsSource && g_targetBitRateKbps == kBitRatePresetsKbps[idx]);
+                    Clay_ElementId id = CLAY_IDI("ImportBitrateOption", (uint32_t)(idx + 1));
+                    bool rowHovered = Clay_PointerOver(id);
+                    CLAY(id, {
+                        .layout = {
+                            .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(26) },
+                            .padding = { .left = 10, .right = 10 },
+                            .childAlignment = { .y = CLAY_ALIGN_Y_CENTER }
+                        },
+                        .backgroundColor = selected ? C_ACCENT : (rowHovered ? C_HOVER : (Clay_Color){0, 0, 0, 0}),
+                        .cornerRadius = CLAY_CORNER_RADIUS(4)
+                    }) {
+                        CLAY_TEXT(BitRateOptionLabel(idx),
+                                  CLAY_TEXT_CONFIG(TextCfgNoWrap(13, selected ? C_ON_ACCENT : C_TEXT, FONT_BODY)));
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1580,14 +2003,26 @@ static void RenderMenuBar(void) {
         if (g_lastError[0]) {
             CLAY_TEXT(Fmt("%s", g_lastError), CLAY_TEXT_CONFIG(TextCfgNoWrap(13, C_ERROR_TEXT, FONT_BODY)));
         } else if (g_doc.loaded) {
-            CLAY_TEXT(Fmt("%dx%d  -  %.2f fps%s%s", g_doc.width ? g_doc.width : g_player.texW,
+            // Bit rate is the video ES's own actual average (size over
+            // decoded duration) rather than anything threaded through from
+            // import settings, so it reads correctly for an opened retail
+            // PSS too, not just a fresh import.
+            double bitRateMbps = 0.0;
+            if (g_doc.totalFrames > 0 && g_doc.fps > 0.0) {
+                double durationSec = (double)g_doc.totalFrames / g_doc.fps;
+                if (durationSec > 0.0) bitRateMbps = (double)g_doc.videoEsSize * 8.0 / durationSec / 1000000.0;
+            }
+            CLAY_TEXT(Fmt("%s  -  %dx%d  -  %.2f fps%s%s%s",
+                         g_doc.sourcePath[0] ? BaseName(g_doc.sourcePath) : "(unnamed)",
+                         g_doc.width ? g_doc.width : g_player.texW,
                          g_doc.height ? g_doc.height : g_player.texH,
-                         g_player.fps, g_doc.audioTrackCount ? "  -  audio" : "",
+                         g_player.fps,
+                         bitRateMbps > 0.0 ? Fmt("  -  %.1f Mbps", bitRateMbps).chars : "",
+                         g_doc.audioTrackCount ? "  -  audio" : "",
                          g_doc.dirty ? "  -  unsaved" : ""),
                       CLAY_TEXT_CONFIG(TextCfgNoWrap(13, C_TEXT_FAINT, FONT_BODY)));
         }
 
-        RenderStandardToggle();
         RenderMenuButton(CLAY_ID("AboutButton"), CLAY_STRING("About"), MENU_ICON_INFO, !IsBusy());
     }
 }
@@ -1682,6 +2117,35 @@ static void RenderBusyOverlay(void) {
         }
 
         if (status[0]) CLAY_TEXT(Fmt("%s", status), CLAY_TEXT_CONFIG(TextCfgNoWrap(13, C_TEXT_DIM, FONT_BODY)));
+
+        // Only JOB_IMPORT/JOB_EXPORT actually check for cancellation (see
+        // Loader::cancelRequested's comment) - a button that did nothing
+        // for Open/Save would be worse than no button at all.
+        if (g_ui.cancelling) {
+            CLAY_TEXT(CLAY_STRING("Stopping..."), CLAY_TEXT_CONFIG(TextCfgNoWrap(13, C_TEXT_FAINT, FONT_BODY)));
+        } else if (job == JOB_IMPORT || job == JOB_EXPORT) {
+            bool hovered = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("BusyCancelButton")));
+            CLAY(CLAY_ID("BusyCancelButton"), {
+                .layout = {
+                    .sizing = { .width = CLAY_SIZING_FIXED(110), .height = CLAY_SIZING_FIXED(34) },
+                    .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }
+                },
+                .backgroundColor = hovered ? C_HOVER : C_PANEL_2,
+                .cornerRadius = CLAY_CORNER_RADIUS(6),
+                .border = { .width = CLAY_BORDER_OUTSIDE(1), .color = C_LINE }
+            }) {
+                CLAY_TEXT(CLAY_STRING("Cancel"), CLAY_TEXT_CONFIG(TextCfgNoWrap(14, hovered ? C_TEXT : C_TEXT_DIM, FONT_BODY)));
+            }
+        }
+    }
+}
+
+static void HandleBusyOverlay(void) {
+    if (!IsBusy() || g_ui.cancelling) return;
+    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
+    if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("BusyCancelButton")))) {
+        g_ui.cancelling = true;
+        RequestLoaderCancel();
     }
 }
 
@@ -1983,10 +2447,18 @@ static void RenderConfirmDialog(void) {
     }
 }
 
-static void RenderCompressWarningDialog(void) {
-    if (!g_ui.compressWarningOpen) return;
+// Shown instead of silently ignoring a close request while a job is
+// running - see UIState::busyQuitConfirmOpen's comment.
+static void RenderBusyQuitDialog(void) {
+    if (!g_ui.busyQuitConfirmOpen) return;
 
-    CLAY(CLAY_ID("CompressScrim"), {
+    TsMutexLock(&g_loader.mutex);
+    JobKind job = g_loader.job;
+    TsMutexUnlock(&g_loader.mutex);
+    static const char *jobLabel[] = { "operation", "open", "import", "save", "export" };
+    bool canCancel = (job == JOB_IMPORT || job == JOB_EXPORT);
+
+    CLAY(CLAY_ID("BusyQuitScrim"), {
         .layout = {
             .sizing = { .width = CLAY_SIZING_FIXED((float)GetScreenWidth()),
                         .height = CLAY_SIZING_FIXED((float)GetScreenHeight()) },
@@ -2000,10 +2472,10 @@ static void RenderCompressWarningDialog(void) {
         },
         .backgroundColor = (Clay_Color){0, 0, 0, 180}
     }) {
-        CLAY(CLAY_ID("CompressDialog"), {
+        CLAY(CLAY_ID("BusyQuitDialog"), {
             .layout = {
                 .layoutDirection = CLAY_TOP_TO_BOTTOM,
-                .sizing = { .width = CLAY_SIZING_FIXED(460) },
+                .sizing = { .width = CLAY_SIZING_FIXED(440) },
                 .padding = { .left = 28, .right = 28, .top = 24, .bottom = 22 },
                 .childGap = 6
             },
@@ -2011,107 +2483,17 @@ static void RenderCompressWarningDialog(void) {
             .cornerRadius = CLAY_CORNER_RADIUS(12),
             .border = { .width = CLAY_BORDER_OUTSIDE(1), .color = C_LINE }
         }) {
-            CLAY_TEXT(g_ui.pendingImportExact
-                         ? CLAY_STRING("This video doesn't match the open PSS's resolution")
-                         : CLAY_STRING("This video exceeds the engine's limits"),
+            CLAY_TEXT(CLAY_STRING("Stop the current operation and quit?"),
                       CLAY_TEXT_CONFIG(TextCfg(20, C_TEXT, FONT_TITLE)));
 
             CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(10) } } }) {}
 
-            if (g_ui.pendingImportExact) {
-                CLAY_TEXT(Fmt("The source is %dx%d @ %.2f fps; the currently open video is %dx%d. The game "
-                             "doesn't resize a cutscene's on-screen area to fit a replacement of a different "
-                             "size, so it needs to match exactly.",
-                             g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
-                             g_ui.pendingImportOutW, g_ui.pendingImportOutH),
-                          CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
-
-                CLAY_TEXT(CLAY_STRING("Fit:"), CLAY_TEXT_CONFIG(TextCfg(13, C_TEXT_DIM, FONT_BODY)));
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(6) } } }) {}
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .childGap = 8 } }) {
-                    RenderFitChoiceButton(CLAY_ID("FitChoiceStretch"), CLAY_STRING("Stretch"),
-                                          g_ui.pendingImportFitChoice == PSS_FIT_STRETCH);
-                    RenderFitChoiceButton(CLAY_ID("FitChoiceLetterbox"), CLAY_STRING("Letterbox"),
-                                          g_ui.pendingImportFitChoice == PSS_FIT_LETTERBOX);
-                }
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
-
-                CLAY_TEXT(g_ui.pendingImportFitChoice == PSS_FIT_STRETCH
-                             ? Fmt("It will be stretched to fill exactly %dx%d%s before importing.",
-                                  g_ui.pendingImportOutW, g_ui.pendingImportOutH,
-                                  g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
-                                      ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : "")
-                             : Fmt("It will be scaled to fit and letterboxed to exactly %dx%d%s before importing.",
-                                  g_ui.pendingImportOutW, g_ui.pendingImportOutH,
-                                  g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
-                                      ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : ""),
-                          CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
-            } else {
-                Mp4ImportLimits limits = StandardLimits(g_targetStandard);
-                CLAY_TEXT(Fmt("The source is %dx%d @ %.2f fps. %s PSS videos above %dx%d @ %.0f fps can crash or "
-                             "fail to play in the game.",
-                             g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
-                             StandardName(g_targetStandard), limits.maxWidth, limits.maxHeight, limits.maxFps),
-                          CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
-
-                CLAY_TEXT(CLAY_STRING("Maximum size for:"),
-                          CLAY_TEXT_CONFIG(TextCfg(13, C_TEXT_DIM, FONT_BODY)));
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(6) } } }) {}
-
-                {
-                    Mp4ImportLimits l43 = limits, l169 = limits;
-                    l43.aspect  = PSS_ASPECT_4_3;
-                    l169.aspect = PSS_ASPECT_16_9;
-                    int w43, h43, w169, h169; double f43, f169;
-                    Mp4ComputeImportTarget(g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
-                                           &l43, &w43, &h43, &f43);
-                    Mp4ComputeImportTarget(g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
-                                           &l169, &w169, &h169, &f169);
-
-                    CLAY_AUTO_ID({
-                        .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .childGap = 8 }
-                    }) {
-                        RenderAspectChoiceButton(CLAY_ID("AspectChoice43"), CLAY_STRING("4:3"), w43, h43,
-                                                 g_ui.pendingImportAspectChoice == PSS_ASPECT_4_3);
-                        RenderAspectChoiceButton(CLAY_ID("AspectChoice169"), CLAY_STRING("16:9"), w169, h169,
-                                                 g_ui.pendingImportAspectChoice == PSS_ASPECT_16_9);
-                    }
-                }
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
-
-                CLAY_TEXT(CLAY_STRING("Fit:"), CLAY_TEXT_CONFIG(TextCfg(13, C_TEXT_DIM, FONT_BODY)));
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(6) } } }) {}
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .childGap = 8 } }) {
-                    RenderFitChoiceButton(CLAY_ID("FitChoiceStretch"), CLAY_STRING("Stretch"),
-                                          g_ui.pendingImportFitChoice == PSS_FIT_STRETCH);
-                    RenderFitChoiceButton(CLAY_ID("FitChoiceLetterbox"), CLAY_STRING("Letterbox"),
-                                          g_ui.pendingImportFitChoice == PSS_FIT_LETTERBOX);
-                }
-
-                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
-
-                CLAY_TEXT(g_ui.pendingImportFitChoice == PSS_FIT_STRETCH
-                             ? Fmt("It will be stretched to fill exactly %dx%d%s before importing.",
-                                  g_ui.pendingImportOutW, g_ui.pendingImportOutH,
-                                  g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
-                                      ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : "")
-                             : Fmt("It will be scaled to fit and letterboxed to exactly %dx%d%s before importing.",
-                                  g_ui.pendingImportOutW, g_ui.pendingImportOutH,
-                                  g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
-                                      ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : ""),
-                          CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
-            }
+            CLAY_TEXT(canCancel
+                         ? Fmt("The current %s hasn't finished yet. Quitting now will stop it partway through.",
+                              jobLabel[job])
+                         : Fmt("The current %s hasn't finished yet. Quitting now will wait for it to finish first.",
+                              jobLabel[job]),
+                      CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
 
             CLAY_AUTO_ID({
                 .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(18) } },
@@ -2122,11 +2504,171 @@ static void RenderCompressWarningDialog(void) {
                 .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .padding = { .top = 16 },
                             .childGap = 8, .childAlignment = { .y = CLAY_ALIGN_Y_CENTER } }
             }) {
-                RenderConfirmButton(CLAY_ID("CompressCancelButton"), CLAY_STRING("Cancel"), CONFIRM_BTN_QUIET);
+                RenderConfirmButton(CLAY_ID("BusyQuitKeepButton"), CLAY_STRING("Keep working"), CONFIRM_BTN_QUIET);
                 CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(1) } } }) {}
-                RenderConfirmButton(CLAY_ID("CompressContinueButton"),
-                                   g_ui.pendingImportFitChoice == PSS_FIT_STRETCH
-                                       ? CLAY_STRING("Stretch & import") : CLAY_STRING("Letterbox & import"),
+                RenderConfirmButton(CLAY_ID("BusyQuitStopButton"), CLAY_STRING("Stop & quit"), CONFIRM_BTN_DANGER);
+            }
+        }
+    }
+}
+
+// A blank vertical spacer of `h` pixels - shorthand for the gap elements
+// used throughout this dialog between labeled sections.
+static void VGap(float h) {
+    CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(h) } } }) {}
+}
+static void SectionLabel(Clay_String label) {
+    CLAY_TEXT(label, CLAY_TEXT_CONFIG(TextCfg(13, C_TEXT_DIM, FONT_BODY)));
+}
+
+// Shown for every import, not just ones the source's own size/rate forces a
+// choice on - region and bit rate are worth a look before every import
+// rather than depending on the menu bar's persistent settings already
+// being right, and combining them with the aspect/fit choices (only shown
+// when PendingImportNeedsResize()) avoids two separate popups back to back.
+static void RenderImportOptionsDialog(void) {
+    if (!g_ui.importOptionsOpen) return;
+    bool needsResize   = PendingImportNeedsResize();
+    bool exceedsCaps   = !g_ui.pendingImportExact && PendingImportExceedsCaps();
+
+    CLAY(CLAY_ID("ImportOptionsScrim"), {
+        .layout = {
+            .sizing = { .width = CLAY_SIZING_FIXED((float)GetScreenWidth()),
+                        .height = CLAY_SIZING_FIXED((float)GetScreenHeight()) },
+            .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }
+        },
+        .floating = {
+            .zIndex = 110,
+            .attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_TOP, .parent = CLAY_ATTACH_POINT_LEFT_TOP },
+            .pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE,
+            .attachTo = CLAY_ATTACH_TO_ROOT
+        },
+        .backgroundColor = (Clay_Color){0, 0, 0, 180}
+    }) {
+        CLAY(CLAY_ID("ImportOptionsDialog"), {
+            .layout = {
+                .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                .sizing = { .width = CLAY_SIZING_FIXED(460) },
+                .padding = { .left = 28, .right = 28, .top = 24, .bottom = 22 },
+                .childGap = 6
+            },
+            .backgroundColor = C_PANEL,
+            .cornerRadius = CLAY_CORNER_RADIUS(12),
+            .border = { .width = CLAY_BORDER_OUTSIDE(1), .color = C_LINE }
+        }) {
+            CLAY_TEXT(!needsResize ? CLAY_STRING("Import options")
+                         : g_ui.pendingImportExact ? CLAY_STRING("This video doesn't match the open PSS's resolution")
+                         : exceedsCaps              ? CLAY_STRING("This video exceeds the engine's limits")
+                                                     : CLAY_STRING("Import options"),
+                      CLAY_TEXT_CONFIG(TextCfg(20, C_TEXT, FONT_TITLE)));
+
+            VGap(10);
+
+            if (!needsResize) {
+                CLAY_TEXT(Fmt("The source is %dx%d @ %.2f fps and already fits these settings.",
+                             g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps),
+                          CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
+            } else if (g_ui.pendingImportExact) {
+                CLAY_TEXT(Fmt("The source is %dx%d @ %.2f fps; the currently open video is %dx%d. The game "
+                             "doesn't resize a cutscene's on-screen area to fit a replacement of a different "
+                             "size, so it needs to match exactly.",
+                             g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
+                             g_ui.pendingImportOutW, g_ui.pendingImportOutH),
+                          CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
+            } else if (exceedsCaps) {
+                Mp4ImportLimits limits = StandardLimits(g_targetStandard);
+                CLAY_TEXT(Fmt("The source is %dx%d @ %.2f fps. %s PSS videos above %dx%d @ %.0f fps can crash or "
+                             "fail to play in the game.",
+                             g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
+                             StandardName(g_targetStandard), limits.maxWidth, limits.maxHeight, limits.maxFps),
+                          CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
+            } else {
+                // Within the engine's size/fps caps, but not itself an
+                // exact 4:3/16:9 ratio - every retail PSS resolution is
+                // exactly one of those two, so the source still needs
+                // quantizing to the nearest one (see Mp4ComputeImportTarget's
+                // comment), just not because it's "too big".
+                CLAY_TEXT(Fmt("The source is %dx%d @ %.2f fps, which isn't itself an exact 4:3 or 16:9 "
+                             "resolution - every PSS video the engine expects is. It'll be resized to fit one.",
+                             g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps),
+                          CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
+            }
+
+            VGap(14);
+
+            CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .childGap = 20 } }) {
+                CLAY_AUTO_ID({ .layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .childGap = 6 } }) {
+                    SectionLabel(CLAY_STRING("Region:"));
+                    RenderImportStandardToggle();
+                }
+                CLAY_AUTO_ID({ .layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM, .childGap = 6 } }) {
+                    SectionLabel(CLAY_STRING("Bit rate:"));
+                    RenderImportBitrateToggle();
+                }
+            }
+
+            // Aspect choice only applies to the generic (non-exact) case -
+            // an exact-match canvas is already a fixed size, nothing to
+            // choose.
+            if (!g_ui.pendingImportExact) {
+                Mp4ImportLimits limits = StandardLimits(g_targetStandard);
+                Mp4ImportLimits l43 = limits, l169 = limits;
+                l43.aspect  = PSS_ASPECT_4_3;
+                l169.aspect = PSS_ASPECT_16_9;
+                int w43, h43, w169, h169; double f43, f169;
+                Mp4ComputeImportTarget(g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
+                                       &l43, &w43, &h43, &f43);
+                Mp4ComputeImportTarget(g_ui.pendingImportSrcW, g_ui.pendingImportSrcH, g_ui.pendingImportSrcFps,
+                                       &l169, &w169, &h169, &f169);
+
+                VGap(14);
+                SectionLabel(CLAY_STRING("Maximum size for:"));
+                VGap(6);
+                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .childGap = 8 } }) {
+                    RenderAspectChoiceButton(CLAY_ID("AspectChoice43"), CLAY_STRING("4:3"), w43, h43,
+                                             g_ui.pendingImportAspectChoice == PSS_ASPECT_4_3);
+                    RenderAspectChoiceButton(CLAY_ID("AspectChoice169"), CLAY_STRING("16:9"), w169, h169,
+                                             g_ui.pendingImportAspectChoice == PSS_ASPECT_16_9);
+                }
+            }
+
+            VGap(14);
+            SectionLabel(CLAY_STRING("Fit:"));
+            VGap(6);
+            CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .childGap = 8 } }) {
+                RenderFitChoiceButton(CLAY_ID("FitChoiceStretch"), CLAY_STRING("Stretch"),
+                                      g_ui.pendingImportFitChoice == PSS_FIT_STRETCH);
+                RenderFitChoiceButton(CLAY_ID("FitChoiceLetterbox"), CLAY_STRING("Letterbox"),
+                                      g_ui.pendingImportFitChoice == PSS_FIT_LETTERBOX);
+            }
+
+            VGap(14);
+            CLAY_TEXT(g_ui.pendingImportFitChoice == PSS_FIT_STRETCH
+                         ? Fmt("It will be stretched to fill exactly %dx%d%s before importing.",
+                              g_ui.pendingImportOutW, g_ui.pendingImportOutH,
+                              g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
+                                  ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : "")
+                         : Fmt("It will be scaled to fit and letterboxed to exactly %dx%d%s before importing.",
+                              g_ui.pendingImportOutW, g_ui.pendingImportOutH,
+                              g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
+                                  ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : ""),
+                      CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
+
+            CLAY_AUTO_ID({
+                .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(18) } },
+                .border = { .width = { .bottom = 1 }, .color = C_LINE }
+            }) {}
+
+            CLAY_AUTO_ID({
+                .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .padding = { .top = 16 },
+                            .childGap = 8, .childAlignment = { .y = CLAY_ALIGN_Y_CENTER } }
+            }) {
+                RenderConfirmButton(CLAY_ID("ImportOptionsCancelButton"), CLAY_STRING("Cancel"), CONFIRM_BTN_QUIET);
+                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(1) } } }) {}
+                RenderConfirmButton(CLAY_ID("ImportOptionsContinueButton"),
+                                   !needsResize ? CLAY_STRING("Import")
+                                       : g_ui.pendingImportFitChoice == PSS_FIT_STRETCH
+                                           ? CLAY_STRING("Stretch & import") : CLAY_STRING("Letterbox & import"),
                                    CONFIRM_BTN_PRIMARY);
             }
         }
@@ -2253,7 +2795,8 @@ static Clay_RenderCommandArray BuildLayout(float dt) {
         RenderAudioTrackSelector();
         RenderTransportBar();
         RenderConfirmDialog();
-        RenderCompressWarningDialog();
+        RenderBusyQuitDialog();
+        RenderImportOptionsDialog();
         RenderAboutDialog();
     }
 
@@ -2305,11 +2848,27 @@ int main(void) {
     InitClay();
     TwinStudio_UiInit();
 
+    g_bitRateTextArena = TwinStudio_CreateArena(64);
+    g_bitRateTextBox.config = TextCfgNoWrap(13, C_TEXT, FONT_BODY);
+    g_bitRateTextBox.padding = (Clay_Padding){ .left = 8, .right = 8, .top = 6, .bottom = 6 };
+    g_bitRateTextBox.backgroundColor = C_PANEL_2;   // matches the rest of the dialog's controls instead of the textbox library's default gray
+    TwinStudio_TextboxInit(&g_bitRateTextBox, &g_bitRateTextArena);
+
     Font *fonts = TwinStudio_GetUiContext()->fonts;
 
     while (!g_quit) {
         if (WindowShouldClose()) {
-            if (IsBusy() || g_ui.compressWarningOpen) {
+            // A job in flight can't be safely torn down out from under it -
+            // it owns a background thread and an arena the main thread
+            // doesn't touch until the job actually finishes. Ignoring the
+            // close used to be entirely silent, with nothing telling the
+            // person anything had even happened; now it offers a way to
+            // actually stop it (see HandleBusyQuitDialog).
+            if (g_quitAfterBusy) {
+                // Already stopping for a previous close request; nothing more to do.
+            } else if (IsBusy()) {
+                g_ui.busyQuitConfirmOpen = true;
+            } else if (g_ui.importOptionsOpen) {
                 fprintf(stderr, "Close ignored: resolve the open dialog first\n");
             } else if (g_ui.confirmOpen) {
                 g_ui.pendingAction = PENDING_EXIT;
@@ -2330,16 +2889,27 @@ int main(void) {
         Clay_SetLayoutDimensions((Clay_Dimensions){ (float)GetScreenWidth(), (float)GetScreenHeight() });
         Clay_SetPointerState((Clay_Vector2){ mouse.x, mouse.y }, IsMouseButtonDown(MOUSE_BUTTON_LEFT));
 
+        // Drives the bit rate text field's caret blink and keyboard editing
+        // (see g_bitRateTextBox) - a no-op whenever no text field has focus,
+        // which is always true outside the import options dialog.
+        TwinStudio_UiUpdateTimers(dt);
+        TwinStudio_UiUpdateInput();
+
         PumpLoader();
         const bool busy = IsBusy();
+        if (g_quitAfterBusy && !busy) g_quit = true;
 
-        if (g_ui.confirmOpen) {
+        if (g_ui.busyQuitConfirmOpen) {
+            HandleBusyQuitDialog(mouse);
+        } else if (g_ui.confirmOpen) {
             HandleConfirmDialog(mouse);
-        } else if (g_ui.compressWarningOpen) {
-            HandleCompressWarningDialog(mouse);
+        } else if (g_ui.importOptionsOpen) {
+            HandleImportOptionsDialog(mouse);
         } else if (g_ui.aboutOpen) {
             HandleAboutDialog(mouse);
-        } else if (!busy) {
+        } else if (busy) {
+            HandleBusyOverlay();
+        } else {
             HandleMenuBar();
             HandleSeekBar(mouse);
             HandleVolumeSlider(mouse);

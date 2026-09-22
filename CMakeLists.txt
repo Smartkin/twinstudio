@@ -39,8 +39,23 @@ fetchcontent_makeavailable(ps2imagemaker)
 
 target_compile_definitions(raylib PUBLIC SUPPORT_FILEFORMAT_FLAC=1)
 
+# rpmalloc (3rdparty/malloc.c) defaults ENABLE_OVERRIDE to 1, aliasing the
+# process-wide malloc/free/posix_memalign/etc symbols to its own
+# implementation - meaning every third-party library linked in (ffmpeg,
+# x264, raylib, ...), not just this codebase's own TWIN_MALLOC/TwinStudio_Arena
+# users, ends up allocating through rpmalloc too. rpmalloc hard-caps aligned
+# allocations at RPMALLOC_MAX_ALIGNMENT (256KB, see rpmalloc.h) and just
+# fails them outright above that - not a fallback, an outright NULL - which
+# x264 hit exporting to MP4 (it requests 2MB-aligned buffers for its own
+# internal frame data): "x264 [error]: malloc of size N failed", regardless
+# of how much memory is actually free. This codebase's own allocations
+# never go through this override (TWIN_MALLOC/TWIN_FREE/TWIN_REALLOC call
+# rpmalloc's own named functions directly, unaffected either way), so
+# disabling it only takes third-party code back to the system's ordinary
+# allocator, which has no such limit.
+add_compile_definitions(ENABLE_OVERRIDE=0)
+
 if (TWINSTUDIO_ASAN)
-    add_compile_definitions(ENABLE_OVERRIDE=0)
     add_compile_definitions(TWIN_ASAN)
 endif()
 

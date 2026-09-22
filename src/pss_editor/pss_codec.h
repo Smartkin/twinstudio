@@ -52,14 +52,21 @@ typedef struct PssMpeg2Encoder PssMpeg2Encoder;
 // coded size that's merely close to but not exactly one of those makes
 // libavcodec fall back to "unspecified", which the game doesn't display
 // with a matching scale to what the coded picture actually is.
+//
+// `bitRate` is the target constant bit rate in bits/sec; 0 defaults to
+// 9,000,000, matching every retail PSS sample seen.
 PssMpeg2Encoder *PssMpeg2Encoder_Create(int width, int height, double fps, int sarNum, int sarDen,
-                                        char *outError, size_t errorCap);
+                                        int64_t bitRate, char *outError, size_t errorCap);
 
 // `rgba` must be width*height*4 bytes (as passed to Create).
 bool PssMpeg2Encoder_PushRgba(PssMpeg2Encoder *enc, const uint8_t *rgba);
 
 // Flushes remaining frames, copies the accumulated elementary stream into
-// `arena`, and destroys the encoder either way.
+// `arena`, and destroys the encoder either way. The stream itself is
+// spooled to a temp file as it's encoded rather than held in memory (see
+// PssMpeg2Encoder's definition) - this is the one point it's read back in,
+// directly into `arena`, so peak memory stays close to the final size
+// instead of several times over it.
 bool PssMpeg2Encoder_Finish(PssMpeg2Encoder *enc, TwinStudio_Arena *arena,
                             uint8_t **outEs, uint32_t *outEsSize);
 

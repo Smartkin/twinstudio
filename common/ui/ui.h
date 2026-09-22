@@ -11,6 +11,17 @@ typedef struct TwinStudio_UiContext {
     Font fonts[TwinStudio_FontsTotal];
     TwinStudio_TextBoxDesc* selectedTextBox;
     bool isTextboxTickVisible;
+
+    // True for the one UpdateCurrentTextBox call right after a click just
+    // focused selectedTextBox (set by TwinStudio_UiChangeActiveTextbox,
+    // consumed and cleared by UpdateCurrentTextBox) - lets that call skip
+    // its own blanket "any click resets selection" handling for this one
+    // click, since HandleClickTextbox (textbox.c) already set up the
+    // correct selection for a freshly-focused box (all of it, if
+    // selectTextOnReceivingFocus) earlier in the same frame; without this,
+    // that selection was immediately wiped before the person could type
+    // over it, so typing right after a click appended instead of replacing.
+    bool textboxJustFocused;
 } TwinStudio_UiContext;
 
 
