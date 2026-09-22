@@ -14,8 +14,23 @@
 #include <libavutil/channel_layout.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/opt.h>
+#include <libavutil/pixdesc.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
+
+// Decoders built with hwaccels (e.g. d3d11va/d3d12va on Windows) advertise
+// their hardware pixel formats first. Without this, the default get_format
+// picks the hwaccel format, and since we never set up a hw_frames_ctx,
+// decoding fails ("A hardware frames reference is required..."). We always
+// want CPU-side frames for sws_scale, so force the first non-hwaccel format.
+static enum AVPixelFormat ForceSoftwarePixelFormat(AVCodecContext *ctx, const enum AVPixelFormat *fmts) {
+    (void)ctx;
+    for (const enum AVPixelFormat *p = fmts; *p != AV_PIX_FMT_NONE; p++) {
+        const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(*p);
+        if (desc && !(desc->flags & AV_PIX_FMT_FLAG_HWACCEL)) return *p;
+    }
+    return AV_PIX_FMT_NONE;
+}
 
 // avcodec_get_supported_config() is the non-deprecated replacement for
 // reading AVCodec::pix_fmts/sample_fmts directly.
@@ -212,6 +227,7 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
     if (!vdec) { SetErr(outError, errorCap, "No decoder available for this video codec"); goto cleanup; }
     vctx = avcodec_alloc_context3(vdec);
     avcodec_parameters_to_context(vctx, vs->codecpar);
+    vctx->get_format = ForceSoftwarePixelFormat;
     if (avcodec_open2(vctx, vdec, NULL) < 0) { SetErr(outError, errorCap, "Could not open the video decoder"); goto cleanup; }
 
     int width = vs->codecpar->width, height = vs->codecpar->height;

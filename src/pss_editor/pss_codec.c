@@ -12,7 +12,22 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/opt.h>
+#include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
+
+// Decoders built with hwaccels (e.g. d3d11va/d3d12va on Windows) advertise
+// their hardware pixel formats first. Without this, the default get_format
+// picks the hwaccel format, and since we never set up a hw_frames_ctx,
+// decoding fails ("A hardware frames reference is required..."). We always
+// want CPU-side frames for sws_scale, so force the first non-hwaccel format.
+static enum AVPixelFormat ForceSoftwarePixelFormat(AVCodecContext *ctx, const enum AVPixelFormat *fmts) {
+    (void)ctx;
+    for (const enum AVPixelFormat *p = fmts; *p != AV_PIX_FMT_NONE; p++) {
+        const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(*p);
+        if (desc && !(desc->flags & AV_PIX_FMT_FLAG_HWACCEL)) return *p;
+    }
+    return AV_PIX_FMT_NONE;
+}
 
 static bool SetErr(char *err, size_t cap, const char *fmt, ...) {
     if (err && cap) {
@@ -57,6 +72,7 @@ PssVideoDecoder *PssVideoDecoder_Create(const uint8_t *esData, uint32_t esSize) 
     dec->codec = avcodec_find_decoder(AV_CODEC_ID_MPEG2VIDEO);
     dec->ctx    = dec->codec ? avcodec_alloc_context3(dec->codec) : NULL;
     dec->parser = av_parser_init(AV_CODEC_ID_MPEG2VIDEO);
+    if (dec->ctx) dec->ctx->get_format = ForceSoftwarePixelFormat;
 
     if (!dec->ctx || !dec->parser || avcodec_open2(dec->ctx, dec->codec, NULL) < 0) {
         if (dec->parser) av_parser_close(dec->parser);
@@ -197,7 +213,7 @@ PssMpeg2Encoder *PssMpeg2Encoder_Create(int width, int height, double fps, int s
     enc->ctx->framerate  = fr;
     enc->ctx->gop_size   = 15;
     enc->ctx->max_b_frames = 0;   // keep decode order == display order for our simple player
-    enc->ctx->bit_rate   = (int64_t)width * height * 4;   // ~4 bits/pixel/frame, plenty for FMV-grade output
+    enc->ctx->bit_rate   = 9000000; 
     enc->ctx->sample_aspect_ratio = (AVRational){ sarNum > 0 ? sarNum : 1, sarDen > 0 ? sarDen : 1 };
 
     // Without these, libavcodec's mpeg2video encoder writes a stream that
