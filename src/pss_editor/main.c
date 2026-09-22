@@ -388,6 +388,7 @@ typedef struct {
     double   pendingImportOutFps;
     bool     pendingImportExact;   // true = pendingImportOutW/H is an exact stretch-to-fill canvas, not just a cap
     PssTargetAspect pendingImportAspectChoice;   // which ratio pendingImportOutW/H reflects; meaningless if exact
+    PssFitMode      pendingImportFitChoice;      // stretch vs letterbox; applies in both the exact and generic case
 } UIState;
 
 static UIState g_ui = { .volume = 0.7f };
@@ -939,9 +940,10 @@ static Mp4ImportLimits ActiveImportLimits(void) {
     return StandardLimits(g_targetStandard);
 }
 
-static void StartImportJob(const char *path, PssTargetAspect aspect) {
+static void StartImportJob(const char *path, PssTargetAspect aspect, PssFitMode fit) {
     g_loader.importLimits = ActiveImportLimits();
     g_loader.importLimits.aspect = aspect;
+    g_loader.importLimits.fit    = fit;
     StartJob(JOB_IMPORT, path);
 }
 
@@ -973,13 +975,14 @@ static void DoImport(void) {
                 g_ui.pendingImportAspectChoice = fabs(srcAspect - 16.0 / 9.0) < fabs(srcAspect - 4.0 / 3.0)
                                                      ? PSS_ASPECT_16_9 : PSS_ASPECT_4_3;
             }
+            g_ui.pendingImportFitChoice = PSS_FIT_STRETCH;
             g_ui.compressWarningOpen = true;
             return;
         }
     }
     // Either already within limits, or the probe failed - let the real
     // import surface its own error in that case rather than blocking here.
-    StartImportJob(path, PSS_ASPECT_AUTO);
+    StartImportJob(path, PSS_ASPECT_AUTO, PSS_FIT_STRETCH);
 }
 
 static void DoSave(void) {
@@ -1079,9 +1082,20 @@ static void HandleCompressWarningDialog(Vector2 mouse) {
         }
     }
 
+    // Fit choice applies either way - it doesn't change the canvas size,
+    // only how the source fills it, so no preview recompute needed.
+    {
+        bool pickStretch   = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("FitChoiceStretch")));
+        bool pickLetterbox = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("FitChoiceLetterbox")));
+        if (pickStretch || pickLetterbox) {
+            g_ui.pendingImportFitChoice = pickStretch ? PSS_FIT_STRETCH : PSS_FIT_LETTERBOX;
+            return;
+        }
+    }
+
     if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("CompressContinueButton")))) {
         g_ui.compressWarningOpen = false;
-        StartImportJob(g_ui.pendingImportPath, g_ui.pendingImportAspectChoice);
+        StartImportJob(g_ui.pendingImportPath, g_ui.pendingImportAspectChoice, g_ui.pendingImportFitChoice);
         return;
     }
     if (Clay_PointerOver(Clay_GetElementId(CLAY_STRING("CompressCancelButton")))) {
@@ -1311,12 +1325,34 @@ static void IconExport(Clay_Color color) {
     }
 }
 
-static void IconPlay(Clay_Color color) { IconTriangle(0, 18, 18, color, TRIANGLE_DIR_RIGHT); }
+// A right-pointing triangle's visual centroid (the average of its 3
+// vertices - what the eye actually reads as "the middle" of the shape)
+// sits 1/6 of its width to the LEFT of its own bounding box's center: for
+// TRIANGLE_DIR_RIGHT's vertices (x,y), (x,y+h), (x+w,y+h/2), the centroid
+// x is x+w/3, vs the box center at x+w/2. Every other icon here centers
+// fine because Clay centers by bounding box, and their shapes are
+// symmetric enough that bbox-center and visual-center coincide - a lone
+// triangle is the one shape where they don't. Wrapping it in a wider box
+// with the extra width added as left padding only (chosen so the
+// triangle's centroid lands exactly on the wrapper's center: leftPad =
+// wrapW/2 - w/3) corrects that without a one-off render path.
+static void IconPlay(Clay_Color color) {
+    CLAY(CLAY_ID_LOCAL("IconPlayWrap"), {
+        .layout = { .sizing = { .width = CLAY_SIZING_FIXED(24), .height = CLAY_SIZING_FIXED(18) },
+                    .padding = { .left = 6 } }
+    }) {
+        IconTriangle(0, 18, 18, color, TRIANGLE_DIR_RIGHT);
+    }
+}
 
 static void IconPause(Clay_Color color) {
+    // The two 5px bars plus the 4px gap between them (14px total) don't
+    // fill the fixed 18px-wide container - missing an explicit x-center
+    // here left them flush against the left edge (Clay's default) instead
+    // of splitting the 4px of leftover space evenly on both sides.
     CLAY(CLAY_ID_LOCAL("IconPause"), {
         .layout = { .sizing = { .width = CLAY_SIZING_FIXED(18), .height = CLAY_SIZING_FIXED(18) },
-                    .childGap = 4, .childAlignment = { .y = CLAY_ALIGN_Y_CENTER } }
+                    .childGap = 4, .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER } }
     }) {
         CLAY(CLAY_ID_LOCAL("Bar1"), {
             .layout = { .sizing = { .width = CLAY_SIZING_FIXED(5), .height = CLAY_SIZING_FIXED(18) } },
@@ -1872,6 +1908,26 @@ static void RenderAspectChoiceButton(Clay_ElementId id, Clay_String label, int w
     }
 }
 
+// Same selectable-option style as RenderAspectChoiceButton, but for the
+// stretch/letterbox fit choice, which has no size of its own to show.
+static void RenderFitChoiceButton(Clay_ElementId id, Clay_String label, bool selected) {
+    bool hovered = Clay_PointerOver(id);
+    Clay_Color bg = selected ? C_ACCENT : (hovered ? C_HOVER : C_PANEL_2);
+    Clay_Color fg = selected ? C_ON_ACCENT : C_TEXT;
+
+    CLAY(id, {
+        .layout = {
+            .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(34) },
+            .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }
+        },
+        .backgroundColor = bg,
+        .cornerRadius = CLAY_CORNER_RADIUS(6),
+        .border = { .width = CLAY_BORDER_OUTSIDE(1), .color = selected ? C_ACCENT : C_LINE }
+    }) {
+        CLAY_TEXT(label, CLAY_TEXT_CONFIG(TextCfgNoWrap(14, fg, FONT_BODY)));
+    }
+}
+
 static void RenderConfirmDialog(void) {
     if (!g_ui.confirmOpen) return;
     bool exiting = (g_ui.pendingAction == PENDING_EXIT);
@@ -1970,12 +2026,30 @@ static void RenderCompressWarningDialog(void) {
                              g_ui.pendingImportOutW, g_ui.pendingImportOutH),
                           CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
 
+                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
+
+                CLAY_TEXT(CLAY_STRING("Fit:"), CLAY_TEXT_CONFIG(TextCfg(13, C_TEXT_DIM, FONT_BODY)));
+
                 CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(6) } } }) {}
 
-                CLAY_TEXT(Fmt("It will be stretched to fill exactly %dx%d%s before importing.",
-                             g_ui.pendingImportOutW, g_ui.pendingImportOutH,
-                             g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
-                                 ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : ""),
+                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .childGap = 8 } }) {
+                    RenderFitChoiceButton(CLAY_ID("FitChoiceStretch"), CLAY_STRING("Stretch"),
+                                          g_ui.pendingImportFitChoice == PSS_FIT_STRETCH);
+                    RenderFitChoiceButton(CLAY_ID("FitChoiceLetterbox"), CLAY_STRING("Letterbox"),
+                                          g_ui.pendingImportFitChoice == PSS_FIT_LETTERBOX);
+                }
+
+                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
+
+                CLAY_TEXT(g_ui.pendingImportFitChoice == PSS_FIT_STRETCH
+                             ? Fmt("It will be stretched to fill exactly %dx%d%s before importing.",
+                                  g_ui.pendingImportOutW, g_ui.pendingImportOutH,
+                                  g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
+                                      ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : "")
+                             : Fmt("It will be scaled to fit and letterboxed to exactly %dx%d%s before importing.",
+                                  g_ui.pendingImportOutW, g_ui.pendingImportOutH,
+                                  g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
+                                      ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : ""),
                           CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
             } else {
                 Mp4ImportLimits limits = StandardLimits(g_targetStandard);
@@ -1987,7 +2061,7 @@ static void RenderCompressWarningDialog(void) {
 
                 CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
 
-                CLAY_TEXT(CLAY_STRING("Stretch to fill, at the maximum size for:"),
+                CLAY_TEXT(CLAY_STRING("Maximum size for:"),
                           CLAY_TEXT_CONFIG(TextCfg(13, C_TEXT_DIM, FONT_BODY)));
 
                 CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(6) } } }) {}
@@ -2014,10 +2088,28 @@ static void RenderCompressWarningDialog(void) {
 
                 CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
 
-                CLAY_TEXT(Fmt("It will be stretched to fill exactly %dx%d%s before importing.",
-                             g_ui.pendingImportOutW, g_ui.pendingImportOutH,
-                             g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
-                                 ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : ""),
+                CLAY_TEXT(CLAY_STRING("Fit:"), CLAY_TEXT_CONFIG(TextCfg(13, C_TEXT_DIM, FONT_BODY)));
+
+                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(6) } } }) {}
+
+                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0) }, .childGap = 8 } }) {
+                    RenderFitChoiceButton(CLAY_ID("FitChoiceStretch"), CLAY_STRING("Stretch"),
+                                          g_ui.pendingImportFitChoice == PSS_FIT_STRETCH);
+                    RenderFitChoiceButton(CLAY_ID("FitChoiceLetterbox"), CLAY_STRING("Letterbox"),
+                                          g_ui.pendingImportFitChoice == PSS_FIT_LETTERBOX);
+                }
+
+                CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(14) } } }) {}
+
+                CLAY_TEXT(g_ui.pendingImportFitChoice == PSS_FIT_STRETCH
+                             ? Fmt("It will be stretched to fill exactly %dx%d%s before importing.",
+                                  g_ui.pendingImportOutW, g_ui.pendingImportOutH,
+                                  g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
+                                      ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : "")
+                             : Fmt("It will be scaled to fit and letterboxed to exactly %dx%d%s before importing.",
+                                  g_ui.pendingImportOutW, g_ui.pendingImportOutH,
+                                  g_ui.pendingImportOutFps < g_ui.pendingImportSrcFps - 0.01
+                                      ? Fmt(" and capped to %.0f fps", g_ui.pendingImportOutFps).chars : ""),
                           CLAY_TEXT_CONFIG(TextCfg(15, C_TEXT_DIM, FONT_BODY)));
             }
 
@@ -2032,7 +2124,10 @@ static void RenderCompressWarningDialog(void) {
             }) {
                 RenderConfirmButton(CLAY_ID("CompressCancelButton"), CLAY_STRING("Cancel"), CONFIRM_BTN_QUIET);
                 CLAY_AUTO_ID({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(1) } } }) {}
-                RenderConfirmButton(CLAY_ID("CompressContinueButton"), CLAY_STRING("Stretch & import"), CONFIRM_BTN_PRIMARY);
+                RenderConfirmButton(CLAY_ID("CompressContinueButton"),
+                                   g_ui.pendingImportFitChoice == PSS_FIT_STRETCH
+                                       ? CLAY_STRING("Stretch & import") : CLAY_STRING("Letterbox & import"),
+                                   CONFIRM_BTN_PRIMARY);
             }
         }
     }

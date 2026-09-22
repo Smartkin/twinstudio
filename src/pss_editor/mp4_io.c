@@ -236,23 +236,41 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
 
     // `canvasWidth`/`canvasHeight` is what actually gets encoded - always an
     // exact 4:3 or 16:9 multiple-of-16 shape (see Mp4ComputeImportTarget).
-    // The source is stretched to fill it exactly (non-uniform scale when
-    // the source's own aspect ratio doesn't already match, rather than
-    // letterboxing/pillarboxing with black bars) - replacing a PSS whose
-    // video only fills part of whatever on-screen area the game reserves
-    // for that specific asset leaves the rest of that area as untouched
-    // black space, and the game does not appear to dynamically resize that
-    // area to match an oddly-sized replacement, so filling it completely
-    // matters more here than preserving the source's exact proportions.
+    // `contentWidth`/`contentHeight` is the source picture itself within
+    // that canvas: with PSS_FIT_STRETCH (the default) it's the same as the
+    // canvas (non-uniform scale, source aspect ratio not preserved); with
+    // PSS_FIT_LETTERBOX it's scaled to fit the canvas preserving the
+    // source's own aspect ratio and centered, with black bars filling
+    // whatever's left over. Either way the canvas ends up completely
+    // filled - replacing a PSS whose video only fills part of whatever
+    // on-screen area the game reserves for that specific asset leaves the
+    // rest of that area as untouched black space, and the game does not
+    // appear to dynamically resize that area to match an oddly-sized
+    // replacement.
     int canvasWidth, canvasHeight;
     double outFps;
     Mp4ComputeImportTarget(width, height, fps, limits, &canvasWidth, &canvasHeight, &outFps);
     FpsDecimator decimator = FpsDecimatorInit(fps, outFps);
 
-    // The canvas is what should display at the target aspect ratio, not the
-    // source. Since it's always an exact 4:3/16:9 ratio by construction,
-    // this comes out SAR 1:1 (square pixels) in practice - no correction
-    // needed.
+    int contentWidth = canvasWidth, contentHeight = canvasHeight;
+    if (limits && limits->fit == PSS_FIT_LETTERBOX) {
+        double fitScale = (double)canvasWidth / width < (double)canvasHeight / height
+                             ? (double)canvasWidth / width : (double)canvasHeight / height;
+        if (fitScale > 1.0) fitScale = 1.0;   // never upscale
+        contentWidth  = (int)(width  * fitScale) & ~1;
+        contentHeight = (int)(height * fitScale) & ~1;
+        if (contentWidth  < 2) contentWidth  = 2;
+        if (contentHeight < 2) contentHeight = 2;
+    }
+    int contentOffX = ((canvasWidth  - contentWidth)  / 2) & ~1;
+    int contentOffY = ((canvasHeight - contentHeight) / 2) & ~1;
+
+    // The canvas (content, or content plus letterbox bars) is what should
+    // display at the target aspect ratio, not the source - in letterbox
+    // mode the bars are as much "the picture" as the content is, not
+    // something to crop away. Since the canvas is always an exact 4:3/16:9
+    // ratio by construction, this comes out SAR 1:1 (square pixels) in
+    // practice - no correction needed.
     int sarNum, sarDen;
     Mp4ComputeSampleAspectRatio(canvasWidth, canvasHeight, canvasWidth, canvasHeight, &sarNum, &sarDen);
 
@@ -283,15 +301,27 @@ bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits 
     enc = PssMpeg2Encoder_Create(canvasWidth, canvasHeight, outFps, sarNum, sarDen, outError, errorCap);
     if (!enc) goto cleanup;
 
-    // sws_scale handles the pixel format conversion and the (possibly
-    // non-uniform) stretch to fill the canvas in one pass.
-    sws = sws_getContext(width, height, vctx->pix_fmt, canvasWidth, canvasHeight, AV_PIX_FMT_RGBA,
+    // sws_scale handles the pixel format conversion and the scale (uniform
+    // fit or non-uniform stretch, per contentWidth/Height above) in one
+    // pass, writing into `rgba` at the content sub-rect's offset/stride
+    // within the full canvas - identical to writing the whole buffer when
+    // there's no letterboxing (contentOffX/Y == 0 and canvasWidth/Height ==
+    // content, i.e. PSS_FIT_STRETCH).
+    sws = sws_getContext(width, height, vctx->pix_fmt, contentWidth, contentHeight, AV_PIX_FMT_RGBA,
                          SWS_BILINEAR, NULL, NULL, NULL);
     frame = av_frame_alloc();
     pkt   = av_packet_alloc();
     rgba  = (uint8_t *)malloc((size_t)canvasWidth * (size_t)canvasHeight * 4u);
     if (!sws || !frame || !pkt || !rgba) { SetErr(outError, errorCap, "Out of memory importing \"%s\"", path); goto cleanup; }
-    uint8_t *contentDst = rgba;
+    if (canvasWidth != contentWidth || canvasHeight != contentHeight) {
+        // Opaque black letterbox/pillarbox bars - sws_scale only ever
+        // touches the content sub-rect below, so this only needs doing once.
+        uint8_t *p = rgba;
+        for (size_t i = 0; i < (size_t)canvasWidth * (size_t)canvasHeight; i++, p += 4) {
+            p[0] = 0; p[1] = 0; p[2] = 0; p[3] = 255;
+        }
+    }
+    uint8_t *contentDst = rgba + ((size_t)contentOffY * (size_t)canvasWidth + (size_t)contentOffX) * 4u;
     int      contentStride = canvasWidth * 4;
 
     {

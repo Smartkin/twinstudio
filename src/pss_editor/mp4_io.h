@@ -37,6 +37,19 @@ typedef void (*PssProgressFn)(void *user, float fraction /* 0..1, -1 for indeter
 // since that canvas size is already fixed.
 typedef enum { PSS_ASPECT_AUTO = 0, PSS_ASPECT_4_3, PSS_ASPECT_16_9 } PssTargetAspect;
 
+// How Mp4Import fills the canvas when the source's own aspect ratio doesn't
+// already match it exactly.
+typedef enum {
+    // Non-uniform scale: the source fills the canvas completely, distorted
+    // if its own aspect ratio differs. Always fills the screen; the picture
+    // itself may look stretched/squashed if the source aspect is far off.
+    PSS_FIT_STRETCH = 0,
+    // Uniform scale-to-fit, source aspect ratio preserved, centered with
+    // black letterbox/pillarbox bars filling whatever's left over. Never
+    // distorts the picture; leaves black bars instead.
+    PSS_FIT_LETTERBOX,
+} PssFitMode;
+
 // Caps applied by Mp4Import: the game engine this tool targets skips PSS
 // videos outright above certain resolution/frame rate combinations (see
 // Mp4Import's comment). 0 means "no cap" on that field.
@@ -45,16 +58,16 @@ typedef struct {
     double maxFps;
 
     // If true, maxWidth/maxHeight is the exact size Mp4Import encodes at -
-    // the source is stretched (non-uniform scale, if its own aspect ratio
-    // doesn't already match) to fill it exactly, rather than the encoded
-    // picture itself shrinking in whichever axis the source's aspect ratio
-    // doesn't fill. Use when importing to replace a specific existing PSS
-    // video: the game does not dynamically resize whatever on-screen area
-    // it reserves for a given cutscene to match an oddly-sized replacement,
+    // the source is fit to it (see `fit`) rather than the encoded picture
+    // itself shrinking in whichever axis the source's aspect ratio doesn't
+    // fill. Use when importing to replace a specific existing PSS video:
+    // the game does not dynamically resize whatever on-screen area it
+    // reserves for a given cutscene to match an oddly-sized replacement,
     // leaving the size difference as untouched black space instead.
     bool   exact;
 
     PssTargetAspect aspect;   // PSS_ASPECT_AUTO unless the caller wants to override it
+    PssFitMode      fit;      // PSS_FIT_STRETCH unless the caller wants letterboxing instead
 } Mp4ImportLimits;
 
 // Opens `path` just far enough to read its video stream's dimensions and
@@ -94,12 +107,13 @@ void Mp4ComputeSampleAspectRatio(int srcWidth, int srcHeight, int outWidth, int 
 // its audio track (if any) to interleaved S16 PCM. Everything in `out` is
 // allocated from `arena`.
 //
-// If `limits` is non-NULL, the video is scaled (stretched to fill exactly,
-// not preserving aspect ratio - see Mp4ComputeImportTarget) to whatever
-// canvas size `limits` selects, and frames are dropped to bring the frame
-// rate down to maxFps if it's higher - both to fit within the target
-// platform's decoder limits. `out->width/height/fps` reflect whatever was
-// actually encoded, which may differ from the source.
+// If `limits` is non-NULL, the video is scaled to whatever canvas size
+// `limits` selects (see Mp4ComputeImportTarget), either stretched to fill it
+// exactly or letterboxed within it depending on `limits->fit`, and frames
+// are dropped to bring the frame rate down to maxFps if it's higher - both
+// to fit within the target platform's decoder limits. `out->width/height/
+// fps` reflect whatever was actually encoded, which may differ from the
+// source.
 bool Mp4Import(const char *path, TwinStudio_Arena *arena, const Mp4ImportLimits *limits, Mp4ImportResult *out,
               PssProgressFn progress, void *progressUser, char *outError, size_t errorCap);
 
