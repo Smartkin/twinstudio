@@ -28,10 +28,25 @@ jobs:
           sudo apt-get install -y \
             libx11-dev libxrandr-dev libxinerama-dev \
             libxcursor-dev libxi-dev libgl1-mesa-dev \
-            pkg-config libavformat-dev libavcodec-dev \
-            libavutil-dev libswscale-dev libswresample-dev
+            pkg-config
 
-      - name: Cache vcpkg packages
+      - name: Cache vcpkg packages (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/share/vcpkg/installed
+            /usr/local/share/vcpkg/buildtrees
+            /usr/local/share/vcpkg/packages
+          key: vcpkg-ffmpeg-x64-linux-${{ hashFiles('.github/workflows/cmake-multi-platform.yml') }}
+
+      - name: Install Linux dependencies (FFmpeg via vcpkg)
+        if: runner.os == 'Linux'
+        run: |
+          vcpkg install ffmpeg:x64-linux
+          echo "PKG_CONFIG_PATH=$VCPKG_INSTALLATION_ROOT/installed/x64-linux/lib/pkgconfig" >> $GITHUB_ENV
+
+      - name: Cache vcpkg packages (Windows)
         if: runner.os == 'Windows'
         uses: actions/cache@v4
         with:
@@ -47,6 +62,7 @@ jobs:
         run: |
           vcpkg install ffmpeg:x64-windows pkgconf:x64-windows
           echo "PKG_CONFIG_EXECUTABLE=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\tools\pkgconf\pkgconf.exe" >> $env:GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\lib\pkgconfig" >> $env:GITHUB_ENV
 
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
