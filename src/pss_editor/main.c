@@ -492,8 +492,11 @@ static bool    g_quitAfterBusy = false;   // see UIState::busyQuitConfirmOpen
 // edit (Enter, or losing focus - see TwinStudio_UiChangeActiveTextbox)
 // writes the typed value there directly, no separate sync step needed.
 static TwinStudio_Arena   g_bitRateTextArena;
+// .id is set at runtime (main(), alongside .config/.padding/.backgroundColor
+// below) rather than here via TS_STRING_VIEW(...) - that macro expands to a
+// compound literal, which MSVC's C compiler doesn't accept as a constant
+// expression inside a static (file-scope) initializer, unlike GCC/Clang.
 static TwinStudio_TextBoxDesc g_bitRateTextBox = {
-    .id = TS_STRING_VIEW("ImportBitrateTextBox"),
     .textConverter = TwinStudio_ConvertIntToString,
     .backTextConverter = TwinStudio_ConvertBackStringToInt,
     .maxChars = 7,   // up to 9,999,999 Kbps - far past any sane bit rate, just a hard stop
@@ -2849,6 +2852,7 @@ int main(void) {
     TwinStudio_UiInit();
 
     g_bitRateTextArena = TwinStudio_CreateArena(64);
+    g_bitRateTextBox.id = TS_STRING_VIEW("ImportBitrateTextBox");
     g_bitRateTextBox.config = TextCfgNoWrap(13, C_TEXT, FONT_BODY);
     g_bitRateTextBox.padding = (Clay_Padding){ .left = 8, .right = 8, .top = 6, .bottom = 6 };
     g_bitRateTextBox.backgroundColor = C_PANEL_2;   // matches the rest of the dialog's controls instead of the textbox library's default gray
