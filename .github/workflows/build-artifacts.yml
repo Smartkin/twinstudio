@@ -1,22 +1,19 @@
-name: CMake Build (Dry Run)
- 
+name: Build Artifacts
+
 on:
-  pull_request:
-    branches: [master]
   workflow_dispatch:
- 
+
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
+  build-artifacts:
+    name: Build artifacts on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
- 
+
     strategy:
-      # Set to true if builds are stable (they are not at the moment)
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         build_type: [Release]
- 
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v6
@@ -39,7 +36,7 @@ jobs:
             C:\vcpkg\installed
             C:\vcpkg\buildtrees
             C:\vcpkg\packages
-          key: vcpkg-ffmpeg-x64-windows-${{ hashFiles('.github/workflows/cmake-multi-platform.yml') }}
+          key: vcpkg-ffmpeg-x64-windows-${{ hashFiles('.github/workflows/build-artifacts.yml') }}
 
       - name: Install Windows dependencies (FFmpeg via vcpkg)
         if: runner.os == 'Windows'
@@ -68,3 +65,34 @@ jobs:
         run: >
           cmake --build ${{ github.workspace }}/build
           --config ${{ matrix.build_type }}
+
+      - name: Stage twinmusic artifact
+        shell: bash
+        run: |
+          mkdir -p staging/twinmusic
+          find build/src/music_manager -maxdepth 2 -type f \( -name 'twinmusic' -o -name 'twinmusic.exe' \) -exec cp {} staging/twinmusic/ \;
+          cp -r build/src/music_manager/resources staging/twinmusic/resources
+
+      - name: Stage twinpss artifact
+        shell: bash
+        run: |
+          mkdir -p staging/twinpss
+          find build/src/pss_editor -maxdepth 2 -type f \( -name 'twinpss' -o -name 'twinpss.exe' \) -exec cp {} staging/twinpss/ \;
+          cp -r build/src/pss_editor/resources staging/twinpss/resources
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp "$VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/"*.dll staging/twinpss/
+          fi
+
+      - name: Upload twinmusic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: twinmusic-${{ matrix.os }}
+          path: staging/twinmusic
+          if-no-files-found: error
+
+      - name: Upload twinpss artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: twinpss-${{ matrix.os }}
+          path: staging/twinpss
+          if-no-files-found: error
